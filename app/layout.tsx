@@ -4,7 +4,7 @@ import "./brand.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? "https://oficina-saas.vercel.app",
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://oficina-saas-green.vercel.app",
   ),
   title: "Natinho Scooters — operação sob controle",
   description: "O centro de comando da Natinho Scooters.",
