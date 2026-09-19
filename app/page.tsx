@@ -4,6 +4,7 @@ import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { useWorkshop } from "../hooks/useWorkshop";
 import { downloadTextFile } from "../lib/download";
 import {
+  calculateOrderMetrics,
   formatAgendaDate,
   formatLongDate,
   ordersToCsv,
@@ -326,6 +327,28 @@ export default function Home() {
           )}
         </div>
       </section>
+      <nav className="mobile-nav" aria-label="Navegação móvel">
+        {nav.map(([icon, label]) => (
+          <button
+            key={label}
+            className={section === label ? "active" : ""}
+            onClick={() => {
+              setSection(label);
+              setQuery("");
+            }}
+          >
+            <Icon>{icon}</Icon>
+            <span>{label === "Ordens de serviço" ? "Ordens" : label}</span>
+          </button>
+        ))}
+        <button
+          className={section === "Configurações" ? "active" : ""}
+          onClick={() => setSection("Configurações")}
+        >
+          <Icon>⚙</Icon>
+          <span>Ajustes</span>
+        </button>
+      </nav>
       {modal && (
         <Modal
           title={
@@ -405,26 +428,30 @@ function Dashboard({
   setSection: (s: (typeof nav)[number][1]) => void;
 }) {
   const priorities = orders.filter((o) => o.status !== "Concluída").slice(0, 3);
+  const metrics = calculateOrderMetrics(orders);
+  const monthlyTarget = 60_000;
+  const goalPercentage = Math.min(
+    100,
+    Math.round((metrics.revenue / monthlyTarget) * 100),
+  );
   return (
     <>
       <section className="metrics">
         <Metric
           label="Faturamento do mês"
-          value="R$ 48.240,00"
-          trend="12,5%"
-          detail="vs. R$ 42.870 no mês anterior"
+          value={money.format(metrics.revenue)}
+          detail={`${metrics.completedOrders} serviços concluídos`}
         />
         <Metric
           label="Ordens em aberto"
-          value={`${priorities.length + 9} serviços`}
-          detail="8 em execução · 4 aguardando"
+          value={`${metrics.openOrders} serviços`}
+          detail={`${orders.filter((order) => order.status === "Em execução").length} em execução · ${orders.filter((order) => order.status === "Aguardando aprovação").length} aguardando`}
           bars
         />
         <Metric
           label="Ticket médio"
-          value="R$ 386,00"
-          trend="8,2%"
-          detail="vs. R$ 357 no mês anterior"
+          value={money.format(metrics.averageTicket)}
+          detail="média dos serviços concluídos"
           bars
         />
       </section>
@@ -468,14 +495,14 @@ function Dashboard({
           <p className="overline">META DO MÊS</p>
           <h2>Quase lá.</h2>
           <p>
-            Você já atingiu <b>80%</b> da sua meta mensal.
+            Você já atingiu <b>{goalPercentage}%</b> da sua meta mensal.
           </p>
           <div className="goal-progress">
-            <i />
+            <i style={{ width: `${goalPercentage}%` }} />
           </div>
           <div className="goal-values">
-            <span>R$ 48.240</span>
-            <span>R$ 60.000</span>
+            <span>{money.format(metrics.revenue)}</span>
+            <span>{money.format(monthlyTarget)}</span>
           </div>
           <button onClick={() => setSection("Relatórios")}>
             Ver desempenho <Icon>→</Icon>
@@ -719,27 +746,29 @@ function Reports({
   clients: Client[];
   onExport: () => void;
 }) {
+  const metrics = calculateOrderMetrics(orders);
+  const recurringClients = clients.filter((client) => client.visits > 1).length;
+  const recurringRate = clients.length
+    ? Math.round((recurringClients / clients.length) * 100)
+    : 0;
   return (
     <>
       <section className="metrics report-metrics">
         <Metric
           label="Receita realizada"
-          value="R$ 48.240,00"
-          trend="12,5%"
-          detail="comparado ao mês anterior"
+          value={money.format(metrics.revenue)}
+          detail="valor dos serviços concluídos"
         />
         <Metric
           label="Serviços concluídos"
-          value={`${orders.filter((o) => o.status === "Concluída").length + 123}`}
-          trend="6,8%"
+          value={`${metrics.completedOrders}`}
           detail="no mês atual"
           bars
         />
         <Metric
           label="Clientes recorrentes"
-          value="68%"
-          trend="4,2%"
-          detail={`${clients.length * 17} clientes ativos`}
+          value={`${recurringRate}%`}
+          detail={`${clients.length} clientes ativos`}
           bars
         />
       </section>

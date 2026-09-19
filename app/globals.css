@@ -265,6 +265,16 @@ header {
   margin: auto;
   padding: 43px 46px 70px;
 }
+.mobile-nav {
+  display: none;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #f2c230;
+  outline-offset: 2px;
+}
 .page-intro {
   display: flex;
   align-items: center;
@@ -1380,7 +1390,45 @@ header {
     padding: 0 17px;
   }
   .content {
-    padding: 27px 17px 50px;
+    padding: 27px 17px calc(104px + env(safe-area-inset-bottom));
+  }
+  .mobile-nav {
+    position: fixed;
+    z-index: 40;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    left: 10px;
+    display: flex;
+    gap: 3px;
+    align-items: stretch;
+    overflow-x: auto;
+    padding: 7px;
+    border: 1px solid #303030;
+    border-radius: 18px;
+    background: #090909f2;
+    box-shadow: 0 14px 38px #000b;
+    backdrop-filter: blur(18px);
+  }
+  .mobile-nav button {
+    min-width: 54px;
+    flex: 1 0 54px;
+    display: grid;
+    place-items: center;
+    gap: 3px;
+    padding: 8px 5px;
+    border: 0;
+    border-radius: 12px;
+    color: #aaa9a3;
+    background: transparent;
+    font-size: 8px;
+    white-space: nowrap;
+  }
+  .mobile-nav .icon {
+    font-size: 15px;
+  }
+  .mobile-nav button.active {
+    color: #090909;
+    background: #f2c230;
   }
   .crumb span,
   .crumb b {
@@ -1495,7 +1543,7 @@ header {
   }
   .toast {
     right: 17px;
-    bottom: 17px;
+    bottom: calc(96px + env(safe-area-inset-bottom));
   }
   .service-chart > div {
     grid-template-columns: 82px 1fr 60px;

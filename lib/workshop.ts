@@ -276,14 +276,99 @@ export function advanceOrderStatus(
   };
 }
 
+const orderStatuses: Status[] = [
+  "Agendada",
+  "Em execução",
+  "Aguardando aprovação",
+  "Concluída",
+];
+const appointmentStatuses: AppointmentStatus[] = [
+  "Confirmado",
+  "A confirmar",
+  "Em atendimento",
+];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isWorkOrder(value: unknown): value is WorkOrder {
+  if (!isRecord(value)) return false;
+  return (
+    isString(value.id) &&
+    isString(value.client) &&
+    isString(value.car) &&
+    isString(value.service) &&
+    isString(value.status) &&
+    orderStatuses.includes(value.status as Status) &&
+    isNumber(value.value) &&
+    isString(value.date) &&
+    isString(value.mechanic)
+  );
+}
+
+function isClient(value: unknown): value is Client {
+  if (!isRecord(value)) return false;
+  return (
+    isNumber(value.id) &&
+    isString(value.name) &&
+    isString(value.phone) &&
+    isString(value.email) &&
+    isString(value.car) &&
+    isNumber(value.visits) &&
+    isNumber(value.total) &&
+    isString(value.lastVisit)
+  );
+}
+
+function isAppointment(value: unknown): value is Appointment {
+  if (!isRecord(value)) return false;
+  return (
+    isString(value.time) &&
+    isString(value.client) &&
+    isString(value.car) &&
+    isString(value.service) &&
+    isString(value.mechanic) &&
+    isString(value.status) &&
+    appointmentStatuses.includes(value.status as AppointmentStatus)
+  );
+}
+
 function isWorkshopState(value: unknown): value is WorkshopState {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<WorkshopState>;
   return (
     Array.isArray(candidate.orders) &&
+    candidate.orders.every(isWorkOrder) &&
     Array.isArray(candidate.clients) &&
-    Array.isArray(candidate.appointments)
+    candidate.clients.every(isClient) &&
+    Array.isArray(candidate.appointments) &&
+    candidate.appointments.every(isAppointment)
   );
+}
+
+export function calculateOrderMetrics(orders: WorkOrder[]): {
+  openOrders: number;
+  completedOrders: number;
+  revenue: number;
+  averageTicket: number;
+} {
+  const completed = orders.filter((order) => order.status === "Concluída");
+  const revenue = completed.reduce((total, order) => total + order.value, 0);
+  return {
+    openOrders: orders.length - completed.length,
+    completedOrders: completed.length,
+    revenue,
+    averageTicket: completed.length ? revenue / completed.length : 0,
+  };
 }
 
 export function serializeWorkshop(state: WorkshopState): string {

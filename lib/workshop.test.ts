@@ -3,6 +3,7 @@ import {
   addAppointment,
   addOrder,
   advanceOrderStatus,
+  calculateOrderMetrics,
   formatAgendaDate,
   formatLongDate,
   initialWorkshopState,
@@ -23,6 +24,15 @@ describe("workshop domain", () => {
     const restored = parseWorkshop(JSON.stringify({ version: 99, state: {} }));
 
     expect(restored).toEqual(initialWorkshopState);
+  });
+
+  it("falls back when persisted records do not match the domain shape", () => {
+    const raw = JSON.stringify({
+      version: 1,
+      state: { orders: [{}], clients: [], appointments: [] },
+    });
+
+    expect(parseWorkshop(raw)).toEqual(initialWorkshopState);
   });
 
   it("moves an order forward and never reopens a completed order", () => {
@@ -123,6 +133,15 @@ describe("workshop domain", () => {
     expect(formatAgendaDate(new Date(2026, 8, 19))).toEqual({
       date: "19 de setembro",
       weekday: "sábado",
+    });
+  });
+
+  it("derives operational metrics from the real order collection", () => {
+    expect(calculateOrderMetrics(initialWorkshopState.orders)).toEqual({
+      openOrders: 3,
+      completedOrders: 2,
+      revenue: 970,
+      averageTicket: 485,
     });
   });
 });
