@@ -24,8 +24,14 @@ describe("workshop domain", () => {
   });
 
   it("moves an order forward and never reopens a completed order", () => {
-    const scheduled = { ...initialWorkshopState.orders[2], status: "Agendada" as const };
-    const running = advanceOrderStatus({ ...initialWorkshopState, orders: [scheduled] }, scheduled.id);
+    const scheduled = {
+      ...initialWorkshopState.orders[2],
+      status: "Agendada" as const,
+    };
+    const running = advanceOrderStatus(
+      { ...initialWorkshopState, orders: [scheduled] },
+      scheduled.id,
+    );
     const completed = advanceOrderStatus(running, scheduled.id);
     const unchanged = advanceOrderStatus(completed, scheduled.id);
 
@@ -55,11 +61,23 @@ describe("workshop domain", () => {
 
   it("sorts new appointments chronologically", () => {
     const result = addAppointment(
-      { ...initialWorkshopState, appointments: initialWorkshopState.appointments.slice(0, 1) },
-      { time: "07:45", client: "Bianca Lima", car: "Yamaha NMax 2025", service: "Revisão", mechanic: "Rafael" },
+      {
+        ...initialWorkshopState,
+        appointments: initialWorkshopState.appointments.slice(0, 1),
+      },
+      {
+        time: "07:45",
+        client: "Bianca Lima",
+        car: "Yamaha NMax 2025",
+        service: "Revisão",
+        mechanic: "Rafael",
+      },
     );
 
-    expect(result.appointments.map((item) => item.time)).toEqual(["07:45", "08:30"]);
+    expect(result.appointments.map((item) => item.time)).toEqual([
+      "07:45",
+      "08:30",
+    ]);
   });
 
   it("round-trips versioned workshop data without losing records", () => {
@@ -73,7 +91,11 @@ describe("workshop domain", () => {
 
     const restored = parseWorkshop(serializeWorkshop(changed));
 
-    expect(restored.orders[0]).toMatchObject({ id: "OS-1049", client: "Bianca Lima", value: 450 });
+    expect(restored.orders[0]).toMatchObject({
+      id: "OS-1049",
+      client: "Bianca Lima",
+      value: 450,
+    });
   });
 
   it("escapes commas, quotes and line breaks in CSV fields", () => {
@@ -84,8 +106,8 @@ describe("workshop domain", () => {
     };
 
     expect(ordersToCsv([order])).toBe(
-      'Ordem,Cliente,Veículo,Serviço,Responsável,Status,Valor,Data\r\n' +
-      'OS-1048,"Ana, ""Naná""",Toyota Corolla 2021,"Troca\nde óleo",Rafael,Em execução,1240,"Hoje, 14:30"',
+      "Ordem,Cliente,Veículo,Serviço,Responsável,Status,Valor,Data\r\n" +
+        'OS-1048,"Ana, ""Naná""",Toyota Corolla 2021,"Troca\nde óleo",Rafael,Em execução,1240,"Hoje, 14:30"',
     );
   });
 });
