@@ -1,8 +1,18 @@
 "use client";
 
-import { FormEvent, ReactNode, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { useWorkshop } from "../hooks/useWorkshop";
-import type { Appointment, Client, Status, WorkOrder } from "../lib/workshop";
+import { downloadTextFile } from "../lib/download";
+import {
+  formatAgendaDate,
+  formatLongDate,
+  ordersToCsv,
+  serializeWorkshop,
+  type Appointment,
+  type Client,
+  type Status,
+  type WorkOrder,
+} from "../lib/workshop";
 const nav = [
   ["▦", "Visão geral"],
   ["⌁", "Ordens de serviço"],
@@ -45,9 +55,11 @@ export default function Home() {
   const [modal, setModal] = useState<"order" | "client" | "appointment" | null>(
     null,
   );
-  const [dark, setDark] = useState(false);
   const [notice, setNotice] = useState("");
   const [settingsTab, setSettingsTab] = useState("Empresa");
+  const today = new Date();
+  const longDate = formatLongDate(today);
+  const agendaDate = formatAgendaDate(today);
   const filteredOrders = useMemo(
     () =>
       orders.filter(
@@ -114,11 +126,27 @@ export default function Home() {
     updateOrderStatus(id);
     inform("Status da ordem atualizado.");
   };
+  const exportOrders = () => {
+    downloadTextFile(
+      "ordens-natinho-scooters.csv",
+      ordersToCsv(orders),
+      "text/csv;charset=utf-8",
+    );
+    inform("Relatório CSV baixado.");
+  };
+  const exportBackup = () => {
+    downloadTextFile(
+      "backup-natinho-scooters.json",
+      serializeWorkshop({ orders, clients, appointments }),
+      "application/json;charset=utf-8",
+    );
+    inform("Backup local baixado.");
+  };
   const title = section === "Visão geral" ? "Bom dia, Marcelo" : section;
   return (
-    <main className={`app ${dark ? "dark" : ""}`}>
+    <main className="app" aria-busy={!hydrated}>
       <aside className="sidebar">
-        <a className="brand" href="#">
+        <a className="brand" href="#" aria-label="Ir para visão geral">
           <img className="brand-logo" src="/logo.jpg" alt="Natinho Scooters" />
         </a>
         <div className="workshop">
@@ -127,7 +155,12 @@ export default function Home() {
             <strong>Natinho Scooters</strong>
             <small>Plano Pro</small>
           </span>
-          <button>⌄</button>
+          <button
+            aria-label="Ver oficina ativa"
+            onClick={() => inform("Natinho Scooters é a oficina ativa.")}
+          >
+            ⌄
+          </button>
         </div>
         <nav>
           {nav.map(([icon, label]) => (
@@ -174,19 +207,38 @@ export default function Home() {
             <strong>{section}</strong>
           </div>
           <div className="header-actions">
-            <button className="theme" onClick={() => setDark(!dark)}>
-              {dark ? "☀" : "◐"}
+            <span className="sync-status" role="status">
+              {hydrated ? "Dados salvos neste dispositivo" : "Carregando dados"}
+            </span>
+            <button
+              className="theme"
+              onClick={exportBackup}
+              aria-label="Baixar backup dos dados"
+            >
+              ⇩
             </button>
-            <button className="bell">
+            <button
+              className="bell"
+              aria-label="Abrir notificações"
+              onClick={() => inform("Nenhuma notificação nova.")}
+            >
               ●<i />
             </button>
-            <button className="profile">MC</button>
+            <button
+              className="profile"
+              aria-label="Abrir perfil de Marcelo Costa"
+              onClick={() => setSection("Configurações")}
+            >
+              MC
+            </button>
           </div>
         </header>
         <div className="content">
           <section className="page-intro">
             <div>
-              <p className="overline">SEXTA-FEIRA, 18 DE SETEMBRO</p>
+              <p className="overline" suppressHydrationWarning>
+                {longDate}
+              </p>
               <h1>
                 {title} {section === "Visão geral" && <span>✦</span>}
               </h1>
@@ -244,7 +296,13 @@ export default function Home() {
               advanceOrder={advanceOrder}
             />
           )}
-          {section === "Agenda" && <Agenda appointments={appointments} />}
+          {section === "Agenda" && (
+            <Agenda
+              appointments={appointments}
+              date={agendaDate}
+              onNew={() => setModal("appointment")}
+            />
+          )}
           {section === "Clientes" && (
             <Clients
               clients={filteredClients}
@@ -253,7 +311,11 @@ export default function Home() {
             />
           )}
           {section === "Relatórios" && (
-            <Reports orders={orders} clients={clients} />
+            <Reports
+              orders={orders}
+              clients={clients}
+              onExport={exportOrders}
+            />
           )}
           {section === "Configurações" && (
             <Settings
@@ -454,9 +516,9 @@ function Orders({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar por cliente, veículo ou OS"
+            aria-label="Buscar ordens de serviço"
           />
         </label>
-        <button className="filter-button">↕ Mais filtros</button>
       </div>
       <div className="filter-tabs">
         {statuses.map((s) => (
@@ -497,17 +559,37 @@ function Orders({
     </section>
   );
 }
-function Agenda({ appointments }: { appointments: Appointment[] }) {
+function Agenda({
+  appointments,
+  date,
+  onNew,
+}: {
+  appointments: Appointment[];
+  date: { date: string; weekday: string };
+  onNew: () => void;
+}) {
   return (
     <>
       <section className="calendar-nav card">
-        <button>‹</button>
+        <button
+          aria-label="Dia anterior"
+          disabled
+          title="Disponível com a agenda compartilhada"
+        >
+          ‹
+        </button>
         <div>
-          <b>Hoje, 18 de setembro</b>
-          <span>sexta-feira</span>
+          <b suppressHydrationWarning>Hoje, {date.date}</b>
+          <span suppressHydrationWarning>{date.weekday}</span>
         </div>
-        <button>Hoje</button>
-        <button>›</button>
+        <button disabled>Hoje</button>
+        <button
+          aria-label="Próximo dia"
+          disabled
+          title="Disponível com a agenda compartilhada"
+        >
+          ›
+        </button>
       </section>
       <section className="agenda">
         <div className="agenda-hours">
@@ -542,7 +624,9 @@ function Agenda({ appointments }: { appointments: Appointment[] }) {
               <em>{a.status}</em>
             </article>
           ))}
-          <button className="empty-slot">+ Horário disponível</button>
+          <button className="empty-slot" onClick={onNew}>
+            + Horário disponível
+          </button>
         </div>
       </section>
       <section className="card panel agenda-summary">
@@ -580,9 +664,9 @@ function Clients({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar cliente, telefone ou veículo"
+            aria-label="Buscar clientes"
           />
         </label>
-        <button className="filter-button">⇅ Ordenar</button>
       </div>
       <div className="client-grid">
         {clients.map((c) => (
@@ -595,7 +679,6 @@ function Clients({
                   .join("")
                   .slice(0, 2)}
               </i>
-              <button>•••</button>
             </div>
             <h3>{c.name}</h3>
             <p>{c.car}</p>
@@ -613,7 +696,7 @@ function Clients({
             </div>
             <footer>
               <small>Última visita: {c.lastVisit}</small>
-              <button>Ver perfil →</button>
+              <small>Histórico local</small>
             </footer>
           </article>
         ))}
@@ -630,9 +713,11 @@ function Clients({
 function Reports({
   orders,
   clients,
+  onExport,
 }: {
   orders: WorkOrder[];
   clients: Client[];
+  onExport: () => void;
 }) {
   return (
     <>
@@ -663,7 +748,6 @@ function Reports({
           <PanelTitle
             title="Receita por serviço"
             description="Distribuição no período"
-            action="Setembro ▾"
           />
           <div className="service-chart">
             {[
@@ -709,6 +793,7 @@ function Reports({
           title="Últimos recebimentos"
           description="Acompanhe o fluxo financeiro"
           action="Exportar CSV"
+          onClick={onExport}
         />
         <div className="receipts">
           {orders
@@ -999,6 +1084,14 @@ function Modal({
   onClose: () => void;
   children: ReactNode;
 }) {
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <section
@@ -1013,7 +1106,9 @@ function Modal({
             <p className="overline">NATINHO SCOOTERS</p>
             <h2>{title}</h2>
           </div>
-          <button onClick={onClose}>×</button>
+          <button onClick={onClose} aria-label="Fechar janela">
+            ×
+          </button>
         </div>
         {children}
       </section>

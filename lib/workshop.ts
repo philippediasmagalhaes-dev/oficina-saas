@@ -335,3 +335,23 @@ export function ordersToCsv(orders: WorkOrder[]): string {
     .map((row) => row.map(escapeCsv).join(","))
     .join("\r\n");
 }
+
+export function formatLongDate(date: Date): string {
+  return date
+    .toLocaleDateString("pt-BR", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+    })
+    .toLocaleUpperCase("pt-BR");
+}
+
+export function formatAgendaDate(date: Date): {
+  date: string;
+  weekday: string;
+} {
+  return {
+    date: date.toLocaleDateString("pt-BR", { day: "2-digit", month: "long" }),
+    weekday: date.toLocaleDateString("pt-BR", { weekday: "long" }),
+  };
+}

@@ -3,6 +3,8 @@ import {
   addAppointment,
   addOrder,
   advanceOrderStatus,
+  formatAgendaDate,
+  formatLongDate,
   initialWorkshopState,
   ordersToCsv,
   parseWorkshop,
@@ -109,5 +111,18 @@ describe("workshop domain", () => {
       "Ordem,Cliente,Veículo,Serviço,Responsável,Status,Valor,Data\r\n" +
         'OS-1048,"Ana, ""Naná""",Toyota Corolla 2021,"Troca\nde óleo",Rafael,Em execução,1240,"Hoje, 14:30"',
     );
+  });
+
+  it("formats the current heading date in Brazilian Portuguese", () => {
+    expect(formatLongDate(new Date(2026, 8, 19))).toBe(
+      "SÁBADO, 19 DE SETEMBRO",
+    );
+  });
+
+  it("formats the agenda date without hard-coded calendar text", () => {
+    expect(formatAgendaDate(new Date(2026, 8, 19))).toEqual({
+      date: "19 de setembro",
+      weekday: "sábado",
+    });
   });
 });
