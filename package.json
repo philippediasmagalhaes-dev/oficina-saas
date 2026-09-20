@@ -8,7 +8,10 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx db/migrate.ts",
+    "db:seed-owner": "tsx db/seed-owner.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -28,10 +31,16 @@
     "@types/ws": "^8.18.1",
     "drizzle-kit": "^0.31.4",
     "prettier": "^3.6.2",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.1"
   },
   "optionalDependencies": {
     "@rolldown/binding-win32-x64-msvc": "^1.2.9"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.0"
+    }
   }
 }
