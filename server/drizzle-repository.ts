@@ -265,6 +265,25 @@ export function createDrizzleRepository(
       const [row] = await database.insert(customers).values(input).returning();
       return row;
     },
+    async updateCustomer(input) {
+      const [row] = await database
+        .update(customers)
+        .set({
+          name: input.name,
+          phone: input.phone,
+          email: input.email,
+          whatsappConsent: input.whatsappConsent,
+          notes: input.notes,
+        })
+        .where(
+          and(
+            eq(customers.workshopId, input.workshopId),
+            eq(customers.id, input.customerId),
+          ),
+        )
+        .returning();
+      return row ?? null;
+    },
     async createVehicle(input) {
       const [row] = await database.insert(vehicles).values(input).returning();
       return row;

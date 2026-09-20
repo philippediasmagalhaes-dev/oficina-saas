@@ -499,6 +499,14 @@ textarea:focus {
 .form-grid .primary-button {
   justify-self: start;
 }
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+.edit-customer-card {
+  max-width: 52rem;
+}
 .inline-form {
   display: grid;
   grid-template-columns: 0.7fr 1fr auto;
@@ -556,6 +564,53 @@ textarea:focus {
 
 .finance-metrics {
   grid-template-columns: 1.4fr repeat(3, 1fr);
+}
+.filter-surface {
+  padding-block: 1rem;
+}
+.finance-filter {
+  display: grid;
+  grid-template-columns:
+    minmax(14rem, 1.6fr) minmax(10rem, 0.8fr) minmax(9rem, 0.65fr)
+    minmax(9rem, 0.65fr) auto;
+  align-items: end;
+  gap: 0.7rem;
+}
+.finance-filter label {
+  display: grid;
+  gap: 0.38rem;
+  color: #c9c9cc;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+.filter-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.filter-hint {
+  margin: 0.65rem 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+.filter-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1.15rem 0.25rem 0.75rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.filter-result strong {
+  color: var(--text);
+}
+.finance-entry-link {
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+}
+.finance-entry-link:hover {
+  color: var(--yellow);
 }
 .revenue-chart {
   display: grid;
@@ -853,6 +908,12 @@ textarea:focus {
 .list-meta small {
   color: var(--muted);
 }
+.list-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+}
 
 .opportunity-grid,
 .inventory-grid {
@@ -1045,6 +1106,13 @@ textarea:focus {
   .finance-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .finance-filter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .filter-search,
+  .filter-actions {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 820px) {
@@ -1151,6 +1219,21 @@ textarea:focus {
   .list-meta {
     grid-column: 2;
     justify-items: start;
+  }
+  .list-actions {
+    grid-column: 2;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .finance-filter {
+    grid-template-columns: 1fr;
+  }
+  .filter-search,
+  .filter-actions {
+    grid-column: auto;
+  }
+  .filter-actions > * {
+    flex: 1;
   }
   .settings-list {
     grid-template-columns: 1fr;

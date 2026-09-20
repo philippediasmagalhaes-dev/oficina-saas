@@ -1,4 +1,4 @@
-import { adjustInventoryAction, createCustomerAction, createInventoryItemAction, createServiceCatalogAction, createVehicleAction } from "../app/actions";
+import { adjustInventoryAction, createCustomerAction, createInventoryItemAction, createServiceCatalogAction, createVehicleAction, updateCustomerAction } from "../app/actions";
 import type { CustomerSummary, InventorySummary } from "../server/ports";
 
 export function CustomerForm() {
@@ -9,6 +9,18 @@ export function CustomerForm() {
     <label className="check-row span-2"><input name="whatsappConsent" type="checkbox" /> Cliente autorizou contato pelo WhatsApp</label>
     <label className="span-2">Observações<textarea name="notes" rows={3} placeholder="Preferências ou informações importantes" /></label>
     <button className="primary-button" type="submit">Salvar cliente</button>
+  </form>;
+}
+
+export function CustomerEditForm({ customer }: { customer: CustomerSummary }) {
+  return <form action={updateCustomerAction} className="form-grid">
+    <input type="hidden" name="customerId" value={customer.id} />
+    <label className="span-2">Nome<input name="name" required minLength={2} defaultValue={customer.name} /></label>
+    <label>WhatsApp<input name="phone" inputMode="tel" defaultValue={customer.phone ?? ""} placeholder="(11) 99999-9999" /></label>
+    <label>E-mail<input name="email" type="email" defaultValue={customer.email ?? ""} placeholder="cliente@email.com" /></label>
+    <label className="check-row span-2"><input name="whatsappConsent" type="checkbox" defaultChecked={customer.whatsappConsent} /> Cliente autorizou contato pelo WhatsApp</label>
+    <label className="span-2">Observações<textarea name="notes" rows={4} defaultValue={customer.notes ?? ""} placeholder="Preferências ou informações importantes" /></label>
+    <div className="form-actions span-2"><button className="primary-button" type="submit">Salvar alterações</button><a className="secondary-button" href="/clientes">Cancelar</a></div>
   </form>;
 }
 

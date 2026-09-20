@@ -148,6 +148,15 @@ export interface CrmRepository {
       "id" | "lastServiceAt" | "nextDueAt" | "vehicleCount"
     >,
   ): Promise<CustomerSummary>;
+  updateCustomer(input: {
+    workshopId: string;
+    customerId: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    whatsappConsent: boolean;
+    notes: string | null;
+  }): Promise<CustomerSummary | null>;
   createVehicle(input: Omit<VehicleSummary, "id">): Promise<VehicleSummary>;
   createServiceCatalogItem(
     input: Omit<ServiceCatalogSummary, "id" | "active">,

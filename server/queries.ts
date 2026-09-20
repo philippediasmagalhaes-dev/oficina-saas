@@ -1,5 +1,10 @@
 import { classifyCustomer } from "../domain/forecast";
 import { buildFinancialSnapshot } from "../domain/finance";
+import {
+  describeFinancialPeriod,
+  filterFinancialServices,
+  type FinancialFilters,
+} from "../domain/service-filters";
 import { getOwnerContext } from "./owner-context";
 
 export async function getDashboardData() {
@@ -17,18 +22,24 @@ export async function getDashboardData() {
       inactivityDays: context.workshop.inactivityDays,
     }),
   }));
+  const currentMonthServices = filterFinancialServices(services, {
+    period: "current_month",
+    query: "",
+    from: "",
+    to: "",
+  });
   return {
     ...context,
     customers,
-    services,
+    services: currentMonthServices,
     inventory,
     retention,
     metrics: {
-      revenueCents: services.reduce(
+      revenueCents: currentMonthServices.reduce(
         (total, service) => total + service.amountCents,
         0,
       ),
-      serviceCount: services.length,
+      serviceCount: currentMonthServices.length,
       customerCount: customers.length,
       opportunities: retention.filter(
         (customer) => customer.classification !== "current",
@@ -45,6 +56,17 @@ export async function getCustomers() {
   return {
     ...context,
     customers: await context.repository.listCustomers(context.workshopId),
+  };
+}
+
+export async function getCustomer(customerId: string) {
+  const context = await getOwnerContext();
+  return {
+    ...context,
+    customer: await context.repository.findCustomer(
+      context.workshopId,
+      customerId,
+    ),
   };
 }
 
@@ -97,8 +119,15 @@ export async function getInventory() {
   };
 }
 
-export async function getFinancialDashboard() {
+export async function getFinancialDashboard(filters: FinancialFilters) {
   const context = await getOwnerContext();
-  const services = await context.repository.listServices(context.workshopId);
-  return { ...context, services, snapshot: buildFinancialSnapshot(services) };
+  const allServices = await context.repository.listServices(context.workshopId);
+  const services = filterFinancialServices(allServices, filters);
+  return {
+    ...context,
+    services,
+    snapshot: buildFinancialSnapshot(services),
+    periodLabel: describeFinancialPeriod(filters),
+    customerCount: new Set(services.map((service) => service.customerId)).size,
+  };
 }

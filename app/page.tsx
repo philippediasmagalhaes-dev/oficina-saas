@@ -26,14 +26,14 @@ export default async function Home() {
       </div>
       <section className="metric-grid">
         <article className="metric-card featured">
-          <span>Receita registrada</span>
+          <span>Receita no mês</span>
           <strong>{formatCents(data.metrics.revenueCents)}</strong>
-          <small>histórico de serviços</small>
+          <small>serviços realizados no mês atual</small>
         </article>
         <article className="metric-card">
           <span>Serviços</span>
           <strong>{data.metrics.serviceCount}</strong>
-          <small>concluídos</small>
+          <small>concluídos neste mês</small>
         </article>
         <article className="metric-card">
           <span>Clientes</span>
@@ -54,8 +54,8 @@ export default async function Home() {
       <section className="surface">
         <div className="section-title">
           <div>
-            <span>Atividade recente</span>
-            <h2>Últimos serviços</h2>
+            <span>Mês atual</span>
+            <h2>Serviços realizados neste mês</h2>
           </div>
           <a href="/servicos">Ver todos</a>
         </div>
@@ -98,8 +98,8 @@ export default async function Home() {
           </div>
         ) : (
           <EmptyState
-            title="Nenhum serviço registrado"
-            description="Registre o primeiro atendimento para começar a formar previsões de retorno."
+            title="Nenhum serviço neste mês"
+            description="Os atendimentos do mês atual aparecerão aqui assim que forem registrados."
             action="Registrar serviço"
             href="/servicos#novo"
           />

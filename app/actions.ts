@@ -45,6 +45,24 @@ export async function createCustomerAction(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function updateCustomerAction(formData: FormData) {
+  const { workshopId, repository } = await getOwnerContext();
+  const customerId = String(formData.get("customerId") ?? "");
+  const input = parse(customerSchema.safeParse(formObject(formData)));
+  const customer = await repository.updateCustomer({
+    workshopId,
+    customerId,
+    ...input,
+  });
+  if (!customer) throw new Error("Cliente não encontrado.");
+  revalidatePath("/clientes");
+  revalidatePath("/servicos");
+  revalidatePath("/retencao");
+  revalidatePath("/financeiro");
+  revalidatePath("/");
+  redirect("/clientes");
+}
+
 export async function createVehicleAction(formData: FormData) {
   const { workshopId, repository } = await getOwnerContext();
   const input = parse(vehicleSchema.safeParse(formObject(formData)));
