@@ -1,4 +1,8 @@
-export type CustomerClassification = "upcoming" | "overdue" | "inactive" | "current";
+export type CustomerClassification =
+  | "upcoming"
+  | "overdue"
+  | "inactive"
+  | "current";
 
 type ForecastInput = {
   nextDueAt: string | Date | null;
@@ -9,12 +13,19 @@ type ForecastInput = {
 const DAY_MS = 86_400_000;
 
 function calendarDay(value: string | Date): number {
-  const date = value instanceof Date ? value : new Date(`${value.slice(0, 10)}T00:00:00Z`);
+  const date =
+    value instanceof Date ? value : new Date(`${value.slice(0, 10)}T00:00:00Z`);
   if (Number.isNaN(date.getTime())) throw new Error("Data inválida");
-  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) / DAY_MS;
+  return (
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) /
+    DAY_MS
+  );
 }
 
-export function classifyCustomer(input: ForecastInput, now = new Date()): CustomerClassification {
+export function classifyCustomer(
+  input: ForecastInput,
+  now = new Date(),
+): CustomerClassification {
   const today = calendarDay(now);
 
   if (input.nextDueAt) {
@@ -24,17 +35,34 @@ export function classifyCustomer(input: ForecastInput, now = new Date()): Custom
     return "current";
   }
 
-  if (input.lastServiceAt && today - calendarDay(input.lastServiceAt) >= input.inactivityDays) {
+  if (
+    input.lastServiceAt &&
+    today - calendarDay(input.lastServiceAt) >= input.inactivityDays
+  ) {
     return "inactive";
   }
 
   return "current";
 }
 
-export function deriveNextDueAt(completedAt: Date, intervalDays: number | null): Date | null {
+export function deriveNextDueAt(
+  completedAt: Date,
+  intervalDays: number | null,
+): Date | null {
   if (intervalDays === null) return null;
-  if (!Number.isInteger(intervalDays) || intervalDays <= 0) throw new Error("Intervalo inválido");
+  if (!Number.isInteger(intervalDays) || intervalDays <= 0)
+    throw new Error("Intervalo inválido");
   const next = new Date(completedAt);
   next.setUTCDate(next.getUTCDate() + intervalDays);
   return next;
+}
+
+export function deriveNextDueDateValue(
+  completedAt: string,
+  intervalDays: number | null,
+): string {
+  if (!completedAt || intervalDays === null) return "";
+  const date = new Date(`${completedAt}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "";
+  return deriveNextDueAt(date, intervalDays)?.toISOString().slice(0, 10) ?? "";
 }

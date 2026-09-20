@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildWhatsAppDraft } from "./outreach";
+import { buildServiceReadyDraft, buildWhatsAppDraft } from "./outreach";
 
-const base = { phone: "11999999999", consent: true, customer: "Ana", workshop: "Oficina" };
+const base = {
+  phone: "11999999999",
+  consent: true,
+  customer: "Ana",
+  workshop: "Oficina",
+};
 
 describe("WhatsApp outreach", () => {
   it("requires explicit consent", () => {
@@ -17,5 +22,19 @@ describe("WhatsApp outreach", () => {
     expect(draft?.url).toMatch(/^https:\/\/wa\.me\/5511999999999\?text=/);
     expect(draft?.message).toContain("Ana");
     expect(draft?.message).toContain("Oficina");
+  });
+
+  it("creates a ready-for-pickup message with the vehicle", () => {
+    const draft = buildServiceReadyDraft({
+      ...base,
+      vehicle: "Honda Civic · ABC1D23",
+    });
+    expect(draft?.message).toContain("está pronto");
+    expect(draft?.message).toContain("Honda Civic · ABC1D23");
+    expect(draft?.url).toMatch(/^https:\/\/wa\.me\/5511999999999\?text=/);
+  });
+
+  it("does not create a ready notice without consent", () => {
+    expect(buildServiceReadyDraft({ ...base, consent: false })).toBeNull();
   });
 });
