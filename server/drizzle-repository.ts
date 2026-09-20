@@ -62,6 +62,9 @@ export function createDrizzleRepository(database: Database = getDatabase()): Crm
         };
       });
     },
+    async listVehicles(workshopId) {
+      return database.select().from(vehicles).where(eq(vehicles.workshopId, workshopId)).orderBy(vehicles.plate);
+    },
     async listServices(workshopId) {
       return database
         .select({

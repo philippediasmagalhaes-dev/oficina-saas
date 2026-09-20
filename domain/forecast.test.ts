@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyCustomer } from "./forecast";
+import { classifyCustomer, deriveNextDueAt } from "./forecast";
 
 describe("customer forecast", () => {
   it.each([
@@ -13,5 +13,10 @@ describe("customer forecast", () => {
 
   it("keeps a due date beyond 30 days current", () => {
     expect(classifyCustomer({ nextDueAt: "2026-11-01", lastServiceAt: "2026-09-01", inactivityDays: 180 }, new Date("2026-09-20T12:00:00Z"))).toBe("current");
+  });
+
+  it("derives a due date from the completed date and interval", () => {
+    expect(deriveNextDueAt(new Date("2026-09-20T12:00:00Z"), 180)?.toISOString()).toBe("2027-03-19T12:00:00.000Z");
+    expect(deriveNextDueAt(new Date("2026-09-20T12:00:00Z"), null)).toBeNull();
   });
 });

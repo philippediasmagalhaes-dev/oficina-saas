@@ -1,5 +1,5 @@
 import { adjustInventoryAction, createCustomerAction, createInventoryItemAction, createVehicleAction, recordServiceAction } from "../app/actions";
-import type { CustomerSummary, InventorySummary } from "../server/ports";
+import type { CustomerSummary, InventorySummary, VehicleSummary } from "../server/ports";
 
 export function CustomerForm() {
   return <form action={createCustomerAction} className="form-grid">
@@ -24,10 +24,10 @@ export function VehicleForm({ customers }: { customers: CustomerSummary[] }) {
   </form>;
 }
 
-export function ServiceForm({ customers, inventory }: { customers: CustomerSummary[]; inventory: InventorySummary[] }) {
+export function ServiceForm({ customers, vehicles, inventory }: { customers: CustomerSummary[]; vehicles: VehicleSummary[]; inventory: InventorySummary[] }) {
   return <form action={recordServiceAction} className="form-grid">
     <label className="span-2">Cliente<select name="customerId" required defaultValue=""><option value="" disabled>Selecione</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
-    <input name="vehicleId" type="hidden" value="" />
+    <label className="span-2">Veículo<select name="vehicleId" defaultValue=""><option value="">Sem veículo vinculado</option>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.plate} · {vehicle.make} {vehicle.model}</option>)}</select></label>
     <label className="span-2">Serviço realizado<input name="description" required placeholder="Ex.: revisão e troca de óleo" /></label>
     <label>Valor (R$)<input name="amount" required inputMode="decimal" placeholder="350,00" /></label>
     <label>Data<input name="completedAt" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>

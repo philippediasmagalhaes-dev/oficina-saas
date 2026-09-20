@@ -9,6 +9,7 @@ function fakeRepository(overrides: Partial<CrmRepository> = {}): CrmRepository {
     findCustomer: vi.fn(async () => ({ id: "customer-a", workshopId: "workshop-a", name: "Ana" })),
     findVehicle: vi.fn(async () => null),
     listCustomers: vi.fn(async () => []),
+    listVehicles: vi.fn(async () => []),
     listServices: vi.fn(async () => []),
     listInventory: vi.fn(async () => []),
     listContactEvents: vi.fn(async () => []),

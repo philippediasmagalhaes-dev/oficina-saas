@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { buildWhatsAppDraft } from "../domain/outreach";
+import { deriveNextDueAt } from "../domain/forecast";
 import { parseCurrencyToCents } from "../domain/money";
 import { createCrmService } from "../server/crm-service";
 import { createDrizzleRepository } from "../server/drizzle-repository";
@@ -56,6 +57,7 @@ export async function recordServiceAction(formData: FormData) {
     workshopId,
     ...input,
     amountCents: parseCurrencyToCents(input.amount),
+    nextDueAt: input.nextDueAt ?? deriveNextDueAt(input.completedAt, input.returnIntervalDays),
   });
   revalidatePath("/servicos");
   revalidatePath("/retencao");

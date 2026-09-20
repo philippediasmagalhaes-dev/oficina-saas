@@ -37,6 +37,7 @@ export interface CrmRepository {
   findCustomer(workshopId: string, customerId: string): Promise<CustomerSummary | null>;
   findVehicle(workshopId: string, vehicleId: string): Promise<VehicleSummary | null>;
   listCustomers(workshopId: string): Promise<CustomerSummary[]>;
+  listVehicles(workshopId: string): Promise<VehicleSummary[]>;
   listServices(workshopId: string): Promise<ServiceSummary[]>;
   listInventory(workshopId: string): Promise<InventorySummary[]>;
   listContactEvents(workshopId: string): Promise<ContactEventSummary[]>;

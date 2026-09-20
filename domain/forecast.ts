@@ -30,3 +30,11 @@ export function classifyCustomer(input: ForecastInput, now = new Date()): Custom
 
   return "current";
 }
+
+export function deriveNextDueAt(completedAt: Date, intervalDays: number | null): Date | null {
+  if (intervalDays === null) return null;
+  if (!Number.isInteger(intervalDays) || intervalDays <= 0) throw new Error("Intervalo inválido");
+  const next = new Date(completedAt);
+  next.setUTCDate(next.getUTCDate() + intervalDays);
+  return next;
+}

@@ -39,12 +39,13 @@ export async function getCustomers() {
 
 export async function getServiceRecords() {
   const context = await getOwnerContext();
-  const [services, customers, inventory] = await Promise.all([
+  const [services, customers, vehicles, inventory] = await Promise.all([
     context.repository.listServices(context.workshopId),
     context.repository.listCustomers(context.workshopId),
+    context.repository.listVehicles(context.workshopId),
     context.repository.listInventory(context.workshopId),
   ]);
-  return { ...context, services, customers, inventory };
+  return { ...context, services, customers, vehicles, inventory };
 }
 
 export async function getRetentionOpportunities() {
