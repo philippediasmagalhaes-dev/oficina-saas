@@ -6,18 +6,17 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL ?? "https://oficina-saas-green.vercel.app",
   ),
-  title: "Natinho Scooters — operação sob controle",
-  description: "O centro de comando da Natinho Scooters.",
-  applicationName: "Natinho Scooters",
+  title: "Oficina CRM — clientes que voltam",
+  description: "Clientes, serviços, retenção e estoque simples para oficinas.",
+  applicationName: "Oficina CRM",
   icons: { icon: "/logo.jpg", apple: "/logo.jpg" },
   openGraph: {
     type: "website",
     locale: "pt_BR",
-    title: "Natinho Scooters — operação sob controle",
-    description:
-      "Ordens de serviço, agenda, clientes e relatórios em um só lugar.",
+    title: "Oficina CRM — clientes que voltam",
+    description: "Clientes, serviços, retenção e estoque simples para oficinas.",
     images: [
-      { url: "/logo.jpg", width: 150, height: 150, alt: "Natinho Scooters" },
+      { url: "/logo.jpg", width: 150, height: 150, alt: "Oficina CRM" },
     ],
   },
 };

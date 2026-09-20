@@ -1,0 +1,64 @@
+import { adjustInventoryAction, createCustomerAction, createInventoryItemAction, createVehicleAction, recordServiceAction } from "../app/actions";
+import type { CustomerSummary, InventorySummary } from "../server/ports";
+
+export function CustomerForm() {
+  return <form action={createCustomerAction} className="form-grid">
+    <label className="span-2">Nome<input name="name" required minLength={2} placeholder="Nome completo" /></label>
+    <label>WhatsApp<input name="phone" inputMode="tel" placeholder="(11) 99999-9999" /></label>
+    <label>E-mail<input name="email" type="email" placeholder="cliente@email.com" /></label>
+    <label className="check-row span-2"><input name="whatsappConsent" type="checkbox" /> Cliente autorizou contato pelo WhatsApp</label>
+    <label className="span-2">Observações<textarea name="notes" rows={3} placeholder="Preferências ou informações importantes" /></label>
+    <button className="primary-button" type="submit">Salvar cliente</button>
+  </form>;
+}
+
+export function VehicleForm({ customers }: { customers: CustomerSummary[] }) {
+  return <form action={createVehicleAction} className="form-grid">
+    <label className="span-2">Cliente<select name="customerId" required defaultValue=""><option value="" disabled>Selecione</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
+    <label>Placa<input name="plate" required placeholder="ABC1D23" /></label>
+    <label>Marca<input name="make" required placeholder="Honda" /></label>
+    <label>Modelo<input name="model" required placeholder="CG 160" /></label>
+    <label>Ano<input name="year" type="number" min="1900" max="2100" /></label>
+    <label>Quilometragem<input name="odometer" type="number" min="0" /></label>
+    <button className="primary-button" type="submit">Adicionar veículo</button>
+  </form>;
+}
+
+export function ServiceForm({ customers, inventory }: { customers: CustomerSummary[]; inventory: InventorySummary[] }) {
+  return <form action={recordServiceAction} className="form-grid">
+    <label className="span-2">Cliente<select name="customerId" required defaultValue=""><option value="" disabled>Selecione</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
+    <input name="vehicleId" type="hidden" value="" />
+    <label className="span-2">Serviço realizado<input name="description" required placeholder="Ex.: revisão e troca de óleo" /></label>
+    <label>Valor (R$)<input name="amount" required inputMode="decimal" placeholder="350,00" /></label>
+    <label>Data<input name="completedAt" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
+    <label>Quilometragem<input name="odometer" type="number" min="0" /></label>
+    <label>Retorno em dias<input name="returnIntervalDays" type="number" min="1" placeholder="180" /></label>
+    <label>Data prevista<input name="nextDueAt" type="date" /></label>
+    <label>Item consumido<select name="inventoryItemId" defaultValue=""><option value="">Nenhum</option>{inventory.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.currentQuantity} {item.unit}</option>)}</select></label>
+    <label>Quantidade usada<input name="inventoryQuantity" type="number" min="1" /></label>
+    <label className="span-2">Observações<textarea name="notes" rows={3} /></label>
+    <button className="primary-button" type="submit">Registrar serviço</button>
+  </form>;
+}
+
+export function InventoryItemForm() {
+  return <form action={createInventoryItemAction} className="form-grid">
+    <label>SKU<input name="sku" placeholder="OLEO-10W30" /></label>
+    <label>Nome<input name="name" required placeholder="Óleo 10W30" /></label>
+    <label>Unidade<input name="unit" required defaultValue="un" /></label>
+    <label>Custo (R$)<input name="cost" required inputMode="decimal" defaultValue="0,00" /></label>
+    <label>Venda (R$)<input name="salePrice" required inputMode="decimal" defaultValue="0,00" /></label>
+    <label>Quantidade atual<input name="currentQuantity" type="number" min="0" required defaultValue="0" /></label>
+    <label>Estoque mínimo<input name="minimumQuantity" type="number" min="0" required defaultValue="0" /></label>
+    <button className="primary-button" type="submit">Adicionar item</button>
+  </form>;
+}
+
+export function InventoryAdjustmentForm({ item }: { item: InventorySummary }) {
+  return <form action={adjustInventoryAction} className="inline-form">
+    <input type="hidden" name="inventoryItemId" value={item.id} />
+    <input aria-label={`Movimentação de ${item.name}`} name="delta" type="number" required placeholder="+10 ou -2" />
+    <input aria-label="Motivo" name="note" placeholder="Motivo" />
+    <button className="secondary-button" type="submit">Movimentar</button>
+  </form>;
+}
