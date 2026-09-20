@@ -28,7 +28,7 @@ export const vehicleSchema = z.object({
 export const serviceSchema = z.object({
   customerId: z.string().uuid(),
   vehicleId: z.union([z.literal(""), z.string().uuid()]).transform((value) => value || null),
-  description: z.string().trim().min(2),
+  serviceCatalogId: z.string().uuid(),
   amount: z.string().trim().min(1),
   completedAt: z.coerce.date(),
   odometer: optionalInteger,
@@ -36,6 +36,12 @@ export const serviceSchema = z.object({
   returnIntervalDays: optionalInteger,
   nextDueAt: z.union([z.literal(""), z.coerce.date()]).transform((value) => value === "" ? null : value),
   inventory: z.array(z.object({ inventoryItemId: z.string().uuid(), quantity: z.coerce.number().int().positive() })).default([]),
+});
+
+export const serviceCatalogSchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome do serviço"),
+  defaultPrice: z.string().trim().min(1),
+  defaultReturnIntervalDays: optionalInteger,
 });
 
 export const inventoryItemSchema = z.object({

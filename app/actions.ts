@@ -8,7 +8,7 @@ import { parseCurrencyToCents } from "../domain/money";
 import { createCrmService } from "../server/crm-service";
 import { createDrizzleRepository } from "../server/drizzle-repository";
 import { getOwnerContext, getOwnerUser } from "../server/owner-context";
-import { customerSchema, inventoryAdjustmentSchema, inventoryItemSchema, serviceSchema, vehicleSchema, workshopSchema } from "../server/validators";
+import { customerSchema, inventoryAdjustmentSchema, inventoryItemSchema, serviceCatalogSchema, serviceSchema, vehicleSchema, workshopSchema } from "../server/validators";
 
 function formObject(formData: FormData) {
   return Object.fromEntries(formData.entries());
@@ -56,13 +56,28 @@ export async function recordServiceAction(formData: FormData) {
   await createCrmService(repository).recordService({
     workshopId,
     ...input,
+    description: "",
     amountCents: parseCurrencyToCents(input.amount),
     nextDueAt: input.nextDueAt ?? deriveNextDueAt(input.completedAt, input.returnIntervalDays),
   });
   revalidatePath("/servicos");
   revalidatePath("/retencao");
   revalidatePath("/estoque");
+  revalidatePath("/financeiro");
   revalidatePath("/");
+}
+
+export async function createServiceCatalogAction(formData: FormData) {
+  const { workshopId, repository } = await getOwnerContext();
+  const input = parse(serviceCatalogSchema.safeParse(formObject(formData)));
+  await repository.createServiceCatalogItem({
+    workshopId,
+    name: input.name,
+    defaultPriceCents: parseCurrencyToCents(input.defaultPrice),
+    defaultReturnIntervalDays: input.defaultReturnIntervalDays,
+  });
+  revalidatePath("/servicos");
+  revalidatePath("/financeiro");
 }
 
 export async function createInventoryItemAction(formData: FormData) {

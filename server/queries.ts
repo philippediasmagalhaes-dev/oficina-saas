@@ -1,4 +1,5 @@
 import { classifyCustomer } from "../domain/forecast";
+import { buildFinancialSnapshot } from "../domain/finance";
 import { getOwnerContext } from "./owner-context";
 
 export async function getDashboardData() {
@@ -39,13 +40,14 @@ export async function getCustomers() {
 
 export async function getServiceRecords() {
   const context = await getOwnerContext();
-  const [services, customers, vehicles, inventory] = await Promise.all([
+  const [services, customers, vehicles, catalog, inventory] = await Promise.all([
     context.repository.listServices(context.workshopId),
     context.repository.listCustomers(context.workshopId),
     context.repository.listVehicles(context.workshopId),
+    context.repository.listServiceCatalog(context.workshopId),
     context.repository.listInventory(context.workshopId),
   ]);
-  return { ...context, services, customers, vehicles, inventory };
+  return { ...context, services, customers, vehicles, catalog, inventory };
 }
 
 export async function getRetentionOpportunities() {
@@ -67,4 +69,10 @@ export async function getRetentionOpportunities() {
 export async function getInventory() {
   const context = await getOwnerContext();
   return { ...context, inventory: await context.repository.listInventory(context.workshopId) };
+}
+
+export async function getFinancialDashboard() {
+  const context = await getOwnerContext();
+  const services = await context.repository.listServices(context.workshopId);
+  return { ...context, services, snapshot: buildFinancialSnapshot(services) };
 }

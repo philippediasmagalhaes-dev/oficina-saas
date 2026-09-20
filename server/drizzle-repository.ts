@@ -7,6 +7,7 @@ import {
   customers,
   inventoryItems,
   inventoryMovements,
+  serviceCatalogItems,
   serviceRecords,
   vehicles,
   workshops,
@@ -20,6 +21,7 @@ function serviceValues(input: PersistedServiceInput) {
     workshopId: input.workshopId,
     customerId: input.customerId,
     vehicleId: input.vehicleId,
+    serviceCatalogId: input.serviceCatalogId,
     description: input.description,
     amountCents: input.amountCents,
     completedAt: input.completedAt,
@@ -48,6 +50,10 @@ export function createDrizzleRepository(database: Database = getDatabase()): Crm
       const [row] = await database.select().from(vehicles).where(and(eq(vehicles.workshopId, workshopId), eq(vehicles.id, vehicleId))).limit(1);
       return row ?? null;
     },
+    async findServiceCatalogItem(workshopId, serviceCatalogId) {
+      const [row] = await database.select().from(serviceCatalogItems).where(and(eq(serviceCatalogItems.workshopId, workshopId), eq(serviceCatalogItems.id, serviceCatalogId))).limit(1);
+      return row ?? null;
+    },
     async listCustomers(workshopId) {
       const rows = await database.select().from(customers).where(eq(customers.workshopId, workshopId)).orderBy(customers.name);
       const services = await database.select({ customerId: serviceRecords.customerId, completedAt: serviceRecords.completedAt, nextDueAt: serviceRecords.nextDueAt }).from(serviceRecords).where(eq(serviceRecords.workshopId, workshopId)).orderBy(desc(serviceRecords.completedAt));
@@ -71,6 +77,7 @@ export function createDrizzleRepository(database: Database = getDatabase()): Crm
           id: serviceRecords.id,
           workshopId: serviceRecords.workshopId,
           customerId: serviceRecords.customerId,
+          serviceCatalogId: serviceRecords.serviceCatalogId,
           customerName: customers.name,
           vehicleLabel: sql<string | null>`case when ${vehicles.id} is null then null else concat(${vehicles.make}, ' ', ${vehicles.model}, ' · ', ${vehicles.plate}) end`,
           description: serviceRecords.description,
@@ -84,6 +91,9 @@ export function createDrizzleRepository(database: Database = getDatabase()): Crm
         .where(eq(serviceRecords.workshopId, workshopId))
         .orderBy(desc(serviceRecords.completedAt));
     },
+    async listServiceCatalog(workshopId) {
+      return database.select().from(serviceCatalogItems).where(eq(serviceCatalogItems.workshopId, workshopId)).orderBy(serviceCatalogItems.name);
+    },
     async listInventory(workshopId) {
       return database.select().from(inventoryItems).where(eq(inventoryItems.workshopId, workshopId)).orderBy(inventoryItems.name);
     },
@@ -96,6 +106,10 @@ export function createDrizzleRepository(database: Database = getDatabase()): Crm
     },
     async createVehicle(input) {
       const [row] = await database.insert(vehicles).values(input).returning();
+      return row;
+    },
+    async createServiceCatalogItem(input) {
+      const [row] = await database.insert(serviceCatalogItems).values(input).returning();
       return row;
     },
     async recordService(input) {

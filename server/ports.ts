@@ -12,7 +12,8 @@ export type CustomerSummary = {
   vehicleCount?: number;
 };
 export type VehicleSummary = { id: string; workshopId: string; customerId: string; plate: string; make: string; model: string; year?: number | null; odometer?: number | null };
-export type ServiceSummary = { id: string; workshopId: string; customerId: string; customerName?: string; vehicleLabel?: string | null; description: string; amountCents: number; completedAt: Date; nextDueAt?: Date | null };
+export type ServiceCatalogSummary = { id: string; workshopId: string; name: string; defaultPriceCents: number; defaultReturnIntervalDays?: number | null; active: boolean };
+export type ServiceSummary = { id: string; workshopId: string; customerId: string; serviceCatalogId?: string | null; customerName?: string; vehicleLabel?: string | null; description: string; amountCents: number; completedAt: Date; nextDueAt?: Date | null };
 export type InventorySummary = { id: string; workshopId: string; sku?: string | null; name: string; unit: string; costCents: number; salePriceCents: number; currentQuantity: number; minimumQuantity: number; active: boolean };
 export type ContactEventSummary = { id: string; workshopId: string; customerId: string; reason: string; message: string; contactedAt: Date };
 
@@ -21,6 +22,7 @@ export type PersistedServiceInput = {
   workshopId: string;
   customerId: string;
   vehicleId: string | null;
+  serviceCatalogId: string | null;
   description: string;
   amountCents: number;
   completedAt: Date;
@@ -36,13 +38,16 @@ export interface CrmRepository {
   createWorkshop(input: { ownerUserId: string; name: string; inactivityDays: number }): Promise<WorkshopSummary>;
   findCustomer(workshopId: string, customerId: string): Promise<CustomerSummary | null>;
   findVehicle(workshopId: string, vehicleId: string): Promise<VehicleSummary | null>;
+  findServiceCatalogItem(workshopId: string, serviceCatalogId: string): Promise<ServiceCatalogSummary | null>;
   listCustomers(workshopId: string): Promise<CustomerSummary[]>;
   listVehicles(workshopId: string): Promise<VehicleSummary[]>;
   listServices(workshopId: string): Promise<ServiceSummary[]>;
+  listServiceCatalog(workshopId: string): Promise<ServiceCatalogSummary[]>;
   listInventory(workshopId: string): Promise<InventorySummary[]>;
   listContactEvents(workshopId: string): Promise<ContactEventSummary[]>;
   createCustomer(input: Omit<CustomerSummary, "id" | "lastServiceAt" | "nextDueAt" | "vehicleCount">): Promise<CustomerSummary>;
   createVehicle(input: Omit<VehicleSummary, "id">): Promise<VehicleSummary>;
+  createServiceCatalogItem(input: Omit<ServiceCatalogSummary, "id" | "active">): Promise<ServiceCatalogSummary>;
   recordService(input: PersistedServiceInput): Promise<ServiceSummary>;
   consumeInventoryAtomically(input: ServiceWithInventoryInput): Promise<ServiceSummary>;
   createInventoryItem(input: Omit<InventorySummary, "id" | "active">): Promise<InventorySummary>;

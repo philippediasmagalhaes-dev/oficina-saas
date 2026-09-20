@@ -17,8 +17,9 @@ describe("Drizzle repository", () => {
     try {
       const workshop = await repository.createWorkshop({ ownerUserId: userId, name: "Oficina Teste", inactivityDays: 180 });
       const customer = await repository.createCustomer({ workshopId: workshop.id, name: "Cliente", phone: null, email: null, whatsappConsent: false, notes: null });
+      const catalogItem = await repository.createServiceCatalogItem({ workshopId: workshop.id, name: "Revisão", defaultPriceCents: 10000, defaultReturnIntervalDays: 180 });
       const item = await repository.createInventoryItem({ workshopId: workshop.id, sku: null, name: "Filtro", unit: "un", costCents: 1000, salePriceCents: 2000, currentQuantity: 2, minimumQuantity: 1 });
-      await repository.consumeInventoryAtomically({ workshopId: workshop.id, customerId: customer.id, vehicleId: null, description: "Revisão", amountCents: 10000, completedAt: new Date(), odometer: null, notes: null, returnIntervalDays: null, nextDueAt: null, inventory: [{ inventoryItemId: item.id, quantity: 1 }] });
+      await repository.consumeInventoryAtomically({ workshopId: workshop.id, customerId: customer.id, vehicleId: null, serviceCatalogId: catalogItem.id, description: "Revisão", amountCents: 10000, completedAt: new Date(), odometer: null, notes: null, returnIntervalDays: null, nextDueAt: null, inventory: [{ inventoryItemId: item.id, quantity: 1 }] });
       const [stock] = await db.select({ quantity: schema.inventoryItems.currentQuantity }).from(schema.inventoryItems).where(eq(schema.inventoryItems.id, item.id));
       const services = await repository.listServices(workshop.id);
       expect(stock.quantity).toBe(1);

@@ -137,6 +137,25 @@ export const vehicles = pgTable(
   ],
 );
 
+export const serviceCatalogItems = pgTable(
+  "service_catalog",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    defaultPriceCents: integer("default_price_cents").default(0).notNull(),
+    defaultReturnIntervalDays: integer("default_return_interval_days"),
+    active: boolean("active").default(true).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("service_catalog_workshop_name_idx").on(table.workshopId, table.name),
+    uniqueIndex("service_catalog_workshop_name_unique").on(table.workshopId, table.name),
+    check("service_catalog_price_nonnegative", sql`${table.defaultPriceCents} >= 0`),
+    check("service_catalog_interval_positive", sql`${table.defaultReturnIntervalDays} is null or ${table.defaultReturnIntervalDays} > 0`),
+  ],
+);
+
 export const serviceRecords = pgTable(
   "service_records",
   {
@@ -144,6 +163,7 @@ export const serviceRecords = pgTable(
     workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
     customerId: uuid("customer_id").notNull().references(() => customers.id, { onDelete: "restrict" }),
     vehicleId: uuid("vehicle_id").references(() => vehicles.id, { onDelete: "set null" }),
+    serviceCatalogId: uuid("service_catalog_id").references(() => serviceCatalogItems.id, { onDelete: "set null" }),
     description: text("description").notNull(),
     status: serviceStatus("status").default("completed").notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
@@ -157,6 +177,7 @@ export const serviceRecords = pgTable(
   (table) => [
     index("services_workshop_date_idx").on(table.workshopId, table.completedAt),
     index("services_customer_idx").on(table.workshopId, table.customerId),
+    index("services_catalog_idx").on(table.workshopId, table.serviceCatalogId),
     check("services_amount_nonnegative", sql`${table.amountCents} >= 0`),
     check("services_odometer_nonnegative", sql`${table.odometer} is null or ${table.odometer} >= 0`),
     check("services_interval_positive", sql`${table.returnIntervalDays} is null or ${table.returnIntervalDays} > 0`),
@@ -224,10 +245,11 @@ export const contactEvents = pgTable(
   ],
 );
 
-export const schema = { user, session, account, verification, workshops, customers, vehicles, serviceRecords, inventoryItems, inventoryMovements, contactEvents };
+export const schema = { user, session, account, verification, workshops, customers, vehicles, serviceCatalogItems, serviceRecords, inventoryItems, inventoryMovements, contactEvents };
 
 export type Workshop = typeof workshops.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Vehicle = typeof vehicles.$inferSelect;
+export type ServiceCatalogItem = typeof serviceCatalogItems.$inferSelect;
 export type ServiceRecord = typeof serviceRecords.$inferSelect;
 export type InventoryItem = typeof inventoryItems.$inferSelect;

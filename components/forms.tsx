@@ -1,5 +1,5 @@
-import { adjustInventoryAction, createCustomerAction, createInventoryItemAction, createVehicleAction, recordServiceAction } from "../app/actions";
-import type { CustomerSummary, InventorySummary, VehicleSummary } from "../server/ports";
+import { adjustInventoryAction, createCustomerAction, createInventoryItemAction, createServiceCatalogAction, createVehicleAction } from "../app/actions";
+import type { CustomerSummary, InventorySummary } from "../server/ports";
 
 export function CustomerForm() {
   return <form action={createCustomerAction} className="form-grid">
@@ -24,20 +24,12 @@ export function VehicleForm({ customers }: { customers: CustomerSummary[] }) {
   </form>;
 }
 
-export function ServiceForm({ customers, vehicles, inventory }: { customers: CustomerSummary[]; vehicles: VehicleSummary[]; inventory: InventorySummary[] }) {
-  return <form action={recordServiceAction} className="form-grid">
-    <label className="span-2">Cliente<select name="customerId" required defaultValue=""><option value="" disabled>Selecione</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
-    <label className="span-2">Veículo<select name="vehicleId" defaultValue=""><option value="">Sem veículo vinculado</option>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.plate} · {vehicle.make} {vehicle.model}</option>)}</select></label>
-    <label className="span-2">Serviço realizado<input name="description" required placeholder="Ex.: revisão e troca de óleo" /></label>
-    <label>Valor (R$)<input name="amount" required inputMode="decimal" placeholder="350,00" /></label>
-    <label>Data<input name="completedAt" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
-    <label>Quilometragem<input name="odometer" type="number" min="0" /></label>
-    <label>Retorno em dias<input name="returnIntervalDays" type="number" min="1" placeholder="180" /></label>
-    <label>Data prevista<input name="nextDueAt" type="date" /></label>
-    <label>Item consumido<select name="inventoryItemId" defaultValue=""><option value="">Nenhum</option>{inventory.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.currentQuantity} {item.unit}</option>)}</select></label>
-    <label>Quantidade usada<input name="inventoryQuantity" type="number" min="1" /></label>
-    <label className="span-2">Observações<textarea name="notes" rows={3} /></label>
-    <button className="primary-button" type="submit">Registrar serviço</button>
+export function ServiceCatalogForm() {
+  return <form action={createServiceCatalogAction} className="form-grid compact-form">
+    <label className="span-2">Nome do serviço<input name="name" required minLength={2} placeholder="Ex.: Troca de óleo" /></label>
+    <label>Preço padrão (R$)<input name="defaultPrice" required inputMode="decimal" placeholder="180,00" /></label>
+    <label>Retorno sugerido em dias<input name="defaultReturnIntervalDays" type="number" min="1" placeholder="180" /></label>
+    <button className="primary-button" type="submit">Cadastrar serviço</button>
   </form>;
 }
 

@@ -6,12 +6,13 @@ SaaS owner-only para oficinas acompanharem clientes, veículos, serviços conclu
 
 - acesso exclusivo do proprietário por convite;
 - clientes com consentimento de WhatsApp e veículos vinculados;
-- histórico de serviços, valores e próxima data recomendada;
+- catálogo de serviços com preço e retorno sugeridos, associado ao histórico de cada cliente;
+- painel financeiro de receita registrada, ticket médio, evolução mensal e ranking de serviços;
 - retenção determinística: retorno próximo, atrasado ou cliente inativo;
 - mensagem pronta e abertura manual do WhatsApp — nenhum envio automático;
 - estoque com entrada, ajuste, mínimo e consumo transacional no serviço;
 - isolamento por `workshop_id` derivado da sessão no servidor;
-- sem funcionários, agenda, cobrança ou cadastro público nesta fase.
+- sem funcionários, agenda, contas a pagar/receber, cobrança ou cadastro público nesta fase.
 
 ## Rodar localmente
 
@@ -41,7 +42,7 @@ npm run db:generate
 npm run db:migrate
 ```
 
-O schema inclui as tabelas de autenticação e sete módulos de negócio. Valores monetários usam centavos inteiros; estoque nunca pode ficar negativo. Ao consumir peças, o serviço, o saldo e os movimentos são gravados na mesma transação.
+O schema inclui autenticação, catálogo de serviços e os módulos de negócio do piloto. Valores monetários usam centavos inteiros; estoque nunca pode ficar negativo. Ao consumir peças, o serviço, o saldo e os movimentos são gravados na mesma transação.
 
 ## Verificação
 
@@ -71,7 +72,7 @@ Sem as três variáveis obrigatórias, o build continua seguro e a aplicação m
 
 ## Estrutura
 
-- `app/`: seis módulos do proprietário e rotas de autenticação;
+- `app/`: sete módulos do proprietário e rotas de autenticação;
 - `components/`: shell responsivo, formulários e estados vazios;
 - `db/`: schema, cliente, migrações e seed;
 - `domain/`: regras puras de previsão, estoque, dinheiro e WhatsApp;
