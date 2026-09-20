@@ -6,6 +6,8 @@ import {
   type FinancialFilters,
 } from "../domain/service-filters";
 import { getOwnerContext } from "./owner-context";
+import { getMotorcycle, listMotorcycles } from "./motorcycles";
+import { getWorkOrder, listWorkOrders } from "./work-orders";
 
 export async function getDashboardData() {
   const context = await getOwnerContext();
@@ -130,4 +132,42 @@ export async function getFinancialDashboard(filters: FinancialFilters) {
     periodLabel: describeFinancialPeriod(filters),
     customerCount: new Set(services.map((service) => service.customerId)).size,
   };
+}
+
+export async function getWorkOrdersData() {
+  const context = await getOwnerContext();
+  const [orders, customers, vehicles] = await Promise.all([
+    listWorkOrders(context.workshopId),
+    context.repository.listCustomers(context.workshopId),
+    context.repository.listVehicles(context.workshopId),
+  ]);
+  return { ...context, orders, customers, vehicles };
+}
+
+export async function getWorkOrderData(serviceRecordId: string) {
+  const context = await getOwnerContext();
+  const [order, catalog, inventory] = await Promise.all([
+    getWorkOrder(context.workshopId, serviceRecordId),
+    context.repository.listServiceCatalog(context.workshopId),
+    context.repository.listInventory(context.workshopId),
+  ]);
+  return { ...context, order, catalog, inventory };
+}
+
+export async function getMotorcyclesData() {
+  const context = await getOwnerContext();
+  const [motorcycles, customers] = await Promise.all([
+    listMotorcycles(context.workshopId),
+    context.repository.listCustomers(context.workshopId),
+  ]);
+  return { ...context, motorcycles, customers };
+}
+
+export async function getMotorcycleData(vehicleId: string) {
+  const context = await getOwnerContext();
+  const [motorcycle, customers] = await Promise.all([
+    getMotorcycle(context.workshopId, vehicleId),
+    context.repository.listCustomers(context.workshopId),
+  ]);
+  return { ...context, motorcycle, customers };
 }

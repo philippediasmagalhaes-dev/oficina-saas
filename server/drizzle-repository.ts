@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool } from "@neondatabase/serverless";
 import { getDatabase } from "../db/client";
@@ -130,7 +130,7 @@ export function createDrizzleRepository(
         .orderBy(vehicles.plate);
     },
     async listServices(workshopId) {
-      return database
+      const rows = await database
         .select({
           id: serviceRecords.id,
           workshopId: serviceRecords.workshopId,
@@ -160,8 +160,13 @@ export function createDrizzleRepository(
             eq(vehicles.workshopId, workshopId),
           ),
         )
-        .where(eq(serviceRecords.workshopId, workshopId))
+        .where(and(
+          eq(serviceRecords.workshopId, workshopId),
+          inArray(serviceRecords.status, ["completed", "delivered"]),
+          isNotNull(serviceRecords.completedAt),
+        ))
         .orderBy(desc(serviceRecords.completedAt));
+      return rows.map((row) => ({ ...row, completedAt: row.completedAt! }));
     },
     async getServiceOrder(workshopId, serviceId) {
       const [order] = await database
@@ -300,7 +305,7 @@ export function createDrizzleRepository(
         .insert(serviceRecords)
         .values(serviceValues(input))
         .returning();
-      return row;
+      return { ...row, completedAt: row.completedAt! };
     },
     async consumeInventoryAtomically(input: ServiceWithInventoryInput) {
       return database.transaction(async (tx) => {
@@ -332,7 +337,7 @@ export function createDrizzleRepository(
             note: input.description,
           });
         }
-        return service;
+        return { ...service, completedAt: service.completedAt! };
       });
     },
     async createInventoryItem(input) {

@@ -1,5 +1,5 @@
-import { adjustInventoryAction, createCustomerAction, createInventoryItemAction, createServiceCatalogAction, createVehicleAction, updateCustomerAction } from "../app/actions";
-import type { CustomerSummary, InventorySummary } from "../server/ports";
+import { adjustInventoryAction, createCustomerAction, createInventoryItemAction, createServiceCatalogAction, createVehicleAction, updateCustomerAction, updateMotorcycleAction } from "../app/actions";
+import type { CustomerSummary, InventorySummary, VehicleSummary } from "../server/ports";
 
 export function CustomerForm() {
   return <form action={createCustomerAction} className="form-grid">
@@ -26,13 +26,26 @@ export function CustomerEditForm({ customer }: { customer: CustomerSummary }) {
 
 export function VehicleForm({ customers }: { customers: CustomerSummary[] }) {
   return <form action={createVehicleAction} className="form-grid">
-    <label className="span-2">Cliente<select name="customerId" required defaultValue=""><option value="" disabled>Selecione</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
+    <label className="span-2">Proprietário<select name="customerId" required defaultValue=""><option value="" disabled>Selecione</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
     <label>Placa<input name="plate" required placeholder="ABC1D23" /></label>
     <label>Marca<input name="make" required placeholder="Honda" /></label>
     <label>Modelo<input name="model" required placeholder="CG 160" /></label>
     <label>Ano<input name="year" type="number" min="1900" max="2100" /></label>
     <label>Quilometragem<input name="odometer" type="number" min="0" /></label>
-    <button className="primary-button" type="submit">Adicionar veículo</button>
+    <button className="primary-button" type="submit">Adicionar moto</button>
+  </form>;
+}
+
+export function MotorcycleEditForm({ motorcycle, customers }: { motorcycle: VehicleSummary; customers: CustomerSummary[] }) {
+  return <form action={updateMotorcycleAction} className="form-grid">
+    <input type="hidden" name="vehicleId" value={motorcycle.id} />
+    <label className="span-2">Proprietário<select name="customerId" required defaultValue={motorcycle.customerId}>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
+    <label>Placa<input name="plate" required defaultValue={motorcycle.plate} /></label>
+    <label>Marca<input name="make" required defaultValue={motorcycle.make} /></label>
+    <label>Modelo<input name="model" required defaultValue={motorcycle.model} /></label>
+    <label>Ano<input name="year" type="number" min="1900" max="2100" defaultValue={motorcycle.year ?? ""} /></label>
+    <label>Quilometragem<input name="odometer" type="number" min="0" defaultValue={motorcycle.odometer ?? ""} /></label>
+    <button className="primary-button" type="submit">Salvar moto</button>
   </form>;
 }
 

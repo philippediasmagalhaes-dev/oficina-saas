@@ -45,8 +45,8 @@ export default async function FinancialPage({
             de serviço.
           </p>
         </div>
-        <a className="primary-button" href="/servicos#novo">
-          Registrar serviço
+        <a className="primary-button" href="/ordens#nova">
+          Abrir OS
         </a>
       </div>
 
@@ -202,7 +202,7 @@ export default async function FinancialPage({
               <span>Resultados</span>
               <h2>Entradas encontradas</h2>
             </div>
-            <a href="/servicos">Ver histórico</a>
+            <a href="/ordens">Ver ordens</a>
           </div>
           {data.services.length ? (
             <div className="finance-list">
@@ -211,7 +211,7 @@ export default async function FinancialPage({
                   <span>
                     <a
                       className="finance-entry-link"
-                      href={`/servicos/${service.id}`}
+                      href={`/ordens/${service.id}`}
                     >
                       {service.description}
                     </a>

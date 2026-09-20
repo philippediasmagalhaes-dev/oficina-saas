@@ -59,3 +59,55 @@ export const inventoryAdjustmentSchema = z.object({
   delta: z.coerce.number().int().refine((value) => value !== 0, "Informe uma movimentação"),
   note: optionalText,
 });
+
+export const workOrderSchema = z.object({
+  customerId: z.string().uuid(),
+  vehicleId: z.string().uuid(),
+  complaint: z.string().trim().min(5, "Descreva o motivo da entrada"),
+  odometer: optionalInteger,
+  notes: optionalText,
+});
+
+export const diagnosisSchema = z.object({
+  serviceRecordId: z.string().uuid(),
+  complaint: z.string().trim().min(5),
+  diagnosis: z.string().trim().min(5, "Informe o diagnóstico"),
+  notes: optionalText,
+});
+
+export const quoteItemSchema = z.object({
+  serviceRecordId: z.string().uuid(),
+  type: z.enum(["service", "part"]),
+  referenceId: z.string().uuid(),
+  quantity: z.coerce.number().int().positive(),
+  unitPrice: z.string().trim().min(1),
+});
+
+export const quoteSettingsSchema = z.object({
+  serviceRecordId: z.string().uuid(),
+  discount: z.string().trim().default("0"),
+  validUntil: z.union([z.literal(""), z.coerce.date()]).transform((value) => value === "" ? null : value),
+});
+
+export const workOrderStatusSchema = z.object({
+  serviceRecordId: z.string().uuid(),
+  status: z.enum(["diagnosis", "in_progress", "ready", "cancelled"]),
+});
+
+export const finalizationSchema = z.object({
+  serviceRecordId: z.string().uuid(),
+  paymentMethod: z.string().trim().min(2),
+  paymentStatus: z.enum(["pending", "paid"]),
+  warrantyDays: optionalInteger,
+  deliveredOdometer: optionalInteger,
+  returnIntervalDays: optionalInteger,
+  nextDueAt: z.union([z.literal(""), z.coerce.date()]).transform((value) => value === "" ? null : value),
+});
+
+export const photoSchema = z.object({
+  serviceRecordId: z.string().uuid(),
+  kind: z.enum(["intake", "diagnosis", "completion"]),
+  caption: optionalText,
+});
+
+export const vehicleUpdateSchema = vehicleSchema.extend({ vehicleId: z.string().uuid() });

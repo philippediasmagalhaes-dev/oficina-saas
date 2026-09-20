@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildServiceReadyDraft, buildWhatsAppDraft } from "./outreach";
+import {
+  buildQuoteDraft,
+  buildServiceReadyDraft,
+  buildWhatsAppDraft,
+} from "./outreach";
 
 const base = {
   phone: "11999999999",
@@ -36,5 +40,16 @@ describe("WhatsApp outreach", () => {
 
   it("does not create a ready notice without consent", () => {
     expect(buildServiceReadyDraft({ ...base, consent: false })).toBeNull();
+  });
+
+  it("creates a digital quote message", () => {
+    const draft = buildQuoteDraft({
+      ...base,
+      vehicle: "Honda Civic",
+      total: "R$ 800,00",
+      quoteUrl: "https://example.com/orcamento/token",
+    });
+    expect(draft?.message).toContain("R$ 800,00");
+    expect(draft?.message).toContain("/orcamento/token");
   });
 });

@@ -47,3 +47,17 @@ export function buildServiceReadyDraft(
     url: `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
   };
 }
+
+export function buildQuoteDraft(
+  input: ServiceReadyInput & { quoteUrl: string; total: string },
+): WhatsAppDraft | null {
+  if (!input.consent || !input.phone) return null;
+  const phone = normalizeBrazilianPhone(input.phone);
+  if (!phone) return null;
+  const vehicle = input.vehicle ? ` para ${input.vehicle}` : "";
+  const message = `Olá, ${input.customer}! A ${input.workshop} preparou o orçamento${vehicle}, no valor de ${input.total}. Você pode revisar e aprovar por este link: ${input.quoteUrl}`;
+  return {
+    message,
+    url: `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
+  };
+}

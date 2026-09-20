@@ -20,8 +20,8 @@ export default async function Home() {
             Veja receita registrada, retornos e o que precisa da sua atenção.
           </p>
         </div>
-        <a className="primary-button" href="/servicos#novo">
-          Registrar serviço
+        <a className="primary-button" href="/ordens#nova">
+          Abrir ordem de serviço
         </a>
       </div>
       <section className="metric-grid">
@@ -57,7 +57,7 @@ export default async function Home() {
             <span>Mês atual</span>
             <h2>Serviços realizados neste mês</h2>
           </div>
-          <a href="/servicos">Ver todos</a>
+          <a href="/ordens">Ver todas</a>
         </div>
         {data.services.length ? (
           <div className="table-wrap">
@@ -86,7 +86,7 @@ export default async function Home() {
                     <td>
                       <a
                         className="table-link"
-                        href={`/servicos/${service.id}`}
+                        href={`/ordens/${service.id}`}
                       >
                         Abrir
                       </a>
@@ -100,8 +100,8 @@ export default async function Home() {
           <EmptyState
             title="Nenhum serviço neste mês"
             description="Os atendimentos do mês atual aparecerão aqui assim que forem registrados."
-            action="Registrar serviço"
-            href="/servicos#novo"
+            action="Abrir ordem de serviço"
+            href="/ordens#nova"
           />
         )}
       </section>

@@ -4,7 +4,7 @@ import { readServerConfig } from "./db/config";
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  const publicPath = path.startsWith("/login") || path.startsWith("/api/auth");
+  const publicPath = path.startsWith("/login") || path.startsWith("/api/auth") || path.startsWith("/orcamento/");
   const config = readServerConfig(process.env);
 
   if (!config.configured && !path.startsWith("/configurar")) return NextResponse.redirect(new URL("/configurar", request.url));

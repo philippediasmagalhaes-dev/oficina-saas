@@ -64,7 +64,7 @@ export type ServiceOrderDetails = {
   vehicleLabel?: string | null;
   description: string;
   amountCents: number;
-  completedAt: Date;
+  completedAt: Date | null;
   nextDueAt?: Date | null;
   odometer?: number | null;
   notes?: string | null;

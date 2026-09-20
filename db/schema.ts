@@ -78,7 +78,20 @@ export const verification = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
-export const serviceStatus = pgEnum("service_status", ["completed"]);
+export const serviceStatus = pgEnum("service_status", [
+  "completed",
+  "open",
+  "diagnosis",
+  "awaiting_approval",
+  "approved",
+  "in_progress",
+  "ready",
+  "delivered",
+  "cancelled",
+]);
+export const quoteStatus = pgEnum("quote_status", ["draft", "sent", "approved", "rejected"]);
+export const quoteItemType = pgEnum("quote_item_type", ["service", "part"]);
+export const servicePhotoKind = pgEnum("service_photo_kind", ["intake", "diagnosis", "completion"]);
 export const movementType = pgEnum("inventory_movement_type", ["entry", "consumption", "adjustment"]);
 export const contactChannel = pgEnum("contact_channel", ["whatsapp"]);
 
@@ -165,11 +178,25 @@ export const serviceRecords = pgTable(
     vehicleId: uuid("vehicle_id").references(() => vehicles.id, { onDelete: "set null" }),
     serviceCatalogId: uuid("service_catalog_id").references(() => serviceCatalogItems.id, { onDelete: "set null" }),
     description: text("description").notNull(),
-    status: serviceStatus("status").default("completed").notNull(),
-    completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
-    amountCents: integer("amount_cents").notNull(),
+    status: serviceStatus("status").default("open").notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    amountCents: integer("amount_cents").default(0).notNull(),
     odometer: integer("odometer"),
     notes: text("notes"),
+    complaint: text("complaint"),
+    diagnosis: text("diagnosis"),
+    quoteStatus: quoteStatus("quote_status").default("draft").notNull(),
+    quoteToken: uuid("quote_token").defaultRandom().notNull().unique(),
+    quoteDiscountCents: integer("quote_discount_cents").default(0).notNull(),
+    quoteValidUntil: timestamp("quote_valid_until", { withTimezone: true }),
+    quoteRespondedAt: timestamp("quote_responded_at", { withTimezone: true }),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    readyAt: timestamp("ready_at", { withTimezone: true }),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    paymentMethod: text("payment_method"),
+    paymentStatus: text("payment_status").default("pending").notNull(),
+    warrantyDays: integer("warranty_days"),
+    deliveredOdometer: integer("delivered_odometer"),
     returnIntervalDays: integer("return_interval_days"),
     nextDueAt: timestamp("next_due_at", { withTimezone: true }),
     ...timestamps,
@@ -181,7 +208,46 @@ export const serviceRecords = pgTable(
     check("services_amount_nonnegative", sql`${table.amountCents} >= 0`),
     check("services_odometer_nonnegative", sql`${table.odometer} is null or ${table.odometer} >= 0`),
     check("services_interval_positive", sql`${table.returnIntervalDays} is null or ${table.returnIntervalDays} > 0`),
+    check("services_discount_nonnegative", sql`${table.quoteDiscountCents} >= 0`),
+    check("services_warranty_nonnegative", sql`${table.warrantyDays} is null or ${table.warrantyDays} >= 0`),
   ],
+);
+
+export const workOrderItems = pgTable(
+  "work_order_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
+    serviceRecordId: uuid("service_record_id").notNull().references(() => serviceRecords.id, { onDelete: "cascade" }),
+    type: quoteItemType("type").notNull(),
+    serviceCatalogId: uuid("service_catalog_id").references(() => serviceCatalogItems.id, { onDelete: "set null" }),
+    inventoryItemId: uuid("inventory_item_id").references(() => inventoryItems.id, { onDelete: "set null" }),
+    description: text("description").notNull(),
+    quantity: integer("quantity").default(1).notNull(),
+    unitPriceCents: integer("unit_price_cents").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("work_order_items_order_idx").on(table.workshopId, table.serviceRecordId),
+    check("work_order_items_quantity_positive", sql`${table.quantity} > 0`),
+    check("work_order_items_price_nonnegative", sql`${table.unitPriceCents} >= 0`),
+  ],
+);
+
+export const servicePhotos = pgTable(
+  "service_photos",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
+    serviceRecordId: uuid("service_record_id").notNull().references(() => serviceRecords.id, { onDelete: "cascade" }),
+    kind: servicePhotoKind("kind").notNull(),
+    caption: text("caption"),
+    fileName: text("file_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    dataBase64: text("data_base64").notNull(),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("service_photos_order_idx").on(table.workshopId, table.serviceRecordId)],
 );
 
 export const inventoryItems = pgTable(
@@ -245,11 +311,13 @@ export const contactEvents = pgTable(
   ],
 );
 
-export const schema = { user, session, account, verification, workshops, customers, vehicles, serviceCatalogItems, serviceRecords, inventoryItems, inventoryMovements, contactEvents };
+export const schema = { user, session, account, verification, workshops, customers, vehicles, serviceCatalogItems, serviceRecords, workOrderItems, servicePhotos, inventoryItems, inventoryMovements, contactEvents };
 
 export type Workshop = typeof workshops.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Vehicle = typeof vehicles.$inferSelect;
 export type ServiceCatalogItem = typeof serviceCatalogItems.$inferSelect;
 export type ServiceRecord = typeof serviceRecords.$inferSelect;
+export type WorkOrderItem = typeof workOrderItems.$inferSelect;
+export type ServicePhoto = typeof servicePhotos.$inferSelect;
 export type InventoryItem = typeof inventoryItems.$inferSelect;

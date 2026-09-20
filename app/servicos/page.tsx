@@ -1,7 +1,6 @@
 import { AppShell } from "../../components/app-shell";
 import { EmptyState } from "../../components/empty-state";
 import { ServiceCatalogForm } from "../../components/forms";
-import { ServiceForm } from "../../components/service-form";
 import { readServerConfig } from "../../db/config";
 import { formatCents } from "../../domain/money";
 import { getServiceRecords } from "../../server/queries";
@@ -16,11 +15,10 @@ export default async function ServicesPage() {
     <AppShell workshopName={data.workshop.name} current="/servicos">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">SERVIÇOS</p>
-          <h1>Catálogo organizado, histórico claro.</h1>
+          <p className="eyebrow">CATÁLOGO</p>
+          <h1>Serviços padronizados, orçamentos mais rápidos.</h1>
           <p>
-            Cadastre os serviços oferecidos uma vez e associe cada atendimento
-            ao cliente certo.
+            Defina preço e retorno sugerido para reutilizar em todas as ordens.
           </p>
         </div>
       </div>
@@ -65,41 +63,11 @@ export default async function ServicesPage() {
           )}
         </section>
       </div>
-      <section className="surface" id="novo">
-        <div className="section-title">
-          <div>
-            <span>Novo lançamento</span>
-            <h2>Registrar serviço concluído</h2>
-          </div>
-        </div>
-        {!data.customers.length ? (
-          <EmptyState
-            title="Cadastre um cliente primeiro"
-            description="O serviço precisa estar vinculado a um cliente da sua oficina."
-            action="Ir para clientes"
-            href="/clientes"
-          />
-        ) : !data.catalog.length ? (
-          <EmptyState
-            title="Cadastre um serviço primeiro"
-            description="Use o catálogo acima para padronizar os atendimentos."
-            action="Cadastrar serviço"
-            href="#catalogo"
-          />
-        ) : (
-          <ServiceForm
-            customers={data.customers}
-            vehicles={data.vehicles}
-            catalog={data.catalog}
-            inventory={data.inventory}
-          />
-        )}
-      </section>
       <section className="surface">
         <div className="section-title">
           <div>
             <span>{data.services.length} registros</span>
-            <h2>Ordens de serviço</h2>
+            <h2>Serviços entregues</h2>
           </div>
         </div>
         {data.services.length ? (
@@ -132,7 +100,7 @@ export default async function ServicesPage() {
                     <td>
                       <a
                         className="table-link"
-                        href={`/servicos/${service.id}`}
+                        href={`/ordens/${service.id}`}
                       >
                         Ver detalhes
                       </a>
