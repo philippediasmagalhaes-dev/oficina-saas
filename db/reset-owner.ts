@@ -3,7 +3,7 @@ import { hashPassword } from "better-auth/crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { closeDatabase, getDatabase } from "./client";
-import { account, user } from "./schema";
+import { account, user, workshops } from "./schema";
 
 const recoverySchema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -30,15 +30,27 @@ async function main() {
   await db.transaction(async (transaction) => {
     await transaction.execute(sql`select pg_advisory_xact_lock(73194622)`);
     const existingUsers = await transaction
-      .select({ id: user.id })
-      .from(user)
+      .select({ id: user.id, email: user.email })
+      .from(user);
+    const existingWorkshops = await transaction
+      .select({ id: workshops.id, ownerUserId: workshops.ownerUserId })
+      .from(workshops)
       .limit(2);
-    if (existingUsers.length !== 1)
+    const matchingUser = existingUsers.find(
+      (candidate) => candidate.email.toLowerCase() === parsed.data.email,
+    );
+    const userId =
+      matchingUser?.id ??
+      (existingWorkshops.length === 1
+        ? existingWorkshops[0].ownerUserId
+        : existingUsers.length === 1
+          ? existingUsers[0].id
+          : null);
+    if (!userId || existingWorkshops.length > 1)
       throw new Error(
-        "A recuperação exige exatamente um proprietário existente.",
+        "Não foi possível identificar com segurança o proprietário da oficina.",
       );
 
-    const userId = existingUsers[0].id;
     await transaction
       .update(user)
       .set({
@@ -48,6 +60,16 @@ async function main() {
         updatedAt: new Date(),
       })
       .where(eq(user.id, userId));
+
+    if (
+      existingWorkshops.length === 1 &&
+      existingWorkshops[0].ownerUserId !== userId
+    ) {
+      await transaction
+        .update(workshops)
+        .set({ ownerUserId: userId, updatedAt: new Date() })
+        .where(eq(workshops.id, existingWorkshops[0].id));
+    }
 
     const [credential] = await transaction
       .select({ id: account.id })
