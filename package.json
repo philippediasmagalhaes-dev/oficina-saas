@@ -5,13 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "npm run db:migrate && next build",
+    "vercel-build": "npm run db:migrate && npm run db:recover-owner && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx db/migrate.ts",
+    "db:recover-owner": "tsx db/recover-owner.ts",
     "db:seed-owner": "tsx db/seed-owner.ts"
   },
   "dependencies": {
