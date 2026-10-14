@@ -39,14 +39,28 @@ async function main() {
     const matchingUser = existingUsers.find(
       (candidate) => candidate.email.toLowerCase() === parsed.data.email,
     );
-    const userId =
+    let userId =
       matchingUser?.id ??
       (existingWorkshops.length === 1
         ? existingWorkshops[0].ownerUserId
         : existingUsers.length === 1
           ? existingUsers[0].id
           : null);
-    if (!userId || existingWorkshops.length > 1)
+    if (existingWorkshops.length > 1)
+      throw new Error(
+        "Não foi possível identificar com segurança o proprietário da oficina.",
+      );
+
+    if (!userId && existingWorkshops.length === 0) {
+      userId = randomUUID();
+      await transaction.insert(user).values({
+        id: userId,
+        name: parsed.data.name,
+        email: parsed.data.email,
+        emailVerified: true,
+      });
+    }
+    if (!userId)
       throw new Error(
         "Não foi possível identificar com segurança o proprietário da oficina.",
       );
