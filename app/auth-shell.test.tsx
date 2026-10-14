@@ -10,8 +10,16 @@ describe("owner authentication shell", () => {
     expect(html).not.toContain("Criar conta");
   });
 
+  it("offers the one-time first access only while registration is available", () => {
+    const html = renderToStaticMarkup(<LoginForm showFirstAccess />);
+    expect(html).toContain('href="/primeiro-acesso"');
+    expect(html).toContain("Criar primeiro acesso");
+  });
+
   it("lists only missing variable names", () => {
-    const html = renderToStaticMarkup(<ConfigurationPending missing={["DATABASE_URL", "BETTER_AUTH_SECRET"]} />);
+    const html = renderToStaticMarkup(
+      <ConfigurationPending missing={["DATABASE_URL", "BETTER_AUTH_SECRET"]} />,
+    );
     expect(html).toContain("Configuração pendente");
     expect(html).toContain("DATABASE_URL");
     expect(html).not.toContain("postgresql://");
