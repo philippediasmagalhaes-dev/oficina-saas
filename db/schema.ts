@@ -244,10 +244,21 @@ export const servicePhotos = pgTable(
     caption: text("caption"),
     fileName: text("file_name").notNull(),
     mimeType: text("mime_type").notNull(),
-    dataBase64: text("data_base64").notNull(),
+    dataBase64: text("data_base64"),
+    storageKey: text("storage_key"),
+    sizeBytes: integer("size_bytes"),
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("service_photos_order_idx").on(table.workshopId, table.serviceRecordId)],
+  (table) => [
+    index("service_photos_order_idx").on(table.workshopId, table.serviceRecordId),
+    uniqueIndex("service_photos_storage_key_unique")
+      .on(table.storageKey)
+      .where(sql`${table.storageKey} is not null`),
+    check(
+      "service_photos_size_nonnegative",
+      sql`${table.sizeBytes} is null or ${table.sizeBytes} >= 0`,
+    ),
+  ],
 );
 
 export const inventoryItems = pgTable(

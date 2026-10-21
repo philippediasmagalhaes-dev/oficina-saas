@@ -5,8 +5,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { workshopId } = await getOwnerContext();
   const { id } = await params;
   const photo = await getServicePhoto(workshopId, id);
-  if (!photo) return new Response("Foto não encontrada", { status: 404 });
-  return new Response(Buffer.from(photo.dataBase64, "base64"), {
+  if (!photo?.dataBase64) return new Response("Foto não encontrada", { status: 404 });
+  const bytes = Uint8Array.from(Buffer.from(photo.dataBase64, "base64"));
+  return new Response(bytes.buffer, {
     headers: {
       "Content-Type": photo.mimeType,
       "Content-Disposition": "inline",
