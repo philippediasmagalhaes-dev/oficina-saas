@@ -7,3 +7,9 @@ out/
 *.tsbuildinfo
 .env*
 !.env.example
+/dist/
+.vinext/
+.cloudflare/
+.wrangler/
+.dev.vars*
+!.dev.vars.example
