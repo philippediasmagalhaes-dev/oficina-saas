@@ -44,6 +44,19 @@ npm run db:migrate
 
 O schema inclui autenticação, catálogo de serviços e os módulos de negócio do piloto. Valores monetários usam centavos inteiros; estoque nunca pode ficar negativo. Ao consumir peças, o serviço, o saldo e os movimentos são gravados na mesma transação.
 
+### Migrar fotos antigas para o R2
+
+Mantenha `DATABASE_URL`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` e `R2_BUCKET_NAME` disponíveis somente no ambiente seguro em que o comando será executado. Siga esta ordem para preservar o retorno imediato à versão da Vercel:
+
+1. aplique a alteração do banco com `npm run db:migrate`;
+2. simule a migração com `npm run db:migrate-photos:r2 -- --dry-run`;
+3. execute `npm run db:migrate-photos:r2`;
+4. repita `npm run db:migrate-photos:r2 -- --dry-run` e confirme `candidate=0`;
+5. abra uma amostra das fotos antigas tanto no Worker quanto na versão da Vercel;
+6. mantenha o conteúdo Base64 no banco até uma versão futura de limpeza, aprovada separadamente.
+
+O processo usa lotes pequenos, pode ser repetido com segurança e não apaga a cópia antiga das imagens.
+
 ## Verificação
 
 ```bash

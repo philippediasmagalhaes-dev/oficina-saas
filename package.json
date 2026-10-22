@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx db/migrate.ts",
+    "db:migrate-photos:r2": "tsx scripts/migrate-service-photos-to-r2.ts",
     "db:seed-owner": "tsx db/seed-owner.ts",
     "dev:cloudflare": "vite dev --port 3001",
     "build:cloudflare": "vite build && next typegen",
