@@ -5,13 +5,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { workshopId } = await getOwnerContext();
   const { id } = await params;
   const photo = await getServicePhoto(workshopId, id);
-  if (!photo?.dataBase64) return new Response("Foto não encontrada", { status: 404 });
-  const bytes = Uint8Array.from(Buffer.from(photo.dataBase64, "base64"));
-  return new Response(bytes.buffer, {
+  if (photo.status === "missing") return new Response("Foto não encontrada", { status: 404 });
+  if (photo.status === "unavailable") return new Response("Foto temporariamente indisponível", { status: 503 });
+  return new Response(photo.body.slice().buffer as ArrayBuffer, {
     headers: {
       "Content-Type": photo.mimeType,
       "Content-Disposition": "inline",
       "Cache-Control": "private, max-age=3600",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

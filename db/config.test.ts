@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { readServerConfig } from "./config";
+import * as configModule from "./config";
+
+const { readServerConfig } = configModule;
+const parseTrustedOrigins = (
+  configModule as unknown as {
+    parseTrustedOrigins(value: string | undefined, baseUrl: string): string[];
+  }
+).parseTrustedOrigins;
 
 describe("server configuration", () => {
   it("reports every missing production dependency", () => {
@@ -35,7 +42,23 @@ describe("server configuration", () => {
         databaseUrl: "postgresql://example",
         betterAuthUrl: "https://auth.example",
         betterAuthSecret: "x".repeat(32),
+        trustedOrigins: ["https://auth.example"],
       },
     });
+  });
+
+  it("normalizes, deduplicates and always keeps the canonical auth origin", () => {
+    expect(
+      parseTrustedOrigins(
+        "https://rollback.example/path, https://auth.example,https://rollback.example",
+        "https://auth.example/auth/callback",
+      ),
+    ).toEqual(["https://auth.example", "https://rollback.example"]);
+  });
+
+  it("rejects malformed trusted origins", () => {
+    expect(() =>
+      parseTrustedOrigins("not-a-url", "https://auth.example"),
+    ).toThrow("AUTH_TRUSTED_ORIGINS");
   });
 });

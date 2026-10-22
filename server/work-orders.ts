@@ -12,6 +12,15 @@ import {
   workshops,
 } from "../db/schema";
 import { calculateQuoteTotal, type WorkOrderStatus } from "../domain/work-orders";
+import {
+  createPhotoService,
+  type NewPhotoMetadata,
+  type PhotoRepository,
+} from "./photo-service";
+import {
+  createR2PhotoStorage,
+  readPhotoStorageConfig,
+} from "./photo-storage";
 
 export type WorkOrderItemSummary = {
   id: string;
@@ -295,14 +304,77 @@ export async function finalizeWorkOrder(input: { workshopId: string; serviceReco
   });
 }
 
-export async function addServicePhoto(input: { workshopId: string; serviceRecordId: string; kind: "intake" | "diagnosis" | "completion"; caption: string | null; fileName: string; mimeType: string; dataBase64: string }) {
-  const [order] = await getDatabase().select({ id: serviceRecords.id }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId))).limit(1);
-  if (!order) throw new Error("Ordem de serviço não encontrada.");
-  await getDatabase().insert(servicePhotos).values(input);
+function createDrizzlePhotoRepository(): PhotoRepository {
+  return {
+    async findOrder(workshopId, serviceRecordId) {
+      const [order] = await getDatabase()
+        .select({ id: serviceRecords.id })
+        .from(serviceRecords)
+        .where(
+          and(
+            eq(serviceRecords.workshopId, workshopId),
+            eq(serviceRecords.id, serviceRecordId),
+          ),
+        )
+        .limit(1);
+      return order ?? null;
+    },
+
+    async insertPhoto(input: NewPhotoMetadata) {
+      await getDatabase().insert(servicePhotos).values(input);
+    },
+
+    async findPhoto(workshopId, photoId) {
+      const [photo] = await getDatabase()
+        .select({
+          id: servicePhotos.id,
+          workshopId: servicePhotos.workshopId,
+          serviceRecordId: servicePhotos.serviceRecordId,
+          kind: servicePhotos.kind,
+          caption: servicePhotos.caption,
+          fileName: servicePhotos.fileName,
+          mimeType: servicePhotos.mimeType,
+          dataBase64: servicePhotos.dataBase64,
+          storageKey: servicePhotos.storageKey,
+          sizeBytes: servicePhotos.sizeBytes,
+        })
+        .from(servicePhotos)
+        .where(
+          and(
+            eq(servicePhotos.workshopId, workshopId),
+            eq(servicePhotos.id, photoId),
+          ),
+        )
+        .limit(1);
+      return photo ?? null;
+    },
+  };
+}
+
+function getPhotoService() {
+  const config = readPhotoStorageConfig(process.env);
+  if (!config.configured) {
+    throw new Error(`Configuração pendente: ${config.missing.join(", ")}`);
+  }
+  return createPhotoService({
+    storage: createR2PhotoStorage(config.values),
+    repository: createDrizzlePhotoRepository(),
+  });
+}
+
+export async function addServicePhoto(input: {
+  workshopId: string;
+  serviceRecordId: string;
+  kind: "intake" | "diagnosis" | "completion";
+  caption: string | null;
+  fileName: string;
+  mimeType: string;
+  body: Uint8Array;
+}) {
+  return getPhotoService().upload(input);
 }
 
 export async function getServicePhoto(workshopId: string, photoId: string) {
-  if (!validUuid(photoId)) return null;
-  const [photo] = await getDatabase().select({ mimeType: servicePhotos.mimeType, dataBase64: servicePhotos.dataBase64, fileName: servicePhotos.fileName }).from(servicePhotos).where(and(eq(servicePhotos.workshopId, workshopId), eq(servicePhotos.id, photoId))).limit(1);
-  return photo ?? null;
+  if (!validUuid(photoId)) return { status: "missing" as const };
+  return getPhotoService().read(workshopId, photoId);
 }

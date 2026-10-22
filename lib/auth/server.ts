@@ -9,6 +9,7 @@ function createAuthInstance(config: ServerConfig) {
     appName: "Oficina CRM",
     baseURL: config.betterAuthUrl,
     secret: config.betterAuthSecret,
+    trustedOrigins: config.trustedOrigins,
     database: drizzleAdapter(getDatabase(), {
       provider: "pg",
       schema: { user, session, account, verification },

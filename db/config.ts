@@ -8,11 +8,36 @@ export type ServerConfig = {
   databaseUrl: string;
   betterAuthUrl: string;
   betterAuthSecret: string;
+  trustedOrigins: string[];
 };
 
 export type ServerConfigResult =
   | { configured: true; values: ServerConfig }
   | { configured: false; missing: (typeof serverConfigKeys)[number][] };
+
+function normalizeHttpOrigin(value: string) {
+  const url = new URL(value);
+  if (!new Set(["http:", "https:"]).has(url.protocol)) {
+    throw new Error("A origem deve usar HTTP ou HTTPS.");
+  }
+  return url.origin;
+}
+
+export function parseTrustedOrigins(value: string | undefined, baseUrl: string) {
+  try {
+    const origins = [
+      normalizeHttpOrigin(baseUrl),
+      ...(value ?? "")
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+        .map(normalizeHttpOrigin),
+    ];
+    return [...new Set(origins)];
+  } catch {
+    throw new Error("AUTH_TRUSTED_ORIGINS contém uma origem inválida.");
+  }
+}
 
 export function readServerConfig(
   env: Record<string, string | undefined>,
@@ -30,6 +55,10 @@ export function readServerConfig(
       databaseUrl: env.DATABASE_URL!,
       betterAuthUrl: env.BETTER_AUTH_URL!,
       betterAuthSecret: env.BETTER_AUTH_SECRET!,
+      trustedOrigins: parseTrustedOrigins(
+        env.AUTH_TRUSTED_ORIGINS,
+        env.BETTER_AUTH_URL!,
+      ),
     },
   };
 }

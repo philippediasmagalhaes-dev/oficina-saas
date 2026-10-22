@@ -222,8 +222,8 @@ export async function uploadServicePhotoAction(formData: FormData) {
   if (!(file instanceof File) || file.size === 0) throw new Error("Selecione uma foto.");
   if (file.size > 2_000_000) throw new Error("A foto deve ter no máximo 2 MB.");
   if (!new Set(["image/jpeg", "image/png", "image/webp"]).has(file.type)) throw new Error("Use uma imagem JPG, PNG ou WebP.");
-  const dataBase64 = Buffer.from(await file.arrayBuffer()).toString("base64");
-  await addServicePhoto({ workshopId, serviceRecordId: input.serviceRecordId, kind: input.kind, caption: input.caption, fileName: file.name, mimeType: file.type, dataBase64 });
+  const body = new Uint8Array(await file.arrayBuffer());
+  await addServicePhoto({ workshopId, serviceRecordId: input.serviceRecordId, kind: input.kind, caption: input.caption, fileName: file.name, mimeType: file.type, body });
   revalidatePath(`/ordens/${input.serviceRecordId}`);
 }
 
