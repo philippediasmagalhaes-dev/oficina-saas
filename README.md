@@ -83,6 +83,16 @@ O teste de integração com banco é opt-in. Defina `TEST_DATABASE_URL` para exe
 
 Sem as três variáveis obrigatórias, o build continua seguro e a aplicação mostra apenas “Configuração pendente”, sem expor valores secretos.
 
+## Deploy do piloto na Cloudflare
+
+O alvo principal do piloto usa Cloudflare Workers com fotos em bucket R2 privado, Neon compartilhado e Vercel preservada como retorno. O procedimento completo, incluindo migração sem perda, variáveis, teste da URL temporária, monitoramento de cota e retorno, está em [`docs/deployment/cloudflare-pilot.md`](docs/deployment/cloudflare-pilot.md).
+
+O smoke público pode ser repetido em qualquer um dos destinos sem alterar dados:
+
+```bash
+npm run smoke:deployment -- https://endereco-do-deployment
+```
+
 ## Estrutura
 
 - `app/`: sete módulos do proprietário e rotas de autenticação;
