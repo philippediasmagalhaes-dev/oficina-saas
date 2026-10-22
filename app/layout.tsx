@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { ServiceWorkerRegistration } from "../components/service-worker-registration";
 import "./globals.css";
 import "./brand.css";
 
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
   title: "Oficina CRM — clientes que voltam",
   description: "Clientes, serviços, retenção e estoque simples para oficinas.",
   applicationName: "Oficina CRM",
+  manifest: "/manifest.webmanifest",
   icons: { icon: "/logo.jpg", apple: "/logo.jpg" },
   openGraph: {
     type: "website",
@@ -31,7 +33,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ServiceWorkerRegistration />
+      </body>
     </html>
   );
 }
