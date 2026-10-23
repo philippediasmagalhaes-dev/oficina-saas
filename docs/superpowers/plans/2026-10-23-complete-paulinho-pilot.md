@@ -187,11 +187,11 @@
 **Interfaces:**
 - Produces `toBusinessFinCsv(entries): string` with stable external IDs and an export-history write after a successful response.
 
-- [ ] Write failing tests for UTF-8 BOM, Brazilian decimal/date formatting, stable IDs, CSV escaping, and duplicate-resistant selection.
-- [ ] Run focused tests and confirm failures.
-- [ ] Implement the pure mapper, authenticated CSV route, period selection, and export-history persistence.
-- [ ] Run focused tests, route tests, and typecheck; expect green.
-- [ ] Commit with `feat: export financial entries to Business Fin`.
+- [x] Write failing tests for UTF-8 BOM, Brazilian decimal/date formatting, stable IDs, CSV escaping, and duplicate-resistant selection.
+- [x] Run focused tests and confirm failures.
+- [x] Implement the pure mapper, authenticated CSV route, period selection, and export-history persistence.
+- [x] Run focused tests, route tests, and typecheck; expect green.
+- [x] Commit with `feat: export financial entries to Business Fin`.
 
 ### Task 8: Assisted plate lookup with manual fallback
 

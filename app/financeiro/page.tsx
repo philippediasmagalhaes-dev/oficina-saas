@@ -40,6 +40,9 @@ export default async function FinancialPage({
     collaboratorId: params.collaborator ?? "",
   };
   const data = await getFinancialDashboard(filters);
+  const exportQuery = new URLSearchParams();
+  if (filters.from) exportQuery.set("from", filters.from);
+  if (filters.to) exportQuery.set("to", filters.to);
   const maxMonthlyRevenue = Math.max(
     ...data.snapshot.monthlyRevenue.map((month) => month.revenueCents),
     1,
@@ -59,6 +62,7 @@ export default async function FinancialPage({
         <a className="primary-button" href="/ordens#nova">
           Abrir OS
         </a>
+        <a className="secondary-button" href={`/api/financeiro/business-fin?${exportQuery.toString()}`}>Exportar Business Fin</a>
       </div>
 
       <section className="surface filter-surface">
