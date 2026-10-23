@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "services_workshop_order_number_unique" ON "service_records" USING btree ("workshop_id","order_number");

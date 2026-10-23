@@ -21,6 +21,7 @@ import type {
   PersistedServiceInput,
   ServiceWithInventoryInput,
 } from "./ports";
+import { normalizeBrazilianPhone, normalizePlate } from "../domain/workshop-settings";
 
 function serviceValues(input: PersistedServiceInput) {
   return {
@@ -54,6 +55,26 @@ export function createDrizzleRepository(
     async createWorkshop(input) {
       const [row] = await database.insert(workshops).values(input).returning();
       return row;
+    },
+    async updateWorkshop(input) {
+      const [row] = await database.update(workshops).set({
+        name: input.name,
+        legalName: input.legalName,
+        document: input.document,
+        phone: input.phone,
+        whatsappNumber: input.whatsappNumber,
+        email: input.email,
+        addressStreet: input.addressStreet,
+        addressNumber: input.addressNumber,
+        addressComplement: input.addressComplement,
+        addressDistrict: input.addressDistrict,
+        addressCity: input.addressCity,
+        addressState: input.addressState,
+        addressPostalCode: input.addressPostalCode,
+        printTerms: input.printTerms,
+        inactivityDays: input.inactivityDays,
+      }).where(eq(workshops.id, input.id)).returning();
+      return row ?? null;
     },
     async findCustomer(workshopId, customerId) {
       const [row] = await database
@@ -270,7 +291,12 @@ export function createDrizzleRepository(
         .orderBy(desc(contactEvents.contactedAt));
     },
     async createCustomer(input) {
-      const [row] = await database.insert(customers).values(input).returning();
+      const [row] = await database.insert(customers).values({
+        ...input,
+        phoneNormalized: input.phone ? normalizeBrazilianPhone(input.phone) : null,
+        whatsappConsentAt: input.whatsappConsent ? new Date() : null,
+        whatsappConsentSource: input.whatsappConsent ? "owner" : null,
+      }).returning();
       return row;
     },
     async updateCustomer(input) {
@@ -279,8 +305,20 @@ export function createDrizzleRepository(
         .set({
           name: input.name,
           phone: input.phone,
+          phoneNormalized: input.phoneNormalized,
           email: input.email,
+          document: input.document,
+          addressStreet: input.addressStreet,
+          addressNumber: input.addressNumber,
+          addressComplement: input.addressComplement,
+          addressDistrict: input.addressDistrict,
+          addressCity: input.addressCity,
+          addressState: input.addressState,
+          addressPostalCode: input.addressPostalCode,
           whatsappConsent: input.whatsappConsent,
+          whatsappConsentAt: input.whatsappConsent ? new Date() : null,
+          whatsappConsentSource: input.whatsappConsent ? "owner" : null,
+          whatsappOptOutAt: input.whatsappConsent ? null : new Date(),
           notes: input.notes,
         })
         .where(
@@ -293,7 +331,11 @@ export function createDrizzleRepository(
       return row ?? null;
     },
     async createVehicle(input) {
-      const [row] = await database.insert(vehicles).values(input).returning();
+      const [row] = await database.insert(vehicles).values({
+        ...input,
+        plate: normalizePlate(input.plate),
+        plateNormalized: normalizePlate(input.plate),
+      }).returning();
       return row;
     },
     async createServiceCatalogItem(input) {

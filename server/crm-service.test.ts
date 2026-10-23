@@ -6,6 +6,7 @@ function fakeRepository(overrides: Partial<CrmRepository> = {}): CrmRepository {
   return {
     getWorkshopForUser: vi.fn(),
     createWorkshop: vi.fn(),
+    updateWorkshop: vi.fn(),
     findCustomer: vi.fn(async () => ({
       id: "customer-a",
       workshopId: "workshop-a",

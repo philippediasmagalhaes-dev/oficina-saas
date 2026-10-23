@@ -6,6 +6,12 @@ export function CustomerForm() {
     <label className="span-2">Nome<input name="name" required minLength={2} placeholder="Nome completo" /></label>
     <label>WhatsApp<input name="phone" inputMode="tel" placeholder="(11) 99999-9999" /></label>
     <label>E-mail<input name="email" type="email" placeholder="cliente@email.com" /></label>
+    <label>CPF/CNPJ<input name="document" placeholder="Documento opcional" /></label>
+    <label>CEP<input name="addressPostalCode" placeholder="00000-000" /></label>
+    <label className="span-2">Endereço<input name="addressStreet" placeholder="Rua ou avenida" /></label>
+    <label>Número<input name="addressNumber" /></label><label>Complemento<input name="addressComplement" /></label>
+    <label>Bairro<input name="addressDistrict" /></label><label>Cidade<input name="addressCity" /></label>
+    <label>UF<input name="addressState" maxLength={2} placeholder="SP" /></label>
     <label className="check-row span-2"><input name="whatsappConsent" type="checkbox" /> Cliente autorizou contato pelo WhatsApp</label>
     <label className="span-2">Observações<textarea name="notes" rows={3} placeholder="Preferências ou informações importantes" /></label>
     <button className="primary-button" type="submit">Salvar cliente</button>
@@ -18,6 +24,12 @@ export function CustomerEditForm({ customer }: { customer: CustomerSummary }) {
     <label className="span-2">Nome<input name="name" required minLength={2} defaultValue={customer.name} /></label>
     <label>WhatsApp<input name="phone" inputMode="tel" defaultValue={customer.phone ?? ""} placeholder="(11) 99999-9999" /></label>
     <label>E-mail<input name="email" type="email" defaultValue={customer.email ?? ""} placeholder="cliente@email.com" /></label>
+    <label>CPF/CNPJ<input name="document" defaultValue={customer.document ?? ""} /></label>
+    <label>CEP<input name="addressPostalCode" defaultValue={customer.addressPostalCode ?? ""} /></label>
+    <label className="span-2">Endereço<input name="addressStreet" defaultValue={customer.addressStreet ?? ""} /></label>
+    <label>Número<input name="addressNumber" defaultValue={customer.addressNumber ?? ""} /></label><label>Complemento<input name="addressComplement" defaultValue={customer.addressComplement ?? ""} /></label>
+    <label>Bairro<input name="addressDistrict" defaultValue={customer.addressDistrict ?? ""} /></label><label>Cidade<input name="addressCity" defaultValue={customer.addressCity ?? ""} /></label>
+    <label>UF<input name="addressState" maxLength={2} defaultValue={customer.addressState ?? ""} /></label>
     <label className="check-row span-2"><input name="whatsappConsent" type="checkbox" defaultChecked={customer.whatsappConsent} /> Cliente autorizou contato pelo WhatsApp</label>
     <label className="span-2">Observações<textarea name="notes" rows={4} defaultValue={customer.notes ?? ""} placeholder="Preferências ou informações importantes" /></label>
     <div className="form-actions span-2"><button className="primary-button" type="submit">Salvar alterações</button><a className="secondary-button" href="/clientes">Cancelar</a></div>
@@ -30,7 +42,14 @@ export function VehicleForm({ customers }: { customers: CustomerSummary[] }) {
     <label>Placa<input name="plate" required placeholder="ABC1D23" /></label>
     <label>Marca<input name="make" required placeholder="Chevrolet" /></label>
     <label>Modelo<input name="model" required placeholder="Corsa" /></label>
-    <label>Ano<input name="year" type="number" min="1900" max="2100" /></label>
+    <label>Categoria<select name="category" defaultValue="car"><option value="car">Carro</option><option value="two_wheels">Duas rodas</option><option value="utility">Utilitário</option><option value="other">Outro</option></select></label>
+    <label>Cor<input name="color" /></label>
+    <label>Ano fabricação<input name="manufactureYear" type="number" min="1900" max="2100" /></label>
+    <label>Ano modelo<input name="modelYear" type="number" min="1900" max="2100" /></label>
+    <input name="year" type="hidden" value="" />
+    <label>Combustível<input name="fuel" /></label><label>Cilindrada<input name="engineDisplacement" placeholder="1.6" /></label>
+    <label>Potência<input name="power" placeholder="92 cv" /></label><label>Chassi mascarado<input name="maskedChassis" placeholder="*****123456" /></label>
+    <label>Cidade<input name="municipality" /></label><label>UF<input name="state" maxLength={2} /></label>
     <label>Quilometragem<input name="odometer" type="number" min="0" /></label>
     <button className="primary-button" type="submit">Adicionar veículo</button>
   </form>;
@@ -43,7 +62,14 @@ export function VehicleEditForm({ vehicle, customers }: { vehicle: VehicleSummar
     <label>Placa<input name="plate" required defaultValue={vehicle.plate} /></label>
     <label>Marca<input name="make" required defaultValue={vehicle.make} /></label>
     <label>Modelo<input name="model" required defaultValue={vehicle.model} /></label>
-    <label>Ano<input name="year" type="number" min="1900" max="2100" defaultValue={vehicle.year ?? ""} /></label>
+    <label>Categoria<select name="category" defaultValue={vehicle.category ?? "car"}><option value="car">Carro</option><option value="two_wheels">Duas rodas</option><option value="utility">Utilitário</option><option value="other">Outro</option></select></label>
+    <label>Cor<input name="color" defaultValue={vehicle.color ?? ""} /></label>
+    <label>Ano fabricação<input name="manufactureYear" type="number" min="1900" max="2100" defaultValue={vehicle.manufactureYear ?? ""} /></label>
+    <label>Ano modelo<input name="modelYear" type="number" min="1900" max="2100" defaultValue={vehicle.modelYear ?? vehicle.year ?? ""} /></label>
+    <input name="year" type="hidden" value={vehicle.modelYear ?? vehicle.year ?? ""} />
+    <label>Combustível<input name="fuel" defaultValue={vehicle.fuel ?? ""} /></label><label>Cilindrada<input name="engineDisplacement" defaultValue={vehicle.engineDisplacement ?? ""} /></label>
+    <label>Potência<input name="power" defaultValue={vehicle.power ?? ""} /></label><label>Chassi mascarado<input name="maskedChassis" defaultValue={vehicle.maskedChassis ?? ""} /></label>
+    <label>Cidade<input name="municipality" defaultValue={vehicle.municipality ?? ""} /></label><label>UF<input name="state" maxLength={2} defaultValue={vehicle.state ?? ""} /></label>
     <label>Quilometragem<input name="odometer" type="number" min="0" defaultValue={vehicle.odometer ?? ""} /></label>
     <button className="primary-button" type="submit">Salvar veículo</button>
   </form>;

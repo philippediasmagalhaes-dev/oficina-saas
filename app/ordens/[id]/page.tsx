@@ -15,6 +15,7 @@ import { QuoteItemForm } from "../../../components/quote-item-form";
 import { readServerConfig } from "../../../db/config";
 import { formatCents } from "../../../domain/money";
 import { workOrderStatusLabels } from "../../../domain/work-orders";
+import { formatWorkOrderNumber } from "../../../domain/workshop-settings";
 import { getWorkOrderData } from "../../../server/queries";
 import { ConfigurationPending } from "../../configurar/page";
 
@@ -36,7 +37,7 @@ export default async function WorkOrderPage({ params }: { params: Promise<{ id: 
   const recommendedDays = order.items.map((item) => data.catalog.find((catalogItem) => catalogItem.id === item.serviceCatalogId)?.defaultReturnIntervalDays ?? null).find((days) => days !== null) ?? null;
 
   return <AppShell workshopName={data.workshop.name} current="/ordens">
-    <div className="order-heading"><div><a className="back-link" href="/ordens">← Voltar para ordens</a><p className="eyebrow">OS · #{order.id.slice(0, 8).toUpperCase()}</p><h1>{order.complaint || order.description}</h1><p>{order.customerName} · {order.vehicleLabel ?? "Sem veículo vinculado"}</p></div><span className={`order-status status-${order.status}`}>{workOrderStatusLabels[order.status]}</span></div>
+    <div className="order-heading"><div><a className="back-link" href="/ordens">← Voltar para ordens</a><p className="eyebrow">{order.orderNumber ? formatWorkOrderNumber(order.orderNumber) : `OS · #${order.id.slice(0, 8).toUpperCase()}`}</p><h1>{order.complaint || order.description}</h1><p>{order.customerName} · {order.vehicleLabel ?? "Sem veículo vinculado"}</p></div><span className={`order-status status-${order.status}`}>{workOrderStatusLabels[order.status]}</span></div>
     <nav className="order-stepper" aria-label="Etapas da ordem"><span className={order.status === "open" ? "active" : "done"}>Entrada</span><span className={["diagnosis", "awaiting_approval", "approved", "in_progress", "ready", "delivered", "completed"].includes(order.status) ? "active" : ""}>Diagnóstico</span><span className={["awaiting_approval", "approved", "in_progress", "ready", "delivered", "completed"].includes(order.status) ? "active" : ""}>Orçamento</span><span className={["in_progress", "ready", "delivered", "completed"].includes(order.status) ? "active" : ""}>Execução</span><span className={["ready", "delivered", "completed"].includes(order.status) ? "active" : ""}>Entrega</span></nav>
 
     <div className="order-workspace">

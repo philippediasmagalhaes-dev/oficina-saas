@@ -273,6 +273,7 @@ export const serviceRecords = pgTable(
     index("services_workshop_date_idx").on(table.workshopId, table.completedAt),
     index("services_customer_idx").on(table.workshopId, table.customerId),
     index("services_catalog_idx").on(table.workshopId, table.serviceCatalogId),
+    uniqueIndex("services_workshop_order_number_unique").on(table.workshopId, table.orderNumber),
     check("services_amount_nonnegative", sql`${table.amountCents} >= 0`),
     check("services_odometer_nonnegative", sql`${table.odometer} is null or ${table.odometer} >= 0`),
     check("services_interval_positive", sql`${table.returnIntervalDays} is null or ${table.returnIntervalDays} > 0`),

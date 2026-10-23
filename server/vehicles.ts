@@ -1,6 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { getDatabase } from "../db/client";
 import { customers, serviceRecords, vehicles } from "../db/schema";
+import { normalizePlate } from "../domain/workshop-settings";
 
 function validUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -13,9 +14,23 @@ export async function listVehicles(workshopId: string) {
     customerId: vehicles.customerId,
     customerName: customers.name,
     plate: vehicles.plate,
+    plateNormalized: vehicles.plateNormalized,
     make: vehicles.make,
     model: vehicles.model,
     year: vehicles.year,
+    category: vehicles.category,
+    color: vehicles.color,
+    manufactureYear: vehicles.manufactureYear,
+    modelYear: vehicles.modelYear,
+    fuel: vehicles.fuel,
+    engineDisplacement: vehicles.engineDisplacement,
+    power: vehicles.power,
+    municipality: vehicles.municipality,
+    state: vehicles.state,
+    maskedChassis: vehicles.maskedChassis,
+    lookupProvider: vehicles.lookupProvider,
+    lookupAt: vehicles.lookupAt,
+    lookupSnapshot: vehicles.lookupSnapshot,
     odometer: vehicles.odometer,
   }).from(vehicles).innerJoin(customers, and(eq(customers.id, vehicles.customerId), eq(customers.workshopId, workshopId))).where(eq(vehicles.workshopId, workshopId)).orderBy(vehicles.plate);
   const history = await database.select({ vehicleId: serviceRecords.vehicleId, completedAt: serviceRecords.completedAt }).from(serviceRecords).where(eq(serviceRecords.workshopId, workshopId)).orderBy(desc(serviceRecords.completedAt));
@@ -34,9 +49,23 @@ export async function getVehicle(workshopId: string, vehicleId: string) {
     customerId: vehicles.customerId,
     customerName: customers.name,
     plate: vehicles.plate,
+    plateNormalized: vehicles.plateNormalized,
     make: vehicles.make,
     model: vehicles.model,
     year: vehicles.year,
+    category: vehicles.category,
+    color: vehicles.color,
+    manufactureYear: vehicles.manufactureYear,
+    modelYear: vehicles.modelYear,
+    fuel: vehicles.fuel,
+    engineDisplacement: vehicles.engineDisplacement,
+    power: vehicles.power,
+    municipality: vehicles.municipality,
+    state: vehicles.state,
+    maskedChassis: vehicles.maskedChassis,
+    lookupProvider: vehicles.lookupProvider,
+    lookupAt: vehicles.lookupAt,
+    lookupSnapshot: vehicles.lookupSnapshot,
     odometer: vehicles.odometer,
   }).from(vehicles).innerJoin(customers, and(eq(customers.id, vehicles.customerId), eq(customers.workshopId, workshopId))).where(and(eq(vehicles.workshopId, workshopId), eq(vehicles.id, vehicleId))).limit(1);
   if (!vehicle) return null;
@@ -55,9 +84,10 @@ export async function getVehicle(workshopId: string, vehicleId: string) {
   return { ...vehicle, history };
 }
 
-export async function updateVehicle(input: { workshopId: string; vehicleId: string; customerId: string; plate: string; make: string; model: string; year: number | null; odometer: number | null }) {
+export async function updateVehicle(input: { workshopId: string; vehicleId: string; customerId: string; plate: string; make: string; model: string; year: number | null; category: string; color: string | null; manufactureYear: number | null; modelYear: number | null; fuel: string | null; engineDisplacement: string | null; power: string | null; municipality: string | null; state: string | null; maskedChassis: string | null; odometer: number | null }) {
   const [customer] = await getDatabase().select({ id: customers.id }).from(customers).where(and(eq(customers.workshopId, input.workshopId), eq(customers.id, input.customerId))).limit(1);
   if (!customer) throw new Error("Cliente não encontrado.");
-  const [row] = await getDatabase().update(vehicles).set({ customerId: input.customerId, plate: input.plate, make: input.make, model: input.model, year: input.year, odometer: input.odometer }).where(and(eq(vehicles.workshopId, input.workshopId), eq(vehicles.id, input.vehicleId))).returning({ id: vehicles.id });
+  const plate = normalizePlate(input.plate);
+  const [row] = await getDatabase().update(vehicles).set({ customerId: input.customerId, plate, plateNormalized: plate, make: input.make, model: input.model, year: input.year, category: input.category, color: input.color, manufactureYear: input.manufactureYear, modelYear: input.modelYear, fuel: input.fuel, engineDisplacement: input.engineDisplacement, power: input.power, municipality: input.municipality, state: input.state, maskedChassis: input.maskedChassis, odometer: input.odometer }).where(and(eq(vehicles.workshopId, input.workshopId), eq(vehicles.id, input.vehicleId))).returning({ id: vehicles.id });
   return row ?? null;
 }

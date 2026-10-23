@@ -21,6 +21,7 @@ import {
   createR2PhotoStorage,
   readPhotoStorageConfig,
 } from "./photo-storage";
+import { createDrizzleSequenceStore, nextWorkOrderNumber } from "./work-order-number";
 
 export type WorkOrderItemSummary = {
   id: string;
@@ -42,6 +43,7 @@ export type WorkOrderPhotoSummary = {
 
 export type WorkOrderSummary = {
   id: string;
+  orderNumber: number | null;
   customerId: string;
   customerName: string;
   vehicleId: string | null;
@@ -95,6 +97,7 @@ export async function listWorkOrders(workshopId: string): Promise<WorkOrderSumma
   return database
     .select({
       id: serviceRecords.id,
+      orderNumber: serviceRecords.orderNumber,
       customerId: serviceRecords.customerId,
       customerName: customers.name,
       vehicleId: serviceRecords.vehicleId,
@@ -126,20 +129,24 @@ export async function createWorkOrder(input: {
   const [customer] = await database.select({ id: customers.id }).from(customers).where(and(eq(customers.workshopId, input.workshopId), eq(customers.id, input.customerId))).limit(1);
   const [vehicle] = await database.select({ id: vehicles.id, customerId: vehicles.customerId }).from(vehicles).where(and(eq(vehicles.workshopId, input.workshopId), eq(vehicles.id, input.vehicleId))).limit(1);
   if (!customer || !vehicle || vehicle.customerId !== customer.id) throw new Error("Cliente ou veículo não encontrados.");
-  const [order] = await database.insert(serviceRecords).values({
-    workshopId: input.workshopId,
-    customerId: input.customerId,
-    vehicleId: input.vehicleId,
-    serviceCatalogId: null,
-    description: input.complaint.slice(0, 120),
-    complaint: input.complaint,
-    status: "open",
-    amountCents: 0,
-    completedAt: null,
-    odometer: input.odometer,
-    notes: input.notes,
-  }).returning({ id: serviceRecords.id });
-  return order;
+  return runDatabaseTransaction(async (tx) => {
+    const orderNumber = await nextWorkOrderNumber(createDrizzleSequenceStore(tx), input.workshopId);
+    const [order] = await tx.insert(serviceRecords).values({
+      workshopId: input.workshopId,
+      customerId: input.customerId,
+      vehicleId: input.vehicleId,
+      orderNumber,
+      serviceCatalogId: null,
+      description: input.complaint.slice(0, 120),
+      complaint: input.complaint,
+      status: "open",
+      amountCents: 0,
+      completedAt: null,
+      odometer: input.odometer,
+      notes: input.notes,
+    }).returning({ id: serviceRecords.id, orderNumber: serviceRecords.orderNumber });
+    return order;
+  });
 }
 
 async function loadItems(workshopId: string, serviceRecordId: string) {
@@ -159,6 +166,7 @@ export async function getWorkOrder(workshopId: string, serviceRecordId: string):
   const database = getDatabase();
   const [order] = await database.select({
     id: serviceRecords.id,
+    orderNumber: serviceRecords.orderNumber,
     workshopId: serviceRecords.workshopId,
     workshopName: workshops.name,
     customerId: serviceRecords.customerId,

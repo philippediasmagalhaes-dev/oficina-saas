@@ -72,11 +72,11 @@
 - Produces `nextWorkOrderNumber(tx, workshopId): Promise<number>` and complete settings/customer/vehicle input contracts.
 - Work orders expose a stable `orderNumber` used by later print, finance, and export tasks.
 
-- [ ] Write failing validator/domain/repository tests for complete workshop, customer, and vehicle data and atomic order numbering.
-- [ ] Run the focused tests and confirm failures identify missing fields and sequence logic.
-- [ ] Implement forms, actions, repository persistence, normalized plates/phones, and transactional numbering.
-- [ ] Run focused tests, typecheck, and existing CRM/work-order tests; expect green.
-- [ ] Commit with `feat: complete workshop customer and vehicle records`.
+- [x] Write failing validator/domain/repository tests for complete workshop, customer, and vehicle data and atomic order numbering.
+- [x] Run the focused tests and confirm failures identify missing fields and sequence logic.
+- [x] Implement forms, actions, repository persistence, normalized plates/phones, and transactional numbering.
+- [x] Run focused tests, typecheck, and existing CRM/work-order tests; expect green.
+- [x] Commit with `feat: complete workshop customer and vehicle records`.
 
 ### Task 3: Intake inspection, damage map, status history, and quote versions
 

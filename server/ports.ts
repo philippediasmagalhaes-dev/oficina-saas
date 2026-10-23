@@ -3,14 +3,39 @@ export type WorkshopSummary = {
   ownerUserId: string;
   name: string;
   inactivityDays: number;
+  legalName?: string | null;
+  document?: string | null;
+  phone?: string | null;
+  whatsappNumber?: string | null;
+  email?: string | null;
+  addressStreet?: string | null;
+  addressNumber?: string | null;
+  addressComplement?: string | null;
+  addressDistrict?: string | null;
+  addressCity?: string | null;
+  addressState?: string | null;
+  addressPostalCode?: string | null;
+  printTerms?: string | null;
 };
 export type CustomerSummary = {
   id: string;
   workshopId: string;
   name: string;
   phone?: string | null;
+  phoneNormalized?: string | null;
   email?: string | null;
+  document?: string | null;
+  addressStreet?: string | null;
+  addressNumber?: string | null;
+  addressComplement?: string | null;
+  addressDistrict?: string | null;
+  addressCity?: string | null;
+  addressState?: string | null;
+  addressPostalCode?: string | null;
   whatsappConsent?: boolean;
+  whatsappConsentAt?: Date | null;
+  whatsappConsentSource?: string | null;
+  whatsappOptOutAt?: Date | null;
   notes?: string | null;
   lastServiceAt?: Date | null;
   nextDueAt?: Date | null;
@@ -21,9 +46,23 @@ export type VehicleSummary = {
   workshopId: string;
   customerId: string;
   plate: string;
+  plateNormalized?: string | null;
   make: string;
   model: string;
   year?: number | null;
+  category?: string;
+  color?: string | null;
+  manufactureYear?: number | null;
+  modelYear?: number | null;
+  fuel?: string | null;
+  engineDisplacement?: string | null;
+  power?: string | null;
+  municipality?: string | null;
+  state?: string | null;
+  maskedChassis?: string | null;
+  lookupProvider?: string | null;
+  lookupAt?: Date | null;
+  lookupSnapshot?: Record<string, unknown> | null;
   odometer?: number | null;
 };
 export type ServiceCatalogSummary = {
@@ -120,6 +159,7 @@ export interface CrmRepository {
     name: string;
     inactivityDays: number;
   }): Promise<WorkshopSummary>;
+  updateWorkshop(input: WorkshopSummary): Promise<WorkshopSummary | null>;
   findCustomer(
     workshopId: string,
     customerId: string,
@@ -153,7 +193,16 @@ export interface CrmRepository {
     customerId: string;
     name: string;
     phone: string | null;
+    phoneNormalized: string | null;
     email: string | null;
+    document: string | null;
+    addressStreet: string | null;
+    addressNumber: string | null;
+    addressComplement: string | null;
+    addressDistrict: string | null;
+    addressCity: string | null;
+    addressState: string | null;
+    addressPostalCode: string | null;
     whatsappConsent: boolean;
     notes: string | null;
   }): Promise<CustomerSummary | null>;

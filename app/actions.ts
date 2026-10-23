@@ -6,6 +6,7 @@ import { buildQuoteDraft, buildServiceReadyDraft, buildWhatsAppDraft } from "../
 import { deriveNextDueAt } from "../domain/forecast";
 import { parseCurrencyToCents } from "../domain/money";
 import { canTransitionWorkOrder } from "../domain/work-orders";
+import { normalizeBrazilianPhone } from "../domain/workshop-settings";
 import { createCrmService } from "../server/crm-service";
 import { createDrizzleRepository } from "../server/drizzle-repository";
 import { getOwnerContext, getOwnerUser } from "../server/owner-context";
@@ -38,6 +39,7 @@ import {
   workOrderSchema,
   workOrderStatusSchema,
   workshopSchema,
+  workshopSettingsSchema,
 } from "../server/validators";
 
 function formObject(formData: FormData) {
@@ -67,6 +69,15 @@ export async function createCustomerAction(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function updateWorkshopSettingsAction(formData: FormData) {
+  const { workshop, repository } = await getOwnerContext();
+  const input = parse(workshopSettingsSchema.safeParse(formObject(formData)));
+  const updated = await repository.updateWorkshop({ ...workshop, ...input });
+  if (!updated) throw new Error("Oficina não encontrada.");
+  revalidatePath("/configuracoes");
+  revalidatePath("/");
+}
+
 export async function updateCustomerAction(formData: FormData) {
   const { workshopId, repository } = await getOwnerContext();
   const customerId = String(formData.get("customerId") ?? "");
@@ -75,6 +86,7 @@ export async function updateCustomerAction(formData: FormData) {
     workshopId,
     customerId,
     ...input,
+    phoneNormalized: input.phone ? normalizeBrazilianPhone(input.phone) : null,
   });
   if (!customer) throw new Error("Cliente não encontrado.");
   revalidatePath("/clientes");
@@ -90,7 +102,7 @@ export async function createVehicleAction(formData: FormData) {
   const input = parse(vehicleSchema.safeParse(formObject(formData)));
   if (!(await repository.findCustomer(workshopId, input.customerId)))
     throw new Error("Registro não encontrado");
-  await repository.createVehicle({ workshopId, ...input });
+  await repository.createVehicle({ workshopId, ...input, year: input.year ?? input.modelYear });
   revalidatePath("/clientes");
   revalidatePath("/veiculos");
 }
@@ -98,7 +110,7 @@ export async function createVehicleAction(formData: FormData) {
 export async function updateVehicleAction(formData: FormData) {
   const { workshopId } = await getOwnerContext();
   const input = parse(vehicleUpdateSchema.safeParse(formObject(formData)));
-  const vehicle = await updateVehicle({ workshopId, ...input });
+  const vehicle = await updateVehicle({ workshopId, ...input, year: input.year ?? input.modelYear });
   if (!vehicle) throw new Error("Veículo não encontrado.");
   revalidatePath("/veiculos");
   revalidatePath(`/veiculos/${input.vehicleId}`);

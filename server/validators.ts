@@ -2,26 +2,63 @@ import { z } from "zod";
 
 const optionalText = z.string().trim().transform((value) => value || null);
 const optionalInteger = z.union([z.literal(""), z.coerce.number().int().nonnegative()]).transform((value) => value === "" ? null : value);
+const stateCode = z.union([z.literal(""), z.string().trim().length(2)]).transform((value) => value ? value.toUpperCase() : null);
 
 export const workshopSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome da oficina"),
   inactivityDays: z.coerce.number().int().min(30).max(730).default(180),
 });
 
+export const workshopSettingsSchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome da oficina"),
+  legalName: optionalText,
+  document: optionalText,
+  phone: optionalText,
+  whatsappNumber: optionalText,
+  email: z.union([z.literal(""), z.string().trim().email("E-mail inválido")]).transform((value) => value || null),
+  addressStreet: optionalText,
+  addressNumber: optionalText,
+  addressComplement: optionalText,
+  addressDistrict: optionalText,
+  addressCity: optionalText,
+  addressState: stateCode,
+  addressPostalCode: optionalText,
+  printTerms: optionalText,
+  inactivityDays: z.coerce.number().int().min(30).max(730),
+});
+
 export const customerSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do cliente"),
   phone: optionalText,
   email: z.union([z.literal(""), z.string().trim().email("E-mail inválido")]).transform((value) => value || null),
+  document: optionalText,
+  addressStreet: optionalText,
+  addressNumber: optionalText,
+  addressComplement: optionalText,
+  addressDistrict: optionalText,
+  addressCity: optionalText,
+  addressState: stateCode,
+  addressPostalCode: optionalText,
   whatsappConsent: z.coerce.boolean().default(false),
   notes: optionalText,
 });
 
 export const vehicleSchema = z.object({
   customerId: z.string().uuid(),
-  plate: z.string().trim().min(7).max(8).transform((value) => value.toUpperCase()),
+  plate: z.string().trim().transform((value) => value.replace(/[^a-z0-9]/gi, "").toUpperCase()).pipe(z.string().length(7, "Placa inválida")),
   make: z.string().trim().min(2),
   model: z.string().trim().min(1),
   year: optionalInteger,
+  category: z.enum(["car", "two_wheels", "utility", "other"]).default("car"),
+  color: optionalText,
+  manufactureYear: optionalInteger,
+  modelYear: optionalInteger,
+  fuel: optionalText,
+  engineDisplacement: optionalText,
+  power: optionalText,
+  municipality: optionalText,
+  state: stateCode,
+  maskedChassis: optionalText,
   odometer: optionalInteger,
 });
 
