@@ -9,7 +9,7 @@ import { canTransitionWorkOrder } from "../domain/work-orders";
 import { createCrmService } from "../server/crm-service";
 import { createDrizzleRepository } from "../server/drizzle-repository";
 import { getOwnerContext, getOwnerUser } from "../server/owner-context";
-import { updateMotorcycle } from "../server/motorcycles";
+import { updateVehicle } from "../server/vehicles";
 import {
   addQuoteItem,
   addServicePhoto,
@@ -92,17 +92,17 @@ export async function createVehicleAction(formData: FormData) {
     throw new Error("Registro não encontrado");
   await repository.createVehicle({ workshopId, ...input });
   revalidatePath("/clientes");
-  revalidatePath("/motos");
+  revalidatePath("/veiculos");
 }
 
-export async function updateMotorcycleAction(formData: FormData) {
+export async function updateVehicleAction(formData: FormData) {
   const { workshopId } = await getOwnerContext();
   const input = parse(vehicleUpdateSchema.safeParse(formObject(formData)));
-  const motorcycle = await updateMotorcycle({ workshopId, ...input });
-  if (!motorcycle) throw new Error("Moto não encontrada.");
-  revalidatePath("/motos");
-  revalidatePath(`/motos/${input.vehicleId}`);
-  redirect(`/motos/${input.vehicleId}`);
+  const vehicle = await updateVehicle({ workshopId, ...input });
+  if (!vehicle) throw new Error("Veículo não encontrado.");
+  revalidatePath("/veiculos");
+  revalidatePath(`/veiculos/${input.vehicleId}`);
+  redirect(`/veiculos/${input.vehicleId}`);
 }
 
 export async function createWorkOrderAction(formData: FormData) {
@@ -208,7 +208,7 @@ export async function finalizeWorkOrderAction(formData: FormData) {
   });
   revalidatePath(`/ordens/${input.serviceRecordId}`);
   revalidatePath("/ordens");
-  revalidatePath("/motos");
+  revalidatePath("/veiculos");
   revalidatePath("/financeiro");
   revalidatePath("/retencao");
   revalidatePath("/estoque");

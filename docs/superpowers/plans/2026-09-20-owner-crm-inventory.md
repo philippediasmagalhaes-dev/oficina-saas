@@ -318,7 +318,7 @@ git commit -m "feat: add owner authentication"
 - [ ] **Step 1: Rewrite the navigation contract test**
 
 ```tsx
-const html = renderToStaticMarkup(<AppShell workshopName="Natinho Scooters">conteúdo</AppShell>);
+const html = renderToStaticMarkup(<AppShell workshopName="Oficina Piloto">conteúdo</AppShell>);
 for (const label of ["Visão geral", "Clientes", "Serviços", "Retenção", "Estoque", "Configurações"]) {
   expect(html).toContain(label);
 }

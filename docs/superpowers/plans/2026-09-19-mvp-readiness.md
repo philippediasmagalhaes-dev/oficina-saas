@@ -1,4 +1,4 @@
-# Natinho Scooters MVP Readiness Implementation Plan
+# Oficina CRM MVP Readiness Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -13,8 +13,8 @@
 ## Global Constraints
 
 - Do not introduce external services, credentials, or unauthenticated cloud persistence.
-- Preserve the Natinho Scooters black, yellow, and white identity.
-- Saved state schema version is exactly `1` and storage key is exactly `natinho-scooters:workshop:v1`.
+- Preserve the active workshop's automotive visual identity.
+- Saved state schema version is exactly `1` and the storage key is namespaced to the application.
 - All business rules added in this plan are implemented test-first.
 - `npm test`, `npm run build`, and `npm audit --omit=dev` must pass before completion.
 

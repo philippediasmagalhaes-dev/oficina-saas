@@ -125,7 +125,7 @@ export async function createWorkOrder(input: {
   const database = getDatabase();
   const [customer] = await database.select({ id: customers.id }).from(customers).where(and(eq(customers.workshopId, input.workshopId), eq(customers.id, input.customerId))).limit(1);
   const [vehicle] = await database.select({ id: vehicles.id, customerId: vehicles.customerId }).from(vehicles).where(and(eq(vehicles.workshopId, input.workshopId), eq(vehicles.id, input.vehicleId))).limit(1);
-  if (!customer || !vehicle || vehicle.customerId !== customer.id) throw new Error("Cliente ou moto não encontrados.");
+  if (!customer || !vehicle || vehicle.customerId !== customer.id) throw new Error("Cliente ou veículo não encontrados.");
   const [order] = await database.insert(serviceRecords).values({
     workshopId: input.workshopId,
     customerId: input.customerId,

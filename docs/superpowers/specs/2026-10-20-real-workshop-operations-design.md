@@ -24,7 +24,7 @@ The product must cover the complete operational chain: customer, vehicle, intake
 - Owner authentication and multi-workshop tenant isolation.
 - Workshop identity and operational settings.
 - Customer CRUD, WhatsApp consent, address, document, and notes.
-- Car and motorcycle records, including assisted lookup by plate.
+- Vehicle records, including assisted lookup by plate.
 - Sequential work-order numbers per workshop.
 - Intake checklist, fuel, tire condition, odometer, vehicle damage map, and photos.
 - Diagnosis, catalog services, parts, discounts, digital quote, approval, and status history.
@@ -93,7 +93,7 @@ Configuration is split into dedicated records:
 
 Customers gain address and optional CPF/CNPJ fields plus contact preferences, consent timestamp/source, and opt-out timestamp. Normalized phone and plate columns support reliable search and uniqueness.
 
-Vehicles gain type (`car` or `motorcycle`), color, manufacture year, model year, fuel, engine displacement, power, municipality/UF, and masked chassis. Plate lookup provenance and lookup timestamp are stored so imported data is distinguishable from manual corrections.
+Vehicles gain category, color, manufacture year, model year, fuel, engine displacement, power, municipality/UF, and masked chassis. Plate lookup provenance and lookup timestamp are stored so imported data is distinguishable from manual corrections.
 
 ### Work orders, inspection, and quotes
 
@@ -196,7 +196,7 @@ The A4 document contains:
 - customer contact and optional document/address;
 - vehicle data, masked chassis, plate, odometer, and intake date;
 - accessories checklist, fuel, tire condition, and observations;
-- car or motorcycle damage map with digital marks;
+- vehicle damage map with digital marks;
 - intake/diagnosis/completion photo references;
 - complaint, diagnosis, labor, parts, discounts, and totals;
 - payment summary, warranty, configurable terms, and signatures.
@@ -254,7 +254,7 @@ End-to-end tests cover:
 1. customer and vehicle creation with successful and failed plate lookup;
 2. intake inspection with damage marks and photos;
 3. quote creation, public approval, execution, ready notification, split payment, and delivery;
-4. A4 print output for car and motorcycle;
+4. A4 print output for vehicles;
 5. collaborator compensation and financial reporting;
 6. Business Fin CSV export without duplicates;
 7. manual WhatsApp fallback and automated outbox dry-run.

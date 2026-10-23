@@ -5,7 +5,7 @@ import "./brand.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? "https://oficina-saas-green.vercel.app",
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://oficina-saas.contato-ad4.workers.dev",
   ),
   title: "Oficina CRM — clientes que voltam",
   description: "Clientes, serviços, retenção e estoque simples para oficinas.",
@@ -24,8 +24,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  colorScheme: "dark",
-  themeColor: "#070708",
+  colorScheme: "light",
+  themeColor: "#cececf",
 };
 
 export default function RootLayout({

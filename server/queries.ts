@@ -6,7 +6,7 @@ import {
   type FinancialFilters,
 } from "../domain/service-filters";
 import { getOwnerContext } from "./owner-context";
-import { getMotorcycle, listMotorcycles } from "./motorcycles";
+import { getVehicle, listVehicles } from "./vehicles";
 import { getWorkOrder, listWorkOrders } from "./work-orders";
 
 export async function getDashboardData() {
@@ -154,20 +154,20 @@ export async function getWorkOrderData(serviceRecordId: string) {
   return { ...context, order, catalog, inventory };
 }
 
-export async function getMotorcyclesData() {
+export async function getVehiclesData() {
   const context = await getOwnerContext();
-  const [motorcycles, customers] = await Promise.all([
-    listMotorcycles(context.workshopId),
+  const [vehicles, customers] = await Promise.all([
+    listVehicles(context.workshopId),
     context.repository.listCustomers(context.workshopId),
   ]);
-  return { ...context, motorcycles, customers };
+  return { ...context, vehicles, customers };
 }
 
-export async function getMotorcycleData(vehicleId: string) {
+export async function getVehicleData(vehicleId: string) {
   const context = await getOwnerContext();
-  const [motorcycle, customers] = await Promise.all([
-    getMotorcycle(context.workshopId, vehicleId),
+  const [vehicle, customers] = await Promise.all([
+    getVehicle(context.workshopId, vehicleId),
     context.repository.listCustomers(context.workshopId),
   ]);
-  return { ...context, motorcycle, customers };
+  return { ...context, vehicle, customers };
 }

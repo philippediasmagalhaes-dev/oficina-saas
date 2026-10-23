@@ -3,7 +3,7 @@ import { SignOutButton } from "./sign-out-button";
 const navigation = [
   ["Visão geral", "/", "⌂"],
   ["Clientes", "/clientes", "◎"],
-  ["Motos", "/motos", "◇"],
+  ["Veículos", "/veiculos", "◇"],
   ["Ordens de Serviço", "/ordens", "◫"],
   ["Catálogo", "/servicos", "≡"],
   ["Financeiro", "/financeiro", "↟"],

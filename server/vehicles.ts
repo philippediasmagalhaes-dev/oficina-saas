@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDatabase } from "../db/client";
 import { customers, serviceRecords, vehicles } from "../db/schema";
 
@@ -6,7 +6,7 @@ function validUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
-export async function listMotorcycles(workshopId: string) {
+export async function listVehicles(workshopId: string) {
   const database = getDatabase();
   const rows = await database.select({
     id: vehicles.id,
@@ -25,10 +25,10 @@ export async function listMotorcycles(workshopId: string) {
   });
 }
 
-export async function getMotorcycle(workshopId: string, vehicleId: string) {
+export async function getVehicle(workshopId: string, vehicleId: string) {
   if (!validUuid(vehicleId)) return null;
   const database = getDatabase();
-  const [motorcycle] = await database.select({
+  const [vehicle] = await database.select({
     id: vehicles.id,
     workshopId: vehicles.workshopId,
     customerId: vehicles.customerId,
@@ -39,7 +39,7 @@ export async function getMotorcycle(workshopId: string, vehicleId: string) {
     year: vehicles.year,
     odometer: vehicles.odometer,
   }).from(vehicles).innerJoin(customers, and(eq(customers.id, vehicles.customerId), eq(customers.workshopId, workshopId))).where(and(eq(vehicles.workshopId, workshopId), eq(vehicles.id, vehicleId))).limit(1);
-  if (!motorcycle) return null;
+  if (!vehicle) return null;
   const history = await database.select({
     id: serviceRecords.id,
     description: serviceRecords.description,
@@ -52,10 +52,10 @@ export async function getMotorcycle(workshopId: string, vehicleId: string) {
     completedAt: serviceRecords.completedAt,
     nextDueAt: serviceRecords.nextDueAt,
   }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.vehicleId, vehicleId))).orderBy(desc(serviceRecords.createdAt));
-  return { ...motorcycle, history };
+  return { ...vehicle, history };
 }
 
-export async function updateMotorcycle(input: { workshopId: string; vehicleId: string; customerId: string; plate: string; make: string; model: string; year: number | null; odometer: number | null }) {
+export async function updateVehicle(input: { workshopId: string; vehicleId: string; customerId: string; plate: string; make: string; model: string; year: number | null; odometer: number | null }) {
   const [customer] = await getDatabase().select({ id: customers.id }).from(customers).where(and(eq(customers.workshopId, input.workshopId), eq(customers.id, input.customerId))).limit(1);
   if (!customer) throw new Error("Cliente não encontrado.");
   const [row] = await getDatabase().update(vehicles).set({ customerId: input.customerId, plate: input.plate, make: input.make, model: input.model, year: input.year, odometer: input.odometer }).where(and(eq(vehicles.workshopId, input.workshopId), eq(vehicles.id, input.vehicleId))).returning({ id: vehicles.id });

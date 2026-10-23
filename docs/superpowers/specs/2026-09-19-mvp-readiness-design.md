@@ -1,4 +1,4 @@
-# Natinho Scooters MVP Readiness Design
+# Oficina CRM MVP Readiness Design
 
 ## Intent and success criteria
 

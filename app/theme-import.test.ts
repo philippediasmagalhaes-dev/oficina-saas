@@ -27,7 +27,7 @@ describe("global theme loading", () => {
       new URL("../.env.example", import.meta.url),
       "utf8",
     );
-    const productionUrl = "https://oficina-saas-green.vercel.app";
+    const productionUrl = "https://oficina-saas.contato-ad4.workers.dev";
 
     expect(layout).toContain(productionUrl);
     expect(environmentExample).toContain(
