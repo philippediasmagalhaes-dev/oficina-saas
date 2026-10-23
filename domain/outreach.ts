@@ -12,6 +12,10 @@ type ServiceReadyInput = Omit<OutreachInput, "reason"> & {
 
 export type WhatsAppDraft = { message: string; url: string };
 
+export function buildMaintenanceReminderMessage(input: { customer: string; workshop: string; dueDate: string }) {
+  return `Olá, ${input.customer}! Aqui é da ${input.workshop}. A manutenção prevista do seu veículo é ${input.dueDate}. Se já realizou o serviço, desconsidere; se quiser agendar, responda esta mensagem. Para não receber lembretes, responda SAIR.`;
+}
+
 export function normalizeBrazilianPhone(phone: string): string | null {
   let digits = phone.replace(/\D/g, "");
   if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13))

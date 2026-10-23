@@ -231,11 +231,11 @@
 **Interfaces:**
 - Produces deterministic reminder candidates, idempotent outbox keys, Cloud API delivery adapter, webhook status updates, opt-out tracking, and unchanged `wa.me` fallback.
 
-- [ ] Write failing tests for consent, quiet hours, due/overdue schedule, cooldown, opt-out, idempotency, disabled credentials, and webhook verification.
-- [ ] Run focused tests and verify failures.
-- [ ] Implement outbox scheduling, secured cron, provider adapter, webhook, delivery history, settings status, and manual fallback.
-- [ ] Run focused tests and typecheck; expect green.
-- [ ] Commit with `feat: automate consented WhatsApp reminders`.
+- [x] Write failing tests for consent, quiet hours, due/overdue schedule, cooldown, opt-out, idempotency, disabled credentials, and webhook verification.
+- [x] Run focused tests and verify failures.
+- [x] Implement outbox scheduling, secured cron, provider adapter, webhook, delivery history, settings status, and manual fallback.
+- [x] Run focused tests and typecheck; expect green.
+- [x] Commit with `feat: automate consented WhatsApp reminders`.
 
 ### Task 10: Printable A4 work order and final interface integration
 

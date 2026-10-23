@@ -11,6 +11,7 @@ import { listCollaboratorRates, listCollaborators, listWorkOrderAssignments } fr
 import { listInventoryMovements } from "./inventory";
 import { getWorkOrder, listWorkOrders } from "./work-orders";
 import { ensureMonthlyCollaboratorPayables, getFinancialSettings, listFinancialReportEntries } from "./finance";
+import { getWhatsAppAutomationStatus } from "./whatsapp";
 
 export async function getDashboardData() {
   const context = await getOwnerContext();
@@ -102,7 +103,7 @@ export async function getServiceOrder(serviceId: string) {
 
 export async function getRetentionOpportunities() {
   const context = await getOwnerContext();
-  const customers = await context.repository.listCustomers(context.workshopId);
+  const [customers, automation] = await Promise.all([context.repository.listCustomers(context.workshopId), getWhatsAppAutomationStatus(context.workshopId)]);
   const opportunities = customers
     .map((customer) => ({
       ...customer,
@@ -113,7 +114,7 @@ export async function getRetentionOpportunities() {
       }),
     }))
     .filter((customer) => customer.classification !== "current");
-  return { ...context, opportunities };
+  return { ...context, opportunities, automation };
 }
 
 export async function getInventory() {

@@ -5,12 +5,13 @@ import { ConfigurationPending } from "../configurar/page";
 import { updateWorkshopSettingsAction } from "../actions";
 import { FinancialSettingsForm } from "../../components/financial-settings-form";
 import { getFinancialSettings } from "../../server/finance";
+import { getWhatsAppAutomationStatus } from "../../server/whatsapp";
 
 export default async function SettingsPage() {
   const config = readServerConfig(process.env);
   if (!config.configured) return <ConfigurationPending missing={config.missing} />;
   const data = await getOwnerContext();
-  const financial = await getFinancialSettings(data.workshopId);
+  const [financial, whatsapp] = await Promise.all([getFinancialSettings(data.workshopId), getWhatsAppAutomationStatus(data.workshopId)]);
   return <AppShell workshopName={data.workshop.name} current="/configuracoes">
     <div className="page-heading"><div><p className="eyebrow">CONFIGURAÇÕES</p><h1>Seu ambiente de trabalho.</h1><p>Informações da oficina e regras usadas nas previsões.</p></div></div>
     <section className="surface"><div className="section-title"><div><span>Identidade da oficina</span><h2>Dados usados na ordem impressa</h2></div></div><form action={updateWorkshopSettingsAction} className="form-grid">
@@ -24,6 +25,7 @@ export default async function SettingsPage() {
       <button className="primary-button" type="submit">Salvar configurações</button>
     </form></section>
     <FinancialSettingsForm settings={financial.settings} feeRules={financial.feeRules} />
+    <section className="surface settings-list"><div><span>WhatsApp automático</span><strong>{whatsapp.configured ? "Configurado" : "Aguardando credenciais"}</strong><small>Somente clientes com consentimento; opt-out por SAIR.</small></div><div><span>Operação alternativa</span><strong>Envio manual preservado</strong><small>Os botões abrem o número atual da oficina no WhatsApp.</small></div></section>
     <section className="surface settings-list"><div><span>Proprietário</span><strong>{data.user.name}</strong><small>{data.user.email}</small></div><div><span>Acesso</span><strong>Exclusivo do proprietário</strong></div></section>
   </AppShell>;
 }
