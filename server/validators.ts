@@ -148,3 +148,26 @@ export const photoSchema = z.object({
 });
 
 export const vehicleUpdateSchema = vehicleSchema.extend({ vehicleId: z.string().uuid() });
+
+export const collaboratorSchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome do colaborador"),
+  phone: optionalText,
+  compensationMode: z.enum(["fixed_monthly", "fixed_per_service", "percentage", "hybrid"]),
+  monthlyFixed: z.string().trim().default("0"),
+  fixedPerService: z.string().trim().default("0"),
+  commissionPercent: z.coerce.number().min(0).max(100),
+});
+
+export const collaboratorRateSchema = z.object({
+  collaboratorId: z.string().uuid(),
+  serviceCatalogId: z.string().uuid(),
+  fixedPerService: z.string().trim().default(""),
+  commissionPercent: z.union([z.literal(""), z.coerce.number().min(0).max(100)]).transform((value) => value === "" ? null : value),
+});
+
+export const assignmentSchema = z.object({
+  serviceRecordId: z.string().uuid(),
+  workOrderItemId: z.string().uuid(),
+  collaboratorId: z.string().uuid(),
+  participationPercent: z.coerce.number().positive().max(100),
+});

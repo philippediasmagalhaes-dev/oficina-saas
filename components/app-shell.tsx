@@ -6,6 +6,7 @@ const navigation = [
   ["Veículos", "/veiculos", "◇"],
   ["Ordens de Serviço", "/ordens", "◫"],
   ["Catálogo", "/servicos", "≡"],
+  ["Colaboradores", "/colaboradores", "♙"],
   ["Financeiro", "/financeiro", "↟"],
   ["Retenção", "/retencao", "↗"],
   ["Estoque", "/estoque", "▦"],

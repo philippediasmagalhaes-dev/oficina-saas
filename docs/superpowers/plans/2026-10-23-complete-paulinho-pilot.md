@@ -122,11 +122,11 @@
 - Produces `calculateAssignmentCompensation(input): CompensationSnapshot` and CRUD/assignment operations.
 - Task 6 consumes assignment snapshots when closing an order.
 
-- [ ] Write failing tests for monthly fixed, fixed-per-service, percentage, hybrid, labor-only commission, rounding, and participation limits.
-- [ ] Run focused tests and confirm the commission API is absent.
-- [ ] Implement collaborator records, service overrides, multi-collaborator assignments, and owner-only UI.
-- [ ] Run focused tests and typecheck; expect green.
-- [ ] Commit with `feat: add collaborators and labor compensation`.
+- [x] Write failing tests for monthly fixed, fixed-per-service, percentage, hybrid, labor-only commission, rounding, and participation limits.
+- [x] Run focused tests and confirm the commission API is absent.
+- [x] Implement collaborator records, service overrides, multi-collaborator assignments, and owner-only UI.
+- [x] Run focused tests and typecheck; expect green.
+- [x] Commit with `feat: add collaborators and labor compensation`.
 
 ### Task 5: Inventory reservation and idempotent consumption
 

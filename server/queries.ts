@@ -7,6 +7,7 @@ import {
 } from "../domain/service-filters";
 import { getOwnerContext } from "./owner-context";
 import { getVehicle, listVehicles } from "./vehicles";
+import { listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
 import { getWorkOrder, listWorkOrders } from "./work-orders";
 
 export async function getDashboardData() {
@@ -146,12 +147,20 @@ export async function getWorkOrdersData() {
 
 export async function getWorkOrderData(serviceRecordId: string) {
   const context = await getOwnerContext();
-  const [order, catalog, inventory] = await Promise.all([
+  const [order, catalog, inventory, collaborators, assignments] = await Promise.all([
     getWorkOrder(context.workshopId, serviceRecordId),
     context.repository.listServiceCatalog(context.workshopId),
     context.repository.listInventory(context.workshopId),
+    listCollaborators(context.workshopId),
+    listWorkOrderAssignments(context.workshopId, serviceRecordId),
   ]);
-  return { ...context, order, catalog, inventory };
+  return { ...context, order, catalog, inventory, collaborators, assignments };
+}
+
+export async function getCollaboratorsData() {
+  const context = await getOwnerContext();
+  const [collaborators, rates, catalog] = await Promise.all([listCollaborators(context.workshopId), listCollaboratorRates(context.workshopId), context.repository.listServiceCatalog(context.workshopId)]);
+  return { ...context, collaborators, rates, catalog };
 }
 
 export async function getVehiclesData() {

@@ -12,6 +12,7 @@ import { createDrizzleRepository } from "../server/drizzle-repository";
 import { getOwnerContext, getOwnerUser } from "../server/owner-context";
 import { updateVehicle } from "../server/vehicles";
 import { saveInspection } from "../server/inspections";
+import { assignWorkOrderItem, createCollaborator, removeWorkOrderAssignment, setCollaboratorServiceRate } from "../server/collaborators";
 import {
   addQuoteItem,
   addServicePhoto,
@@ -27,6 +28,9 @@ import {
 } from "../server/work-orders";
 import {
   customerSchema,
+  collaboratorRateSchema,
+  collaboratorSchema,
+  assignmentSchema,
   diagnosisSchema,
   finalizationSchema,
   inventoryAdjustmentSchema,
@@ -78,6 +82,35 @@ export async function updateWorkshopSettingsAction(formData: FormData) {
   if (!updated) throw new Error("Oficina não encontrada.");
   revalidatePath("/configuracoes");
   revalidatePath("/");
+}
+
+export async function createCollaboratorAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(collaboratorSchema.safeParse(formObject(formData)));
+  await createCollaborator({ workshopId, name: input.name, phone: input.phone, compensationMode: input.compensationMode, monthlyFixedCents: parseCurrencyToCents(input.monthlyFixed), fixedPerServiceCents: parseCurrencyToCents(input.fixedPerService), commissionBasisPoints: Math.round(input.commissionPercent * 100) });
+  revalidatePath("/colaboradores");
+}
+
+export async function setCollaboratorServiceRateAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(collaboratorRateSchema.safeParse(formObject(formData)));
+  await setCollaboratorServiceRate({ workshopId, collaboratorId: input.collaboratorId, serviceCatalogId: input.serviceCatalogId, fixedPerServiceCents: input.fixedPerService ? parseCurrencyToCents(input.fixedPerService) : null, commissionBasisPoints: input.commissionPercent === null ? null : Math.round(input.commissionPercent * 100) });
+  revalidatePath("/colaboradores");
+}
+
+export async function assignCollaboratorAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(assignmentSchema.safeParse(formObject(formData)));
+  await assignWorkOrderItem({ workshopId, workOrderItemId: input.workOrderItemId, collaboratorId: input.collaboratorId, participationBasisPoints: Math.round(input.participationPercent * 100) });
+  revalidatePath(`/ordens/${input.serviceRecordId}`);
+}
+
+export async function removeCollaboratorAssignmentAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const assignmentId = String(formData.get("assignmentId") ?? "");
+  const serviceRecordId = String(formData.get("serviceRecordId") ?? "");
+  await removeWorkOrderAssignment(workshopId, assignmentId);
+  revalidatePath(`/ordens/${serviceRecordId}`);
 }
 
 export async function updateCustomerAction(formData: FormData) {

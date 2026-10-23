@@ -17,7 +17,7 @@ function collectNativeAnchorHrefs(node: ReactNode): string[] {
 describe("application shell", () => {
   it("shows the owner workflow modules on desktop and mobile", () => {
     const html = renderToStaticMarkup(<AppShell workshopName="Paulinho Autocar">conteúdo</AppShell>);
-    for (const label of ["Visão geral", "Clientes", "Veículos", "Ordens de Serviço", "Catálogo", "Financeiro", "Retenção", "Estoque", "Configurações"]) {
+    for (const label of ["Visão geral", "Clientes", "Veículos", "Ordens de Serviço", "Catálogo", "Colaboradores", "Financeiro", "Retenção", "Estoque", "Configurações"]) {
       expect(html).toContain(label);
     }
     expect(html).toContain('aria-label="Navegação móvel"');
@@ -32,13 +32,14 @@ describe("application shell", () => {
     });
     const hrefs = collectNativeAnchorHrefs(tree);
 
-    expect(hrefs).toHaveLength(19);
+    expect(hrefs).toHaveLength(21);
     for (const href of [
       "/",
       "/clientes",
       "/veiculos",
       "/ordens",
       "/servicos",
+      "/colaboradores",
       "/financeiro",
       "/retencao",
       "/estoque",
