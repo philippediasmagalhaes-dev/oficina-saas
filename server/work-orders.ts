@@ -25,6 +25,7 @@ import {
 import { createDrizzleSequenceStore, nextWorkOrderNumber } from "./work-order-number";
 import { getInspection } from "./inspections";
 import { consumeReservedOrderStockTx, releaseCancelledOrderStockTx, reserveApprovedOrderStockTx } from "./inventory";
+import { closeWorkOrderFinancialsTx, type PaymentDraft } from "./finance";
 
 export type WorkOrderItemSummary = {
   id: string;
@@ -344,12 +345,13 @@ export async function updateWorkOrderStatus(workshopId: string, serviceRecordId:
   });
 }
 
-export async function finalizeWorkOrder(input: { workshopId: string; serviceRecordId: string; paymentMethod: string; paymentStatus: string; warrantyDays: number | null; deliveredOdometer: number | null; returnIntervalDays: number | null; nextDueAt: Date | null }) {
+export async function finalizeWorkOrder(input: { workshopId: string; serviceRecordId: string; payments: PaymentDraft[]; warrantyDays: number | null; deliveredOdometer: number | null; returnIntervalDays: number | null; nextDueAt: Date | null }) {
   await runDatabaseTransaction(async (tx) => {
     const [order] = await tx.select({ id: serviceRecords.id, status: serviceRecords.status, description: serviceRecords.description }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId))).limit(1);
     if (!order || order.status !== "ready") throw new Error("A ordem precisa estar pronta antes da entrega.");
     const now = new Date();
-    await tx.update(serviceRecords).set({ status: "delivered", completedAt: now, deliveredAt: now, paymentMethod: input.paymentMethod, paymentStatus: input.paymentStatus, warrantyDays: input.warrantyDays, deliveredOdometer: input.deliveredOdometer, returnIntervalDays: input.returnIntervalDays, nextDueAt: input.nextDueAt }).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId)));
+    await closeWorkOrderFinancialsTx(tx, { workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, payments: input.payments, now });
+    await tx.update(serviceRecords).set({ status: "delivered", completedAt: now, deliveredAt: now, warrantyDays: input.warrantyDays, deliveredOdometer: input.deliveredOdometer, returnIntervalDays: input.returnIntervalDays, nextDueAt: input.nextDueAt }).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId)));
     await appendStatusEvent(tx, { workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, fromStatus: "ready", toStatus: "delivered" });
   });
 }

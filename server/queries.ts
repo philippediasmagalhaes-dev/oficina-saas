@@ -10,6 +10,7 @@ import { getVehicle, listVehicles } from "./vehicles";
 import { listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
 import { listInventoryMovements } from "./inventory";
 import { getWorkOrder, listWorkOrders } from "./work-orders";
+import { ensureMonthlyCollaboratorPayables, getFinancialSettings, listFinancialReportEntries } from "./finance";
 
 export async function getDashboardData() {
   const context = await getOwnerContext();
@@ -121,16 +122,34 @@ export async function getInventory() {
   return { ...context, inventory, movements };
 }
 
-export async function getFinancialDashboard(filters: FinancialFilters) {
+export async function getFinancialDashboard(filters: FinancialFilters & { status?: string; category?: string; recognitionMode?: "cash" | "accrual"; paymentMethod?: string; collaboratorId?: string }) {
   const context = await getOwnerContext();
-  const allServices = await context.repository.listServices(context.workshopId);
+  await ensureMonthlyCollaboratorPayables(context.workshopId);
+  const [allServices, allEntries, financialSettings, collaborators] = await Promise.all([
+    context.repository.listServices(context.workshopId),
+    listFinancialReportEntries(context.workshopId, { status: filters.status, category: filters.category, recognitionMode: filters.recognitionMode, paymentMethod: filters.paymentMethod, collaboratorId: filters.collaboratorId }),
+    getFinancialSettings(context.workshopId),
+    listCollaborators(context.workshopId),
+  ]);
   const services = filterFinancialServices(allServices, filters);
+  const reportEntries = allEntries.flatMap((entry) => {
+    const completedAt = filters.recognitionMode === "cash" ? entry.settledAt : entry.competenceDate;
+    return completedAt ? [{ ...entry, completedAt, customerName: entry.collaboratorName ?? "", vehicleLabel: entry.paymentMethod }] : [];
+  });
+  const entries = filterFinancialServices(reportEntries, filters);
+  const incomeCents = entries.filter((entry) => entry.direction === "income").reduce((sum, entry) => sum + entry.netAmountCents, 0);
+  const expenseCents = entries.filter((entry) => entry.direction === "expense").reduce((sum, entry) => sum + entry.netAmountCents, 0);
+  const reserveCents = entries.filter((entry) => entry.direction === "reserve").reduce((sum, entry) => sum + entry.netAmountCents, 0);
   return {
     ...context,
     services,
     snapshot: buildFinancialSnapshot(services),
     periodLabel: describeFinancialPeriod(filters),
     customerCount: new Set(services.map((service) => service.customerId)).size,
+    entries,
+    financialSettings: financialSettings.settings,
+    collaborators,
+    ledger: { incomeCents, expenseCents, reserveCents, balanceCents: incomeCents - expenseCents - reserveCents },
   };
 }
 

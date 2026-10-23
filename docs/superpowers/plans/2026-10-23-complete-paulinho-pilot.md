@@ -170,11 +170,11 @@
 - Produces `calculateFinancialClosing(input): FinancialClosing`, split-payment persistence, fee-rule lookup, tax snapshots, immutable ledger creation, and cash/accrual reporting.
 - Business Fin export consumes `FinancialEntrySummary` from this task.
 
-- [ ] Write failing tests for split payments, installments, percentage/fixed card fees, manual overrides, tax reserve, commissions, rounding, cash/accrual recognition, and idempotent close.
-- [ ] Run focused tests and verify failures.
-- [ ] Implement settings, payment editor, transactional close, receivables/payables, recurring fixed collaborator payables, attachments metadata, and filterable reports.
-- [ ] Run finance/work-order tests and typecheck; expect green.
-- [ ] Commit with `feat: add complete financial closing and reporting`.
+- [x] Write failing tests for split payments, installments, percentage/fixed card fees, manual overrides, tax reserve, commissions, rounding, cash/accrual recognition, and idempotent close.
+- [x] Run focused tests and verify failures.
+- [x] Implement settings, payment editor, transactional close, receivables/payables, recurring fixed collaborator payables, attachments metadata, and filterable reports.
+- [x] Run finance/work-order tests and typecheck; expect green.
+- [x] Commit with `feat: add complete financial closing and reporting`.
 
 ### Task 7: Business Fin CSV export
 

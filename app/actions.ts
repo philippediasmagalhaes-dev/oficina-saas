@@ -13,6 +13,7 @@ import { getOwnerContext, getOwnerUser } from "../server/owner-context";
 import { updateVehicle } from "../server/vehicles";
 import { saveInspection } from "../server/inspections";
 import { assignWorkOrderItem, createCollaborator, removeWorkOrderAssignment, setCollaboratorServiceRate } from "../server/collaborators";
+import { createManualFinancialEntry, saveFinancialSettings, savePaymentFeeRule } from "../server/finance";
 import {
   addQuoteItem,
   addServicePhoto,
@@ -33,6 +34,9 @@ import {
   assignmentSchema,
   diagnosisSchema,
   finalizationSchema,
+  financialSettingsSchema,
+  manualFinancialEntrySchema,
+  paymentFeeRuleSchema,
   inventoryAdjustmentSchema,
   inventoryItemSchema,
   photoSchema,
@@ -279,6 +283,7 @@ export async function finalizeWorkOrderAction(formData: FormData) {
   await finalizeWorkOrder({
     workshopId,
     ...input,
+    payments: input.payments.map((payment) => ({ paymentMethod: payment.paymentMethod, amountCents: parseCurrencyToCents(payment.amount), installmentCount: payment.installmentCount, paid: payment.paid, expectedAt: payment.expectedAt, manualFeeCents: payment.manualFee ? parseCurrencyToCents(payment.manualFee) : null })),
     nextDueAt: input.nextDueAt ?? deriveNextDueAt(new Date(), input.returnIntervalDays),
   });
   revalidatePath(`/ordens/${input.serviceRecordId}`);
@@ -288,6 +293,28 @@ export async function finalizeWorkOrderAction(formData: FormData) {
   revalidatePath("/retencao");
   revalidatePath("/estoque");
   revalidatePath("/");
+}
+
+export async function saveFinancialSettingsAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialSettingsSchema.safeParse(formObject(formData)));
+  await saveFinancialSettings({ workshopId, defaultTaxBasisPoints: Math.round(input.defaultTaxPercent * 100), defaultRecognitionMode: input.defaultRecognitionMode });
+  revalidatePath("/configuracoes");
+  revalidatePath("/financeiro");
+}
+
+export async function savePaymentFeeRuleAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(paymentFeeRuleSchema.safeParse(formObject(formData)));
+  await savePaymentFeeRule({ workshopId, paymentMethod: input.paymentMethod, installmentCount: input.installmentCount, percentageBasisPoints: Math.round(input.percentage * 100), fixedFeeCents: parseCurrencyToCents(input.fixedFee) });
+  revalidatePath("/configuracoes");
+}
+
+export async function createManualFinancialEntryAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(manualFinancialEntrySchema.safeParse(formObject(formData)));
+  await createManualFinancialEntry({ workshopId, direction: input.direction, category: input.category, description: input.description, amountCents: parseCurrencyToCents(input.amount), competenceDate: input.competenceDate, dueDate: input.dueDate, settled: input.settled, recurrenceKey: input.recurringMonthly ? `monthly:${crypto.randomUUID()}` : null });
+  revalidatePath("/financeiro");
 }
 
 export async function uploadServicePhotoAction(formData: FormData) {

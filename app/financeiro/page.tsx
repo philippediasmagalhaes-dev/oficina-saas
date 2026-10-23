@@ -5,12 +5,18 @@ import { formatCents } from "../../domain/money";
 import { parseFinancialPeriod } from "../../domain/service-filters";
 import { getFinancialDashboard } from "../../server/queries";
 import { ConfigurationPending } from "../configurar/page";
+import { createManualFinancialEntryAction } from "../actions";
 
 type SearchParams = {
   period?: string;
   q?: string;
   from?: string;
   to?: string;
+  status?: string;
+  category?: string;
+  recognition?: string;
+  payment?: string;
+  collaborator?: string;
 };
 
 export default async function FinancialPage({
@@ -27,6 +33,11 @@ export default async function FinancialPage({
     query: params.q?.trim() ?? "",
     from: params.from ?? "",
     to: params.to ?? "",
+    status: params.status ?? "",
+    category: params.category ?? "",
+    recognitionMode: params.recognition === "accrual" ? "accrual" as const : "cash" as const,
+    paymentMethod: params.payment ?? "",
+    collaboratorId: params.collaborator ?? "",
   };
   const data = await getFinancialDashboard(filters);
   const maxMonthlyRevenue = Math.max(
@@ -78,6 +89,11 @@ export default async function FinancialPage({
             Até
             <input name="to" type="date" defaultValue={filters.to} />
           </label>
+          <label>Visão<select name="recognition" defaultValue={filters.recognitionMode}><option value="cash">Caixa</option><option value="accrual">Competência</option></select></label>
+          <label>Status<select name="status" defaultValue={filters.status}><option value="">Todos</option><option value="settled">Realizado</option><option value="expected">Previsto</option><option value="cancelled">Cancelado</option></select></label>
+          <label>Categoria<select name="category" defaultValue={filters.category}><option value="">Todas</option><option value="service_income">Receita de serviço</option><option value="labor_compensation">Comissão</option><option value="fixed_payroll">Pagamento mensal</option><option value="tax_reserve">Reserva de imposto</option><option value="operational">Operacional</option></select></label>
+          <label>Pagamento<select name="payment" defaultValue={filters.paymentMethod}><option value="">Todos</option><option value="pix">PIX</option><option value="cash">Dinheiro</option><option value="debit_card">Débito</option><option value="credit_card">Crédito</option><option value="transfer">Transferência</option></select></label>
+          <label>Colaborador<select name="collaborator" defaultValue={filters.collaboratorId}><option value="">Todos</option>{data.collaborators.map((collaborator) => <option key={collaborator.id} value={collaborator.id}>{collaborator.name}</option>)}</select></label>
           <div className="filter-actions">
             <button className="primary-button" type="submit">
               Aplicar filtros
@@ -91,6 +107,28 @@ export default async function FinancialPage({
           Datas preenchidas têm prioridade sobre o período rápido.
         </p>
       </section>
+
+      <section className="metric-grid finance-metrics ledger-metrics">
+        <article className="metric-card featured"><span>Entradas líquidas</span><strong>{formatCents(data.ledger.incomeCents)}</strong><small>já descontadas as taxas</small></article>
+        <article className="metric-card"><span>Saídas</span><strong>{formatCents(data.ledger.expenseCents)}</strong><small>comissões e despesas</small></article>
+        <article className="metric-card"><span>Impostos separados</span><strong>{formatCents(data.ledger.reserveCents)}</strong><small>provisão, não caixa livre</small></article>
+        <article className="metric-card"><span>Saldo gerencial</span><strong>{formatCents(data.ledger.balanceCents)}</strong><small>{filters.recognitionMode === "cash" ? "regime de caixa" : "regime de competência"}</small></article>
+      </section>
+
+      <div className="split-grid">
+        <section className="surface"><div className="section-title"><div><span>Contas a receber e pagar</span><h2>Livro financeiro</h2></div></div>{data.entries.length ? <div className="finance-list">{data.entries.slice(0, 30).map((entry) => <div key={entry.id}><span><strong>{entry.description}</strong><small>{entry.category.replaceAll("_", " ")} · {entry.status === "settled" ? "realizado" : "previsto"} · {entry.competenceDate.toLocaleDateString("pt-BR")}</small></span><b className={entry.direction === "income" ? "ok" : "warning"}>{entry.direction === "income" ? "+" : "−"}{formatCents(entry.netAmountCents)}</b></div>)}</div> : <EmptyState title="Sem lançamentos" description="Finalize uma OS ou registre uma conta manual." />}</section>
+        <section className="surface"><div className="section-title"><div><span>Entrada manual</span><h2>Receita ou despesa</h2></div></div><form action={createManualFinancialEntryAction} className="form-grid compact-form">
+          <label>Tipo<select name="direction" defaultValue="expense"><option value="expense">Despesa</option><option value="income">Receita</option><option value="reserve">Reserva</option></select></label>
+          <label>Categoria<input name="category" defaultValue="operational" required /></label>
+          <label className="span-2">Descrição<input name="description" required placeholder="Ex.: aluguel, fornecedor, receita avulsa" /></label>
+          <label>Valor<input name="amount" inputMode="decimal" required placeholder="0,00" /></label>
+          <label>Competência<input name="competenceDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
+          <label>Vencimento<input name="dueDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
+          <label className="checkbox-label"><input name="settled" type="checkbox" /> Já realizado</label>
+          <label className="checkbox-label"><input name="recurringMonthly" type="checkbox" /> Recorrente mensal</label>
+          <button className="secondary-button span-2" type="submit">Adicionar lançamento</button>
+        </form></section>
+      </div>
 
       <div className="filter-result">
         <span>

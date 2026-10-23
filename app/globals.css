@@ -1819,6 +1819,34 @@ textarea:focus {
   }
 }
 
+.payment-editor {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel) 78%, transparent);
+}
+.payment-summary,
+.payment-row,
+.settings-rule-list > div {
+  display: flex;
+  align-items: end;
+  gap: 0.7rem;
+}
+.payment-summary { justify-content: space-between; align-items: center; }
+.payment-row { flex-wrap: wrap; padding-block: 0.75rem; border-top: 1px solid var(--line); }
+.payment-row label { min-width: 7rem; flex: 1; }
+.payment-row .payment-paid { flex: 0 0 auto; min-width: auto; flex-direction: row; align-items: center; padding-bottom: 0.75rem; }
+.form-warning, .warning { color: #a51d2d; }
+.settings-rule-list { display: grid; gap: 0.55rem; margin-top: 1rem; }
+.settings-rule-list > div { justify-content: space-between; align-items: center; padding-top: 0.55rem; border-top: 1px solid var(--line); }
+.ledger-metrics { margin-top: 1rem; }
+
+@media (max-width: 760px) {
+  .payment-row { display: grid; grid-template-columns: 1fr 1fr; align-items: end; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

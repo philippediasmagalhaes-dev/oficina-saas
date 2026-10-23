@@ -133,12 +133,43 @@ export const workOrderStatusSchema = z.object({
 
 export const finalizationSchema = z.object({
   serviceRecordId: z.string().uuid(),
-  paymentMethod: z.string().trim().min(2),
-  paymentStatus: z.enum(["pending", "paid"]),
+  payments: z.string().transform((value, context) => {
+    try { return JSON.parse(value) as unknown; } catch { context.addIssue({ code: "custom", message: "Pagamentos inválidos" }); return z.NEVER; }
+  }).pipe(z.array(z.object({
+    paymentMethod: z.enum(["pix", "cash", "debit_card", "credit_card", "transfer", "other"]),
+    amount: z.string().trim().min(1),
+    installmentCount: z.coerce.number().int().min(1).max(24),
+    paid: z.boolean(),
+    expectedAt: z.coerce.date(),
+    manualFee: z.string().trim(),
+  })).min(1)),
   warrantyDays: optionalInteger,
   deliveredOdometer: optionalInteger,
   returnIntervalDays: optionalInteger,
   nextDueAt: z.union([z.literal(""), z.coerce.date()]).transform((value) => value === "" ? null : value),
+});
+
+export const financialSettingsSchema = z.object({
+  defaultTaxPercent: z.coerce.number().min(0).max(100),
+  defaultRecognitionMode: z.enum(["cash", "accrual"]),
+});
+
+export const paymentFeeRuleSchema = z.object({
+  paymentMethod: z.enum(["pix", "cash", "debit_card", "credit_card", "transfer", "other"]),
+  installmentCount: z.coerce.number().int().min(1).max(24),
+  percentage: z.coerce.number().min(0).max(100),
+  fixedFee: z.string().trim().default("0"),
+});
+
+export const manualFinancialEntrySchema = z.object({
+  direction: z.enum(["income", "expense", "reserve"]),
+  category: z.string().trim().min(2),
+  description: z.string().trim().min(2),
+  amount: z.string().trim().min(1),
+  competenceDate: z.coerce.date(),
+  dueDate: z.coerce.date(),
+  settled: z.coerce.boolean().default(false),
+  recurringMonthly: z.coerce.boolean().default(false),
 });
 
 export const photoSchema = z.object({
