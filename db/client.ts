@@ -3,8 +3,12 @@ import { drizzle, type NeonDatabase } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 import { readServerConfig } from "./config";
 import * as schema from "./schema";
+import { selectWebSocketConstructor } from "./websocket-constructor";
 
-neonConfig.webSocketConstructor = ws;
+neonConfig.webSocketConstructor = selectWebSocketConstructor(
+  globalThis.WebSocket,
+  ws,
+) as typeof ws;
 
 let database: NeonDatabase<typeof schema> | undefined;
 let pool: Pool | undefined;

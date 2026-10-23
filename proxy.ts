@@ -2,13 +2,21 @@ import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 import { readServerConfig } from "./db/config";
 
-export function proxy(request: NextRequest) {
-  const path = request.nextUrl.pathname;
-  const publicPath =
+export function isPublicRoute(path: string) {
+  return (
     path.startsWith("/login") ||
     path.startsWith("/primeiro-acesso") ||
     path.startsWith("/api/auth") ||
-    path.startsWith("/orcamento/");
+    path.startsWith("/orcamento/") ||
+    path.startsWith("/icons/") ||
+    path === "/manifest.webmanifest" ||
+    path === "/sw.js"
+  );
+}
+
+export function proxy(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  const publicPath = isPublicRoute(path);
   const config = readServerConfig(process.env);
 
   if (!config.configured && !path.startsWith("/configurar"))
@@ -19,5 +27,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.jpg).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|logo.jpg|manifest.webmanifest|sw.js|icons/).*)",
+  ],
 };
