@@ -403,7 +403,7 @@ export function createDrizzleRepository(
             and(
               eq(inventoryItems.workshopId, input.workshopId),
               eq(inventoryItems.id, input.inventoryItemId),
-              gte(sql`${inventoryItems.currentQuantity} + ${input.delta}`, 0),
+              gte(sql`${inventoryItems.currentQuantity} + ${input.delta}`, inventoryItems.reservedQuantity),
             ),
           )
           .returning();

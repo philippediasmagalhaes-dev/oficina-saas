@@ -1,0 +1,4 @@
+ALTER TABLE "inventory_movements" DROP CONSTRAINT "movements_delta_nonzero";--> statement-breakpoint
+CREATE UNIQUE INDEX "inventory_movements_operation_unique" ON "inventory_movements" USING btree ("workshop_id","operation_key");--> statement-breakpoint
+ALTER TABLE "inventory_items" ADD CONSTRAINT "inventory_reserved_valid" CHECK ("inventory_items"."reserved_quantity" >= 0 and "inventory_items"."reserved_quantity" <= "inventory_items"."current_quantity");--> statement-breakpoint
+ALTER TABLE "inventory_movements" ADD CONSTRAINT "movements_delta_nonzero" CHECK ("inventory_movements"."quantity_delta" <> 0 or "inventory_movements"."reservation_delta" <> 0);

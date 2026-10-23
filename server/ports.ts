@@ -119,6 +119,7 @@ export type InventorySummary = {
   costCents: number;
   salePriceCents: number;
   currentQuantity: number;
+  reservedQuantity?: number;
   minimumQuantity: number;
   active: boolean;
 };

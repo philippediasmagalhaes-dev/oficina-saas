@@ -8,6 +8,7 @@ import {
 import { getOwnerContext } from "./owner-context";
 import { getVehicle, listVehicles } from "./vehicles";
 import { listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
+import { listInventoryMovements } from "./inventory";
 import { getWorkOrder, listWorkOrders } from "./work-orders";
 
 export async function getDashboardData() {
@@ -48,7 +49,7 @@ export async function getDashboardData() {
         (customer) => customer.classification !== "current",
       ).length,
       lowStock: inventory.filter(
-        (item) => item.active && item.currentQuantity <= item.minimumQuantity,
+        (item) => item.active && item.currentQuantity - (item.reservedQuantity ?? 0) <= item.minimumQuantity,
       ).length,
     },
   };
@@ -116,10 +117,8 @@ export async function getRetentionOpportunities() {
 
 export async function getInventory() {
   const context = await getOwnerContext();
-  return {
-    ...context,
-    inventory: await context.repository.listInventory(context.workshopId),
-  };
+  const [inventory, movements] = await Promise.all([context.repository.listInventory(context.workshopId), listInventoryMovements(context.workshopId)]);
+  return { ...context, inventory, movements };
 }
 
 export async function getFinancialDashboard(filters: FinancialFilters) {

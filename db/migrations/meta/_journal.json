@@ -43,6 +43,13 @@
       "when": 1792775796518,
       "tag": "0005_work_order_number_constraint",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792789922958,
+      "tag": "0006_inventory_reservation_constraints",
+      "breakpoints": true
     }
   ]
 }

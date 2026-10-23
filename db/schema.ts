@@ -357,6 +357,7 @@ export const inventoryItems = pgTable(
     check("inventory_cost_nonnegative", sql`${table.costCents} >= 0`),
     check("inventory_price_nonnegative", sql`${table.salePriceCents} >= 0`),
     check("inventory_quantity_nonnegative", sql`${table.currentQuantity} >= 0`),
+    check("inventory_reserved_valid", sql`${table.reservedQuantity} >= 0 and ${table.reservedQuantity} <= ${table.currentQuantity}`),
     check("inventory_minimum_nonnegative", sql`${table.minimumQuantity} >= 0`),
   ],
 );
@@ -378,7 +379,8 @@ export const inventoryMovements = pgTable(
   (table) => [
     index("movements_workshop_date_idx").on(table.workshopId, table.createdAt),
     index("movements_item_idx").on(table.workshopId, table.inventoryItemId),
-    check("movements_delta_nonzero", sql`${table.quantityDelta} <> 0`),
+    uniqueIndex("inventory_movements_operation_unique").on(table.workshopId, table.operationKey),
+    check("movements_delta_nonzero", sql`${table.quantityDelta} <> 0 or ${table.reservationDelta} <> 0`),
   ],
 );
 

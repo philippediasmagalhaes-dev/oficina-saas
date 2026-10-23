@@ -3,7 +3,6 @@ import { getDatabase, runDatabaseTransaction, type DatabaseTransaction } from ".
 import {
   customers,
   inventoryItems,
-  inventoryMovements,
   serviceCatalogItems,
   servicePhotos,
   serviceRecords,
@@ -25,6 +24,7 @@ import {
 } from "./photo-storage";
 import { createDrizzleSequenceStore, nextWorkOrderNumber } from "./work-order-number";
 import { getInspection } from "./inspections";
+import { consumeReservedOrderStockTx, releaseCancelledOrderStockTx, reserveApprovedOrderStockTx } from "./inventory";
 
 export type WorkOrderItemSummary = {
   id: string;
@@ -304,6 +304,7 @@ export async function respondToQuote(token: string, response: "approved" | "reje
     const [row] = await tx.update(serviceRecords).set({ quoteStatus: response, status: toStatus, quoteRespondedAt: now, approvedAt: response === "approved" ? now : null }).where(and(eq(serviceRecords.quoteToken, token), eq(serviceRecords.quoteStatus, "sent"), eq(serviceRecords.status, "awaiting_approval"), or(isNull(serviceRecords.quoteValidUntil), gte(serviceRecords.quoteValidUntil, now)))).returning({ id: serviceRecords.id, workshopId: serviceRecords.workshopId, quoteVersion: serviceRecords.quoteVersion, quoteToken: serviceRecords.quoteToken });
     if (!row) return null;
     await tx.insert(workOrderApprovals).values({ workshopId: row.workshopId, serviceRecordId: row.id, quoteVersion: row.quoteVersion, decision: response, publicToken: row.quoteToken });
+    if (response === "approved") await reserveApprovedOrderStockTx(tx, row.workshopId, row.id);
     await appendStatusEvent(tx, { workshopId: row.workshopId, serviceRecordId: row.id, fromStatus: "awaiting_approval", toStatus });
     return { id: row.id };
   });
@@ -315,6 +316,7 @@ export async function reopenApprovedQuote(workshopId: string, serviceRecordId: s
     if (!order) throw new Error("Somente um orçamento aprovado pode ser revisado.");
     const quoteVersion = nextQuoteVersion(order.quoteVersion);
     await tx.update(serviceRecords).set({ status: "diagnosis", quoteStatus: "draft", quoteVersion, approvedAt: null, quoteRespondedAt: null }).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId)));
+    await releaseCancelledOrderStockTx(tx, workshopId, serviceRecordId);
     await appendStatusEvent(tx, { workshopId, serviceRecordId, fromStatus: "approved", toStatus: "diagnosis", note: `Orçamento reaberto na versão ${quoteVersion}` });
     return { id: serviceRecordId, quoteVersion };
   });
@@ -335,6 +337,8 @@ export async function updateWorkOrderStatus(workshopId: string, serviceRecordId:
     if (!order) throw new Error("Ordem de serviço não encontrada.");
     const values: Partial<typeof serviceRecords.$inferInsert> = { status };
     if (status === "ready") values.readyAt = new Date();
+    if (order.status === "approved" && status === "in_progress") await consumeReservedOrderStockTx(tx, workshopId, serviceRecordId);
+    if (status === "cancelled") await releaseCancelledOrderStockTx(tx, workshopId, serviceRecordId);
     await tx.update(serviceRecords).set(values).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId)));
     await appendStatusEvent(tx, { workshopId, serviceRecordId, fromStatus: order.status, toStatus: status });
   });
@@ -344,13 +348,6 @@ export async function finalizeWorkOrder(input: { workshopId: string; serviceReco
   await runDatabaseTransaction(async (tx) => {
     const [order] = await tx.select({ id: serviceRecords.id, status: serviceRecords.status, description: serviceRecords.description }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId))).limit(1);
     if (!order || order.status !== "ready") throw new Error("A ordem precisa estar pronta antes da entrega.");
-    const parts = await tx.select({ inventoryItemId: workOrderItems.inventoryItemId, quantity: workOrderItems.quantity, description: workOrderItems.description }).from(workOrderItems).where(and(eq(workOrderItems.workshopId, input.workshopId), eq(workOrderItems.serviceRecordId, input.serviceRecordId), eq(workOrderItems.type, "part")));
-    for (const part of parts) {
-      if (!part.inventoryItemId) continue;
-      const [stock] = await tx.update(inventoryItems).set({ currentQuantity: sql`${inventoryItems.currentQuantity} - ${part.quantity}` }).where(and(eq(inventoryItems.workshopId, input.workshopId), eq(inventoryItems.id, part.inventoryItemId), sql`${inventoryItems.currentQuantity} >= ${part.quantity}`)).returning({ id: inventoryItems.id });
-      if (!stock) throw new Error(`Estoque insuficiente para ${part.description}.`);
-      await tx.insert(inventoryMovements).values({ workshopId: input.workshopId, inventoryItemId: part.inventoryItemId, serviceRecordId: input.serviceRecordId, type: "consumption", quantityDelta: -part.quantity, note: order.description });
-    }
     const now = new Date();
     await tx.update(serviceRecords).set({ status: "delivered", completedAt: now, deliveredAt: now, paymentMethod: input.paymentMethod, paymentStatus: input.paymentStatus, warrantyDays: input.warrantyDays, deliveredOdometer: input.deliveredOdometer, returnIntervalDays: input.returnIntervalDays, nextDueAt: input.nextDueAt }).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId)));
     await appendStatusEvent(tx, { workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, fromStatus: "ready", toStatus: "delivered" });

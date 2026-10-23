@@ -143,11 +143,11 @@
 - Produces `reserveApprovedOrderStock`, `consumeReservedOrderStock`, and `releaseCancelledOrderStock` with audited movement keys.
 - Task 6 invokes consumption inside the finalization transaction.
 
-- [ ] Write failing tests for reserve, insufficient availability, release, consume, negative-stock protection, and retry idempotency.
-- [ ] Run focused tests and verify failures.
-- [ ] Implement reservation quantity, authoritative movement ledger, lifecycle hooks, and movement history UI.
-- [ ] Run focused and existing inventory/work-order tests; expect green.
-- [ ] Commit with `feat: reserve and audit work order stock`.
+- [x] Write failing tests for reserve, insufficient availability, release, consume, negative-stock protection, and retry idempotency.
+- [x] Run focused tests and verify failures.
+- [x] Implement reservation quantity, authoritative movement ledger, lifecycle hooks, and movement history UI.
+- [x] Run focused and existing inventory/work-order tests; expect green.
+- [x] Commit with `feat: reserve and audit work order stock`.
 
 ### Task 6: Payments, card fees, tax reserve, commissions, and financial closing
 
