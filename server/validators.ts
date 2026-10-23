@@ -148,6 +148,7 @@ export const finalizationSchema = z.object({
     expectedAt: z.coerce.date(),
     manualFee: z.string().trim(),
   })).min(1)),
+  taxPercent: z.coerce.number().min(0).max(100),
   warrantyDays: optionalInteger,
   deliveredOdometer: optionalInteger,
   returnIntervalDays: optionalInteger,

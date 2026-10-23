@@ -2,17 +2,22 @@
 
 SaaS owner-only para oficinas acompanharem clientes, veículos, serviços concluídos, previsões de retorno, campanhas assistidas por WhatsApp e estoque simples. Construído com Next.js 16, React 19, Neon Postgres, Better Auth e Drizzle.
 
-## Escopo do MVP
+## Escopo do piloto Paulinho Autocar
 
-- acesso exclusivo do proprietário por convite;
-- clientes com consentimento de WhatsApp e veículos vinculados;
-- catálogo de serviços com preço e retorno sugeridos, associado ao histórico de cada cliente;
-- painel financeiro de receita registrada, ticket médio, evolução mensal e ranking de serviços;
-- retenção determinística: retorno próximo, atrasado ou cliente inativo;
-- mensagem pronta e abertura manual do WhatsApp — nenhum envio automático;
-- estoque com entrada, ajuste, mínimo e consumo transacional no serviço;
-- isolamento por `workshop_id` derivado da sessão no servidor;
-- sem funcionários, agenda, contas a pagar/receber, cobrança ou cadastro público nesta fase.
+- acesso exclusivo do proprietário, sem login de colaboradores;
+- clientes completos, consentimento/opt-out de WhatsApp e veículos vinculados;
+- consulta assistida por placa, sempre com cadastro manual disponível;
+- OS sequencial com vistoria, mapa de danos, diagnóstico, fotos, orçamento digital versionado, aprovação e histórico de status;
+- catálogo de serviços, peças, vários colaboradores por mão de obra e remuneração fixa, percentual ou híbrida;
+- estoque simples com reserva na aprovação, consumo no início, liberação no cancelamento e trilha de movimentos;
+- pagamento dividido, parcelas, taxa de cartão, reserva de imposto e fechamento financeiro imutável;
+- contas a receber/pagar, regime de caixa ou competência, filtros e exportação CSV para Business Fin;
+- impressão A4 completa com a identidade da oficina, sem credenciais de Wi-Fi;
+- lembretes de manutenção por WhatsApp oficial quando configurado, além do envio manual pelo número atual;
+- painel operacional limitado ao mês corrente e financeiro com períodos independentes;
+- isolamento por `workshop_id` derivado da sessão no servidor.
+
+Continuam fora desta fase: login de funcionários, agenda, emissão fiscal, conciliação bancária, compras/fornecedores avançados e cobrança automática da assinatura SaaS.
 
 ## Rodar localmente
 
@@ -68,7 +73,7 @@ npm audit
 
 O teste de integração com banco é opt-in. Defina `TEST_DATABASE_URL` para executá-lo; sem essa variável ele aparece como ignorado de forma explícita.
 
-## Deploy na Vercel
+## Deploy na Vercel (retorno)
 
 1. Conecte o repositório ao projeto Vercel existente.
 2. Crie ou conecte um projeto Neon e copie a conexão pooled para `DATABASE_URL`.
@@ -93,9 +98,19 @@ O smoke público pode ser repetido em qualquer um dos destinos sem alterar dados
 npm run smoke:deployment -- https://endereco-do-deployment
 ```
 
+O Worker executa diariamente às 09:00 de Brasília o endpoint protegido da fila de lembretes. Sem as credenciais e o template aprovado da Meta, nenhuma mensagem automática é enviada e os links manuais continuam disponíveis.
+
+## Integrações opcionais
+
+- Consulta de placa: `PLATE_LOOKUP_PROVIDER`, `PLATE_LOOKUP_API_URL` e `PLATE_LOOKUP_API_TOKEN`.
+- WhatsApp oficial: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`, `WHATSAPP_REMINDER_TEMPLATE_NAME`, `WHATSAPP_READY_TEMPLATE_NAME`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` e `CRON_SECRET`.
+- Fotos: credenciais privadas do bucket R2 já descritas no runbook.
+
+Se as integrações externas não estiverem configuradas, placa e WhatsApp permanecem operacionais no modo manual.
+
 ## Estrutura
 
-- `app/`: sete módulos do proprietário e rotas de autenticação;
+- `app/`: módulos do proprietário, rotas de autenticação, impressão e integrações;
 - `components/`: shell responsivo, formulários e estados vazios;
 - `db/`: schema, cliente, migrações e seed;
 - `domain/`: regras puras de previsão, estoque, dinheiro e WhatsApp;

@@ -36,9 +36,19 @@ export default async function Home() {
           <small>concluídos neste mês</small>
         </article>
         <article className="metric-card">
-          <span>Clientes</span>
-          <strong>{data.metrics.customerCount}</strong>
-          <small>na sua base</small>
+          <span>OS em andamento</span>
+          <strong>{data.metrics.openOrders}</strong>
+          <small>{data.metrics.readyOrders} prontas para entrega</small>
+        </article>
+        <article className="metric-card">
+          <span>Recebido líquido</span>
+          <strong>{formatCents(data.metrics.receiptsCents)}</strong>
+          <small>no mês atual</small>
+        </article>
+        <article className="metric-card">
+          <span>A receber</span>
+          <strong>{formatCents(data.metrics.expectedReceivablesCents)}</strong>
+          <small>previsto no mês</small>
         </article>
         <article className="metric-card">
           <span>Oportunidades</span>

@@ -7,6 +7,8 @@ export function isPublicRoute(path: string) {
     path.startsWith("/login") ||
     path.startsWith("/primeiro-acesso") ||
     path.startsWith("/api/auth") ||
+    path.startsWith("/api/cron/") ||
+    path.startsWith("/api/webhooks/") ||
     path.startsWith("/orcamento/") ||
     path.startsWith("/icons/") ||
     path === "/manifest.webmanifest" ||

@@ -10,15 +10,20 @@ import { getVehicle, listVehicles } from "./vehicles";
 import { listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
 import { listInventoryMovements } from "./inventory";
 import { getWorkOrder, listWorkOrders } from "./work-orders";
-import { ensureMonthlyCollaboratorPayables, getFinancialSettings, listFinancialReportEntries, listWorkOrderPayments } from "./finance";
+import { ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialSettings, listFinancialReportEntries, listWorkOrderPayments } from "./finance";
 import { getWhatsAppAutomationStatus } from "./whatsapp";
 
 export async function getDashboardData() {
   const context = await getOwnerContext();
-  const [customers, services, inventory] = await Promise.all([
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const [customers, services, inventory, orders, ledger] = await Promise.all([
     context.repository.listCustomers(context.workshopId),
     context.repository.listServices(context.workshopId),
     context.repository.listInventory(context.workshopId),
+    listWorkOrders(context.workshopId),
+    listFinancialReportEntries(context.workshopId, { from: monthStart, to: nextMonth, recognitionMode: "accrual" }),
   ]);
   const retention = customers.map((customer) => ({
     ...customer,
@@ -53,6 +58,10 @@ export async function getDashboardData() {
       lowStock: inventory.filter(
         (item) => item.active && item.currentQuantity - (item.reservedQuantity ?? 0) <= item.minimumQuantity,
       ).length,
+      openOrders: orders.filter((order) => !["delivered", "completed", "cancelled"].includes(order.status)).length,
+      readyOrders: orders.filter((order) => order.status === "ready").length,
+      receiptsCents: ledger.filter((entry) => entry.direction === "income" && entry.status === "settled").reduce((sum, entry) => sum + entry.netAmountCents, 0),
+      expectedReceivablesCents: ledger.filter((entry) => entry.direction === "income" && entry.status === "expected").reduce((sum, entry) => sum + entry.netAmountCents, 0),
     },
   };
 }
@@ -126,6 +135,7 @@ export async function getInventory() {
 export async function getFinancialDashboard(filters: FinancialFilters & { status?: string; category?: string; recognitionMode?: "cash" | "accrual"; paymentMethod?: string; collaboratorId?: string }) {
   const context = await getOwnerContext();
   await ensureMonthlyCollaboratorPayables(context.workshopId);
+  await ensureMonthlyFinancialOccurrences(context.workshopId);
   const [allServices, allEntries, financialSettings, collaborators] = await Promise.all([
     context.repository.listServices(context.workshopId),
     listFinancialReportEntries(context.workshopId, { status: filters.status, category: filters.category, recognitionMode: filters.recognitionMode, paymentMethod: filters.paymentMethod, collaboratorId: filters.collaboratorId }),
@@ -166,19 +176,20 @@ export async function getWorkOrdersData() {
 
 export async function getWorkOrderData(serviceRecordId: string) {
   const context = await getOwnerContext();
-  const [order, catalog, inventory, collaborators, assignments] = await Promise.all([
+  const [order, catalog, inventory, collaborators, assignments, financialSettings] = await Promise.all([
     getWorkOrder(context.workshopId, serviceRecordId),
     context.repository.listServiceCatalog(context.workshopId),
     context.repository.listInventory(context.workshopId),
     listCollaborators(context.workshopId),
     listWorkOrderAssignments(context.workshopId, serviceRecordId),
+    getFinancialSettings(context.workshopId),
   ]);
   const [customer, vehicle, payments] = order ? await Promise.all([
     context.repository.findCustomer(context.workshopId, order.customerId),
     order.vehicleId ? context.repository.findVehicle(context.workshopId, order.vehicleId) : Promise.resolve(null),
     listWorkOrderPayments(context.workshopId, serviceRecordId),
   ]) : [null, null, []];
-  return { ...context, order, catalog, inventory, collaborators, assignments, customer, vehicle, payments };
+  return { ...context, order, catalog, inventory, collaborators, assignments, financialSettings, customer, vehicle, payments };
 }
 
 export async function getCollaboratorsData() {

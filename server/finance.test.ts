@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closeFinancialOrder, type FinancialCloseStore } from "./finance";
+import { closeFinancialOrder, monthlyOccurrenceDate, type FinancialCloseStore } from "./finance";
 
 describe("financial close orchestration", () => {
   it("is idempotent and writes a ledger once", async () => {
@@ -14,5 +14,12 @@ describe("financial close orchestration", () => {
     expect(first.netTotalCents).toBe(9_500);
     expect(second).toEqual(first);
     expect(writes).toBe(1);
+  });
+});
+
+describe("monthly recurrence", () => {
+  it("keeps the configured day and clamps short months", () => {
+    expect(monthlyOccurrenceDate(2027, 1, 31).toISOString()).toBe("2027-02-28T00:00:00.000Z");
+    expect(monthlyOccurrenceDate(2027, 2, 5).toISOString()).toBe("2027-03-05T00:00:00.000Z");
   });
 });

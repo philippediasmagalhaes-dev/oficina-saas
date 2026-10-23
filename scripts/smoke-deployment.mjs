@@ -128,6 +128,33 @@ export async function runSmoke({
   }
   pass("foto privada");
 
+  async function expectProtected(path, label) {
+    const response = await request(path, label);
+    if (![301, 302, 303, 307, 308, 401, 403].includes(response.status)) throw new Error(`${label}: rota privada acessível sem sessão.`);
+    pass(label);
+  }
+
+  await expectProtected("/", "dashboard mensal protegido");
+  await expectProtected(`/clientes/${PHOTO_PROBE_ID}`, "edição de cliente protegida");
+  await expectProtected(`/veiculos/${PHOTO_PROBE_ID}`, "edição e consulta de veículo protegidas");
+  await expectProtected("/ordens", "criação e vistoria de OS protegidas");
+  await expectProtected(`/ordens/${PHOTO_PROBE_ID}/imprimir`, "impressão A4 protegida");
+  await expectProtected("/colaboradores", "colaboradores protegidos");
+  await expectProtected("/financeiro?period=current_year&status=expected&recognition=accrual", "filtros financeiros protegidos");
+  await expectProtected("/api/financeiro/business-fin?from=2026-01-01&to=2026-12-31", "exportação Business Fin protegida");
+  await expectProtected("/api/veiculos/consultar-placa?plate=ABC1D23", "consulta de placa protegida");
+  await expectProtected("/retencao", "retenção protegida");
+  await expectProtected("/estoque", "estoque protegido");
+  await expectProtected("/configuracoes", "configurações protegidas");
+
+  const cron = await request("/api/cron/whatsapp-reminders", "cron do WhatsApp");
+  expectStatus(cron, 401, "cron do WhatsApp");
+  pass("cron do WhatsApp");
+
+  const missingQuote = await request(`/orcamento/${PHOTO_PROBE_ID}`, "orçamento público inexistente");
+  expectStatus(missingQuote, 404, "orçamento público inexistente");
+  pass("orçamento público inexistente");
+
   return { checks: passed, passed };
 }
 

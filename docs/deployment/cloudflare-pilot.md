@@ -27,6 +27,18 @@ Cadastre os nomes abaixo nos ambientes Cloudflare e Vercel. Não copie valores p
 | `R2_SECRET_ACCESS_KEY` | Segredo da chave S3 |
 | `R2_BUCKET_NAME` | Nome do bucket privado |
 
+Variáveis opcionais para liberar integrações externas depois do deploy:
+
+| Nome | Uso |
+| --- | --- |
+| `PLATE_LOOKUP_PROVIDER`, `PLATE_LOOKUP_API_URL`, `PLATE_LOOKUP_API_TOKEN` | Consulta assistida por placa |
+| `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID` | Meta WhatsApp Cloud API |
+| `WHATSAPP_REMINDER_TEMPLATE_NAME`, `WHATSAPP_READY_TEMPLATE_NAME`, `WHATSAPP_GRAPH_API_VERSION` | Templates aprovados de manutenção e veículo pronto |
+| `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` | Verificação e assinatura do webhook |
+| `CRON_SECRET` | Proteção da execução diária de lembretes |
+
+O Worker possui um agendamento diário às 12:00 UTC (09:00 de Brasília). Sem `CRON_SECRET` e as credenciais completas da Meta, ele encerra com segurança e o envio manual permanece disponível.
+
 `OWNER_EMAIL`, `OWNER_PASSWORD` e `OWNER_NAME` só são usados para criar o primeiro proprietário. Não os mantenha configurados depois do seed.
 
 ## 1. Preparar a conta Cloudflare e o R2
@@ -98,6 +110,9 @@ O comando não autentica, não altera dados e não imprime cookies ou corpos de 
 - manifesto instalável;
 - service worker, logo e todos os ícones;
 - proteção de uma URL aleatória de foto;
+- proteção de dashboard, edição de cliente/veículo, OS, impressão A4, colaboradores, financeiro, estoque, retenção e configurações;
+- proteção da consulta de placa e da exportação Business Fin;
+- rejeição do cron sem segredo e resposta segura para orçamento público inexistente;
 - ausência de redirecionamento para outra origem.
 
 Qualquer falha bloqueia o corte.

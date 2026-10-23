@@ -7,6 +7,8 @@ describe("rotas públicas do PWA", () => {
     "/sw.js",
     "/icons/icon-192.png",
     "/icons/icon-512.png",
+    "/api/cron/whatsapp-reminders",
+    "/api/webhooks/whatsapp",
   ])("mantém %s acessível sem sessão", (path) => {
     expect(isPublicRoute(path)).toBe(true);
   });

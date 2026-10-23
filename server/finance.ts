@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, lte, ne, sql } from "drizzle-orm";
 import { getDatabase, runDatabaseTransaction, type DatabaseTransaction } from "../db/client";
 import { collaboratorServiceRates, collaborators, financialAttachments, financialEntries, paymentFeeRules, serviceRecords, workOrderItemAssignments, workOrderItems, workOrderPayments, workshopFinancialSettings } from "../db/schema";
 import { calculateFinancialClosing, type FinancialClosing, type FinancialClosingInput } from "../domain/financial-closing";
@@ -52,7 +52,7 @@ function distributeDiscount(items: Array<{ id: string; grossCents: number }>, to
   });
 }
 
-export async function closeWorkOrderFinancialsTx(tx: DatabaseTransaction, input: { workshopId: string; serviceRecordId: string; payments: PaymentDraft[]; now?: Date }) {
+export async function closeWorkOrderFinancialsTx(tx: DatabaseTransaction, input: { workshopId: string; serviceRecordId: string; payments: PaymentDraft[]; taxBasisPoints?: number; now?: Date }) {
   const now = input.now ?? new Date();
   const [order] = await tx.select().from(serviceRecords).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId))).limit(1);
   if (!order) throw new Error("Ordem de serviço não encontrada.");
@@ -72,7 +72,8 @@ export async function closeWorkOrderFinancialsTx(tx: DatabaseTransaction, input:
     const rule = await activeFeeRule(tx, input.workshopId, payment.paymentMethod, payment.installmentCount);
     paymentInputs.push({ id: `${index}`, method: payment.paymentMethod, amountCents: payment.amountCents, installmentCount: payment.installmentCount, percentageBasisPoints: rule?.percentageBasisPoints ?? 0, fixedFeeCents: rule?.fixedFeeCents ?? 0, manualFeeCents: payment.manualFeeCents });
   }
-  const result = calculateFinancialClosing({ orderTotalCents: order.amountCents, taxBasisPoints: order.taxBasisPoints ?? settings?.defaultTaxBasisPoints ?? 0, payments: paymentInputs, laborItems });
+  const appliedTaxBasisPoints = input.taxBasisPoints ?? order.taxBasisPoints ?? settings?.defaultTaxBasisPoints ?? 0;
+  const result = calculateFinancialClosing({ orderTotalCents: order.amountCents, taxBasisPoints: appliedTaxBasisPoints, payments: paymentInputs, laborItems });
   const persistedPayments: Array<{ id: string; resultIndex: number }> = [];
   for (const [index, payment] of input.payments.entries()) {
     const calculated = result.payments[index];
@@ -89,7 +90,7 @@ export async function closeWorkOrderFinancialsTx(tx: DatabaseTransaction, input:
     await tx.update(workOrderItemAssignments).set({ laborBaseCentsSnapshot: assignment.laborBaseCents, compensationCentsSnapshot: assignment.compensationCents, commissionBasisPointsSnapshot: assignment.commissionBasisPoints, fixedPerServiceCentsSnapshot: assignment.fixedPerServiceCents, completedAt: now, updatedAt: now }).where(and(eq(workOrderItemAssignments.workshopId, input.workshopId), eq(workOrderItemAssignments.id, assignment.id)));
     if (assignment.compensationCents > 0) await tx.insert(financialEntries).values({ workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, collaboratorId: assignment.collaboratorId, externalId: `os:${input.serviceRecordId}:commission:${assignment.id}`, direction: "expense", category: "labor_compensation", description: `Remuneração OS ${order.orderNumber ?? ""}`.trim(), grossAmountCents: assignment.compensationCents, netAmountCents: assignment.compensationCents, competenceDate: now, dueDate: now, status: "expected" }).onConflictDoNothing();
   }
-  await tx.update(serviceRecords).set({ financialClosedAt: now, taxBasisPoints: order.taxBasisPoints ?? settings?.defaultTaxBasisPoints ?? 0, taxReserveCents: result.taxReserveCents, feeTotalCents: result.feeTotalCents, netTotalCents: result.netTotalCents, paymentMethod: input.payments.length === 1 ? input.payments[0].paymentMethod : "split", paymentStatus: input.payments.every((payment) => payment.paid) ? "paid" : "pending", updatedAt: now }).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId)));
+  await tx.update(serviceRecords).set({ financialClosedAt: now, taxBasisPoints: appliedTaxBasisPoints, taxReserveCents: result.taxReserveCents, feeTotalCents: result.feeTotalCents, netTotalCents: result.netTotalCents, paymentMethod: input.payments.length === 1 ? input.payments[0].paymentMethod : "split", paymentStatus: input.payments.every((payment) => payment.paid) ? "paid" : "pending", updatedAt: now }).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId)));
   return result;
 }
 
@@ -123,6 +124,26 @@ export async function ensureMonthlyCollaboratorPayables(workshopId: string, mont
   for (const collaborator of rows) {
     if (!collaborator.monthlyFixedCents) continue;
     await getDatabase().insert(financialEntries).values({ workshopId, collaboratorId: collaborator.id, externalId: `monthly:${collaborator.id}:${monthKey}`, direction: "expense", category: "fixed_payroll", description: `Pagamento mensal — ${collaborator.name}`, grossAmountCents: collaborator.monthlyFixedCents, netAmountCents: collaborator.monthlyFixedCents, competenceDate, dueDate, status: "expected", recurrenceKey: `monthly:${collaborator.id}` }).onConflictDoNothing();
+  }
+}
+
+export function monthlyOccurrenceDate(year: number, zeroBasedMonth: number, preferredDay: number) {
+  const lastDay = new Date(Date.UTC(year, zeroBasedMonth + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, zeroBasedMonth, Math.min(preferredDay, lastDay)));
+}
+
+export async function ensureMonthlyFinancialOccurrences(workshopId: string, month = new Date()) {
+  const database = getDatabase();
+  const rows = await database.select().from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), isNotNull(financialEntries.recurrenceKey), ne(financialEntries.category, "fixed_payroll"))).orderBy(asc(financialEntries.competenceDate));
+  const templates = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) if (row.recurrenceKey && !templates.has(row.recurrenceKey)) templates.set(row.recurrenceKey, row);
+  const monthKey = `${month.getUTCFullYear()}-${String(month.getUTCMonth() + 1).padStart(2, "0")}`;
+  for (const [recurrenceKey, template] of templates) {
+    const templateMonth = `${template.competenceDate.getUTCFullYear()}-${String(template.competenceDate.getUTCMonth() + 1).padStart(2, "0")}`;
+    if (templateMonth === monthKey || template.competenceDate > month) continue;
+    const competenceDate = monthlyOccurrenceDate(month.getUTCFullYear(), month.getUTCMonth(), template.competenceDate.getUTCDate());
+    const dueDate = monthlyOccurrenceDate(month.getUTCFullYear(), month.getUTCMonth(), template.dueDate.getUTCDate());
+    await database.insert(financialEntries).values({ workshopId, externalId: `recurrence:${recurrenceKey}:${monthKey}`, direction: template.direction, category: template.category, description: template.description, grossAmountCents: template.grossAmountCents, feeAmountCents: template.feeAmountCents, netAmountCents: template.netAmountCents, competenceDate, dueDate, status: "expected", recurrenceKey }).onConflictDoNothing();
   }
 }
 

@@ -82,6 +82,7 @@ export type WorkOrderDetails = WorkOrderSummary & {
   deliveredAt: Date | null;
   paymentMethod: string | null;
   paymentStatus: string;
+  taxBasisPoints: number | null;
   warrantyDays: number | null;
   deliveredOdometer: number | null;
   items: WorkOrderItemSummary[];
@@ -209,6 +210,7 @@ export async function getWorkOrder(workshopId: string, serviceRecordId: string):
     deliveredAt: serviceRecords.deliveredAt,
     paymentMethod: serviceRecords.paymentMethod,
     paymentStatus: serviceRecords.paymentStatus,
+    taxBasisPoints: serviceRecords.taxBasisPoints,
     warrantyDays: serviceRecords.warrantyDays,
     deliveredOdometer: serviceRecords.deliveredOdometer,
     createdAt: serviceRecords.createdAt,
@@ -311,6 +313,19 @@ export async function respondToQuote(token: string, response: "approved" | "reje
   });
 }
 
+export async function recordOfflineQuoteDecision(workshopId: string, serviceRecordId: string, decision: "approved" | "rejected") {
+  const now = new Date();
+  return runDatabaseTransaction(async (tx) => {
+    const toStatus = decision === "approved" ? "approved" : "diagnosis";
+    const [row] = await tx.update(serviceRecords).set({ quoteStatus: decision, status: toStatus, quoteRespondedAt: now, approvedAt: decision === "approved" ? now : null }).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId), eq(serviceRecords.quoteStatus, "sent"), eq(serviceRecords.status, "awaiting_approval"))).returning({ id: serviceRecords.id, quoteVersion: serviceRecords.quoteVersion, quoteToken: serviceRecords.quoteToken });
+    if (!row) throw new Error("Orçamento não está aguardando aprovação.");
+    await tx.insert(workOrderApprovals).values({ workshopId, serviceRecordId: row.id, quoteVersion: row.quoteVersion, decision, source: "owner_recorded", publicToken: row.quoteToken });
+    if (decision === "approved") await reserveApprovedOrderStockTx(tx, workshopId, row.id);
+    await appendStatusEvent(tx, { workshopId, serviceRecordId: row.id, fromStatus: "awaiting_approval", toStatus, note: "Decisão informada pelo proprietário" });
+    return { id: row.id };
+  });
+}
+
 export async function reopenApprovedQuote(workshopId: string, serviceRecordId: string) {
   return runDatabaseTransaction(async (tx) => {
     const [order] = await tx.select({ quoteVersion: serviceRecords.quoteVersion }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId), eq(serviceRecords.status, "approved"))).limit(1);
@@ -345,12 +360,12 @@ export async function updateWorkOrderStatus(workshopId: string, serviceRecordId:
   });
 }
 
-export async function finalizeWorkOrder(input: { workshopId: string; serviceRecordId: string; payments: PaymentDraft[]; warrantyDays: number | null; deliveredOdometer: number | null; returnIntervalDays: number | null; nextDueAt: Date | null }) {
+export async function finalizeWorkOrder(input: { workshopId: string; serviceRecordId: string; payments: PaymentDraft[]; taxBasisPoints: number; warrantyDays: number | null; deliveredOdometer: number | null; returnIntervalDays: number | null; nextDueAt: Date | null }) {
   await runDatabaseTransaction(async (tx) => {
     const [order] = await tx.select({ id: serviceRecords.id, status: serviceRecords.status, description: serviceRecords.description }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId))).limit(1);
     if (!order || order.status !== "ready") throw new Error("A ordem precisa estar pronta antes da entrega.");
     const now = new Date();
-    await closeWorkOrderFinancialsTx(tx, { workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, payments: input.payments, now });
+    await closeWorkOrderFinancialsTx(tx, { workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, payments: input.payments, taxBasisPoints: input.taxBasisPoints, now });
     await tx.update(serviceRecords).set({ status: "delivered", completedAt: now, deliveredAt: now, warrantyDays: input.warrantyDays, deliveredOdometer: input.deliveredOdometer, returnIntervalDays: input.returnIntervalDays, nextDueAt: input.nextDueAt }).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId)));
     await appendStatusEvent(tx, { workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, fromStatus: "ready", toStatus: "delivered" });
   });

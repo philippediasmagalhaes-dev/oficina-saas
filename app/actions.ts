@@ -14,6 +14,7 @@ import { updateVehicle } from "../server/vehicles";
 import { saveInspection } from "../server/inspections";
 import { assignWorkOrderItem, createCollaborator, removeWorkOrderAssignment, setCollaboratorServiceRate } from "../server/collaborators";
 import { createManualFinancialEntry, saveFinancialSettings, savePaymentFeeRule } from "../server/finance";
+import { enqueueVehicleReadyMessage } from "../server/whatsapp";
 import {
   addQuoteItem,
   addServicePhoto,
@@ -22,6 +23,7 @@ import {
   getWorkOrder,
   removeQuoteItem,
   reopenApprovedQuote,
+  recordOfflineQuoteDecision,
   respondToQuote,
   saveDiagnosis,
   sendQuote,
@@ -267,6 +269,16 @@ export async function respondToQuoteAction(formData: FormData) {
   redirect(`/orcamento/${token}?resposta=${response}`);
 }
 
+export async function recordOfflineQuoteDecisionAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const serviceRecordId = String(formData.get("serviceRecordId") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(serviceRecordId) || (decision !== "approved" && decision !== "rejected")) throw new Error("Decisão inválida.");
+  await recordOfflineQuoteDecision(workshopId, serviceRecordId, decision);
+  revalidatePath(`/ordens/${serviceRecordId}`);
+  revalidatePath("/ordens");
+}
+
 export async function updateWorkOrderStatusAction(formData: FormData) {
   const { workshopId } = await getOwnerContext();
   const input = parse(workOrderStatusSchema.safeParse(formObject(formData)));
@@ -284,6 +296,7 @@ export async function finalizeWorkOrderAction(formData: FormData) {
     workshopId,
     ...input,
     payments: input.payments.map((payment) => ({ paymentMethod: payment.paymentMethod, amountCents: parseCurrencyToCents(payment.amount), installmentCount: payment.installmentCount, paid: payment.paid, expectedAt: payment.expectedAt, manualFeeCents: payment.manualFee ? parseCurrencyToCents(payment.manualFee) : null })),
+    taxBasisPoints: Math.round(input.taxPercent * 100),
     nextDueAt: input.nextDueAt ?? deriveNextDueAt(new Date(), input.returnIntervalDays),
   });
   revalidatePath(`/ordens/${input.serviceRecordId}`);
@@ -439,6 +452,12 @@ export async function notifyServiceReadyAction(formData: FormData) {
     throw new Error(
       "Cliente sem telefone válido ou consentimento para WhatsApp.",
     );
+  const queued = await enqueueVehicleReadyMessage({ workshopId, customerId: order.customerId, serviceRecordId: order.id, recipientPhone: normalizeBrazilianPhone(order.customerPhone ?? ""), customerName: order.customerName, workshopName: workshop.name, vehicleLabel: order.vehicleLabel ?? null });
+  if (queued) {
+    revalidatePath(`/ordens/${order.id}`);
+    revalidatePath("/retencao");
+    return;
+  }
   await repository.recordContact({
     workshopId,
     customerId: order.customerId,

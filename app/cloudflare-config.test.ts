@@ -38,5 +38,7 @@ describe("Cloudflare build target", () => {
       previewUrls: true,
       observability: { enabled: true },
     });
+    expect(cloudflareConfig.worker?.entrypoint).toBe("./worker.ts");
+    expect(cloudflareConfig.worker?.triggers).toEqual([{ type: "scheduled", schedule: "0 12 * * *" }]);
   });
 });

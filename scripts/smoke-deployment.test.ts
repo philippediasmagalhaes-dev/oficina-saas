@@ -50,6 +50,9 @@ function responseFor(path: string) {
       headers: { location: `${baseUrl}/login` },
     });
   }
+  if (path === "/api/cron/whatsapp-reminders") return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (path.startsWith("/orcamento/")) return new Response("not found", { status: 404, headers: { "content-type": "text/html" } });
+  if (["/", "/clientes/00000000-0000-4000-8000-000000000000", "/veiculos/00000000-0000-4000-8000-000000000000", "/ordens", "/ordens/00000000-0000-4000-8000-000000000000/imprimir", "/colaboradores", "/financeiro", "/retencao", "/estoque", "/configuracoes", "/api/financeiro/business-fin", "/api/veiculos/consultar-placa"].includes(path)) return new Response(null, { status: 307, headers: { location: `${baseUrl}/login` } });
   return new Response("not found", { status: 404 });
 }
 
@@ -59,7 +62,7 @@ describe("deployment smoke runner", () => {
     const signals: AbortSignal[] = [];
     const fetchMock = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       const url = new URL(String(input));
-      paths.push(url.pathname);
+      paths.push(`${url.pathname}${url.search}`);
       signals.push(init?.signal as AbortSignal);
       expect(init?.redirect).toBe("manual");
       expect(new Headers(init?.headers).has("cookie")).toBe(false);
@@ -74,7 +77,7 @@ describe("deployment smoke runner", () => {
         timeoutMs: 2_000,
         log: (message: string) => logs.push(message),
       }),
-    ).resolves.toEqual({ checks: 8, passed: 8 });
+    ).resolves.toEqual({ checks: 22, passed: 22 });
 
     expect(paths).toEqual([
       "/login",
@@ -85,6 +88,20 @@ describe("deployment smoke runner", () => {
       "/icons/icon-512.png",
       "/icons/icon-maskable-512.png",
       expect.stringMatching(/^\/api\/photos\/[0-9a-f-]{36}$/),
+      "/",
+      "/clientes/00000000-0000-4000-8000-000000000000",
+      "/veiculos/00000000-0000-4000-8000-000000000000",
+      "/ordens",
+      "/ordens/00000000-0000-4000-8000-000000000000/imprimir",
+      "/colaboradores",
+      "/financeiro?period=current_year&status=expected&recognition=accrual",
+      "/api/financeiro/business-fin?from=2026-01-01&to=2026-12-31",
+      "/api/veiculos/consultar-placa?plate=ABC1D23",
+      "/retencao",
+      "/estoque",
+      "/configuracoes",
+      "/api/cron/whatsapp-reminders",
+      expect.stringMatching(/^\/orcamento\/[0-9a-f-]{36}$/),
     ]);
     expect(signals.every((signal) => signal instanceof AbortSignal)).toBe(true);
     expect(logs.join("\n")).not.toContain("private body");

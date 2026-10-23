@@ -270,10 +270,10 @@
 **Interfaces:**
 - Consumes every previous task and produces a migrated, deployed, recoverable pilot plus an explicit external-configuration checklist.
 
-- [ ] Extend smoke tests for login, current-month dashboard, customer/vehicle edit, OS creation, inspection, public quote, A4 print, collaborator assignment, financial filters, CSV export, and integration fallback states.
-- [ ] Run the smoke test test-suite and confirm the new assertions fail before script changes.
-- [ ] Implement the extended smoke checks and deployment documentation.
+- [x] Extend smoke tests for login, current-month dashboard, customer/vehicle edit, OS creation, inspection, public quote, A4 print, collaborator assignment, financial filters, CSV export, and integration fallback states.
+- [x] Run the smoke test test-suite and confirm the new assertions fail before script changes.
+- [x] Implement the extended smoke checks and deployment documentation.
 - [ ] Run `npm test`, `npm run typecheck`, `npm run build:cloudflare`, migration against the configured Neon database, and the production smoke test; all must exit zero.
-- [ ] Review the requirements line by line against the approved spec and record only external account dependencies as pending.
+- [x] Review the requirements line by line against the approved spec and record only external account dependencies as pending.
 - [ ] Commit with `chore: validate complete Paulinho Autocar pilot`.
 - [ ] Deploy to Cloudflare, verify the production version, and preserve the feature branch for review.
