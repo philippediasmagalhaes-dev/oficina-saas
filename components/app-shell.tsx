@@ -17,7 +17,7 @@ export function AppShell({ workshopName, current = "/", children }: { workshopNa
   return (
     <div className="shell">
       <aside className="side-panel">
-        <a href="/" className="logo-link"><img src="/logo.jpg" alt="Logo" /><span>OFICINA CRM</span></a>
+        <a href="/" className="logo-link"><img src="/logo.jpg" alt={`Logo ${workshopName}`} /><span>{workshopName}</span></a>
         <div className="workshop-chip"><span>Oficina ativa</span><strong>{workshopName}</strong></div>
         <nav aria-label="Navegação principal">
           {navigation.map(([label, href, icon]) => <a key={href} href={href} className={current === href ? "nav-link active" : "nav-link"}><i>{icon}</i>{label}</a>)}

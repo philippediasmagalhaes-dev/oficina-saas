@@ -10,7 +10,7 @@ import { getVehicle, listVehicles } from "./vehicles";
 import { listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
 import { listInventoryMovements } from "./inventory";
 import { getWorkOrder, listWorkOrders } from "./work-orders";
-import { ensureMonthlyCollaboratorPayables, getFinancialSettings, listFinancialReportEntries } from "./finance";
+import { ensureMonthlyCollaboratorPayables, getFinancialSettings, listFinancialReportEntries, listWorkOrderPayments } from "./finance";
 import { getWhatsAppAutomationStatus } from "./whatsapp";
 
 export async function getDashboardData() {
@@ -173,7 +173,12 @@ export async function getWorkOrderData(serviceRecordId: string) {
     listCollaborators(context.workshopId),
     listWorkOrderAssignments(context.workshopId, serviceRecordId),
   ]);
-  return { ...context, order, catalog, inventory, collaborators, assignments };
+  const [customer, vehicle, payments] = order ? await Promise.all([
+    context.repository.findCustomer(context.workshopId, order.customerId),
+    order.vehicleId ? context.repository.findVehicle(context.workshopId, order.vehicleId) : Promise.resolve(null),
+    listWorkOrderPayments(context.workshopId, serviceRecordId),
+  ]) : [null, null, []];
+  return { ...context, order, catalog, inventory, collaborators, assignments, customer, vehicle, payments };
 }
 
 export async function getCollaboratorsData() {

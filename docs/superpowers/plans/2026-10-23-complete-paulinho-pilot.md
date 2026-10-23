@@ -253,11 +253,11 @@
 **Interfaces:**
 - Produces the authenticated A4 route using the complete work-order read model and browser print action.
 
-- [ ] Write failing render tests for workshop/customer/vehicle identity, checklist, damage marks, labor/parts/totals, payments, warranty/terms, signatures, and the absence of Wi-Fi credentials.
-- [ ] Run focused tests and verify failures.
-- [ ] Implement economical one-page-first print layout, continuation behavior, print button, compact dashboard/actions, and complete navigation.
-- [ ] Run UI tests, accessibility-oriented render checks, and typecheck; expect green.
-- [ ] Commit with `feat: add printable A4 order and finish pilot interface`.
+- [x] Write failing render tests for workshop/customer/vehicle identity, checklist, damage marks, labor/parts/totals, payments, warranty/terms, signatures, and the absence of Wi-Fi credentials.
+- [x] Run focused tests and verify failures.
+- [x] Implement economical one-page-first print layout, continuation behavior, print button, compact dashboard/actions, and complete navigation.
+- [x] Run UI tests, accessibility-oriented render checks, and typecheck; expect green.
+- [x] Commit with `feat: add printable A4 order and finish pilot interface`.
 
 ### Task 11: Migration, full verification, production deploy, and smoke test
 

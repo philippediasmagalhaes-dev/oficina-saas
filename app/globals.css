@@ -1842,6 +1842,9 @@ textarea:focus {
 .settings-rule-list { display: grid; gap: 0.55rem; margin-top: 1rem; }
 .settings-rule-list > div { justify-content: space-between; align-items: center; padding-top: 0.55rem; border-top: 1px solid var(--line); }
 .ledger-metrics { margin-top: 1rem; }
+.order-heading-actions { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.metric-card { min-height: 8.5rem; padding: 1rem; }
+.metric-card strong { font-size: clamp(1.45rem, 2.4vw, 2.15rem); }
 .plate-lookup-row { display: grid; grid-template-columns: minmax(12rem, 1fr) auto; gap: 0.7rem; align-items: end; }
 .plate-lookup-row small { grid-column: 1 / -1; }
 

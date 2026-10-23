@@ -132,3 +132,7 @@ export async function addFinancialAttachmentMetadata(input: { workshopId: string
   const [row] = await getDatabase().insert(financialAttachments).values(input).returning();
   return row;
 }
+
+export async function listWorkOrderPayments(workshopId: string, serviceRecordId: string) {
+  return getDatabase().select({ id: workOrderPayments.id, paymentMethod: workOrderPayments.paymentMethod, amountCents: workOrderPayments.amountCents, installmentCount: workOrderPayments.installmentCount, expectedAt: workOrderPayments.expectedAt, paidAt: workOrderPayments.paidAt, status: workOrderPayments.status, feeAmountCents: workOrderPayments.feeAmountCents, netAmountCents: workOrderPayments.netAmountCents }).from(workOrderPayments).where(and(eq(workOrderPayments.workshopId, workshopId), eq(workOrderPayments.serviceRecordId, serviceRecordId))).orderBy(workOrderPayments.createdAt);
+}
