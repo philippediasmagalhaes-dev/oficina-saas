@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { DocumentLink } from "../../components/document-link";
 import { authClient } from "../../lib/auth/client";
 
 export function LoginForm({
@@ -68,9 +68,9 @@ export function LoginForm({
         {pending ? "Entrando…" : "Entrar"}
       </button>
       {showFirstAccess ? (
-        <Link className="auth-link" href="/primeiro-acesso">
+        <DocumentLink className="auth-link" href="/primeiro-acesso">
           Criar primeiro acesso
-        </Link>
+        </DocumentLink>
       ) : null}
       <small>Acesso exclusivo por convite.</small>
     </form>

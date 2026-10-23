@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
+import { DocumentLink } from "../../components/document-link";
 import { createFirstOwnerAction, type FirstAccessState } from "./actions";
 
 const initialState: FirstAccessState = { error: "" };
@@ -64,9 +64,9 @@ export function FirstAccessForm() {
       <button className="primary-button" type="submit" disabled={pending}>
         {pending ? "Criando…" : "Criar acesso"}
       </button>
-      <Link className="auth-link" href="/login">
+      <DocumentLink className="auth-link" href="/login">
         Voltar para o login
-      </Link>
+      </DocumentLink>
     </form>
   );
 }
