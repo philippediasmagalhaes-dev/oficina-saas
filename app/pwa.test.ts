@@ -21,8 +21,8 @@ describe("installable privacy-safe PWA", () => {
       start_url: "/",
       scope: "/",
       display: "standalone",
-      theme_color: "#050505",
-      background_color: "#050505",
+      theme_color: "#070708",
+      background_color: "#070708",
       icons: [
         {
           src: "/icons/icon-192.png",

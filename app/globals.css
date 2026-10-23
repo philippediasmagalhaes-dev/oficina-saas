@@ -6,19 +6,19 @@
     "Segoe UI",
     sans-serif;
   color-scheme: dark;
-  --bg: #050505;
-  --panel: #0d0d0e;
-  --panel-raised: #151516;
-  --glass: rgba(16, 16, 17, 0.78);
+  --bg: #070708;
+  --panel: #101114;
+  --panel-raised: #17181c;
+  --glass: rgba(16, 17, 20, 0.82);
   --line: rgba(255, 255, 255, 0.1);
   --line-strong: rgba(255, 255, 255, 0.17);
-  --text: #f7f7f5;
-  --muted: #99999f;
-  --yellow: #f2c230;
-  --yellow-soft: #ffdd6e;
-  --yellow-ink: #151000;
-  --danger: #ff6b63;
-  --success: #50d890;
+  --text: #f7f7f8;
+  --muted: #9b9ca3;
+  --yellow: #c91f36;
+  --yellow-soft: #ff7281;
+  --yellow-ink: #ffffff;
+  --danger: #ff5263;
+  --success: #5ed692;
   --radius: 1.25rem;
   --shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
 }
@@ -35,7 +35,7 @@ body {
   background:
     radial-gradient(
       circle at 82% -10%,
-      rgba(242, 194, 48, 0.1),
+      rgba(201, 31, 54, 0.12),
       transparent 26rem
     ),
     var(--bg);
@@ -102,7 +102,7 @@ h3 {
   flex-direction: column;
   padding: 1.25rem;
   border-right: 1px solid var(--line);
-  background: rgba(5, 5, 5, 0.9);
+  background: rgba(7, 7, 8, 0.91);
   backdrop-filter: blur(24px) saturate(140%);
 }
 .logo-link {
@@ -116,8 +116,12 @@ h3 {
 .logo-link img {
   width: 6.5rem;
   height: 3.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.65rem;
+  background: #cececf;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
   object-fit: contain;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
 }
 .logo-link span {
   font-size: 0.66rem;
@@ -178,7 +182,7 @@ h3 {
 .nav-link.active {
   color: var(--yellow-ink);
   background: var(--yellow);
-  box-shadow: 0 8px 28px rgba(242, 194, 48, 0.18);
+  box-shadow: 0 10px 30px rgba(201, 31, 54, 0.24);
 }
 .side-footer {
   margin-top: auto;
@@ -214,8 +218,8 @@ h3 {
   padding: 0.9rem clamp(1.25rem, 4vw, 3.5rem);
   background: linear-gradient(
     to bottom,
-    rgba(5, 5, 5, 0.94) 60%,
-    rgba(5, 5, 5, 0.72)
+    rgba(7, 7, 8, 0.95) 60%,
+    rgba(7, 7, 8, 0.74)
   );
   backdrop-filter: blur(22px) saturate(160%);
 }
@@ -290,7 +294,7 @@ h3 {
 .primary-button {
   background: var(--yellow);
   color: var(--yellow-ink);
-  box-shadow: 0 10px 30px rgba(242, 194, 48, 0.12);
+  box-shadow: 0 12px 32px rgba(201, 31, 54, 0.2);
 }
 .secondary-button {
   border: 1px solid var(--line-strong);
@@ -337,9 +341,9 @@ h3 {
   letter-spacing: -0.04em;
 }
 .metric-card.featured {
-  border-color: rgba(242, 194, 48, 0.26);
+  border-color: rgba(201, 31, 54, 0.32);
   background:
-    radial-gradient(circle at 90% 0, rgba(242, 194, 48, 0.17), transparent 65%),
+    radial-gradient(circle at 90% 0, rgba(201, 31, 54, 0.21), transparent 65%),
     var(--panel);
 }
 .metric-card.featured strong {
@@ -484,7 +488,7 @@ select:focus,
 textarea:focus {
   border-color: var(--yellow);
   background: rgba(255, 255, 255, 0.07);
-  box-shadow: 0 0 0 0.2rem rgba(242, 194, 48, 0.12);
+  box-shadow: 0 0 0 0.2rem rgba(201, 31, 54, 0.16);
 }
 .check-row {
   display: flex !important;
@@ -646,8 +650,8 @@ textarea:focus {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #a87d00, var(--yellow));
-  box-shadow: 0 0 1.2rem rgba(242, 194, 48, 0.16);
+  background: linear-gradient(90deg, #75101f, var(--yellow));
+  box-shadow: 0 0 1.2rem rgba(201, 31, 54, 0.22);
   transition: width 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .ranking-row {
@@ -857,7 +861,7 @@ textarea:focus {
   place-items: center;
   margin-bottom: 0.75rem;
   border-radius: 0.8rem;
-  background: rgba(242, 194, 48, 0.11);
+  background: rgba(201, 31, 54, 0.14);
   color: var(--yellow);
 }
 .empty-state h3 {
@@ -943,7 +947,7 @@ textarea:focus {
   margin-bottom: 1rem;
   padding: 0.28rem 0.55rem;
   border-radius: 999px;
-  background: rgba(242, 194, 48, 0.12);
+  background: rgba(201, 31, 54, 0.14);
   color: var(--yellow-soft);
   font-size: 0.68rem;
   font-weight: 750;
@@ -1031,7 +1035,7 @@ textarea:focus {
   padding: 1.5rem;
   background: radial-gradient(
     circle at 50% 0,
-    rgba(242, 194, 48, 0.12),
+    rgba(201, 31, 54, 0.16),
     transparent 28rem
   );
 }
@@ -1060,9 +1064,13 @@ textarea:focus {
 .auth-logo {
   width: 9rem;
   height: 5rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.75rem;
+  background: #cececf;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
   object-fit: contain;
   object-position: left;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
 }
 .form-error {
   color: #ff928c;
@@ -1130,7 +1138,7 @@ textarea:focus {
     background 160ms ease;
 }
 .motorcycle-card:hover {
-  border-color: rgba(242, 194, 48, 0.35);
+  border-color: rgba(201, 31, 54, 0.42);
   background: rgba(255, 255, 255, 0.045);
 }
 .motorcycle-card:active {
@@ -1177,7 +1185,7 @@ textarea:focus {
   margin-top: 0.35rem;
   border-radius: 50%;
   background: var(--yellow);
-  box-shadow: 0 0 0 0.28rem rgba(242, 194, 48, 0.1);
+  box-shadow: 0 0 0 0.28rem rgba(201, 31, 54, 0.13);
 }
 .timeline-list div {
   display: grid;
@@ -1255,7 +1263,7 @@ textarea:focus {
 .status-open,
 .status-diagnosis {
   color: #ffe18a;
-  background: rgba(242, 194, 48, 0.12);
+  background: rgba(245, 158, 11, 0.13);
 }
 .status-awaiting_approval {
   color: #8cc8ff;
@@ -1293,8 +1301,8 @@ textarea:focus {
 }
 .order-stepper span.active,
 .order-stepper span.done {
-  border-color: rgba(242, 194, 48, 0.25);
-  background: rgba(242, 194, 48, 0.08);
+  border-color: rgba(201, 31, 54, 0.3);
+  background: rgba(201, 31, 54, 0.1);
   color: var(--yellow-soft);
 }
 .order-workspace {
@@ -1396,9 +1404,9 @@ textarea:focus {
   gap: 0.8rem;
   margin-top: 1rem;
   padding: 1rem;
-  border: 1px solid rgba(242, 194, 48, 0.2);
+  border: 1px solid rgba(201, 31, 54, 0.26);
   border-radius: 1rem;
-  background: rgba(242, 194, 48, 0.05);
+  background: rgba(201, 31, 54, 0.07);
 }
 .quote-share > div {
   display: grid;
@@ -1462,7 +1470,7 @@ textarea:focus {
   background:
     radial-gradient(
       circle at 50% 0,
-      rgba(242, 194, 48, 0.12),
+      rgba(201, 31, 54, 0.16),
       transparent 32rem
     ),
     var(--bg);
@@ -1492,6 +1500,9 @@ textarea:focus {
 .public-quote-card header img {
   width: 7rem;
   height: 3.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.65rem;
+  background: #cececf;
   object-fit: contain;
 }
 .public-quote-card header div {
