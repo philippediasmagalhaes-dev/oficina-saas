@@ -207,11 +207,11 @@
 - Produces `lookupPlate(plate, provider): Promise<PlateLookupResult>` and a server-only provider adapter.
 - Vehicle forms remain fully editable and manual when the provider is disabled or unavailable.
 
-- [ ] Write failing tests for plate normalization, disabled configuration, provider mapping, timeout/error fallback, and secret redaction.
-- [ ] Run focused tests and verify failures.
-- [ ] Implement the adapter, protected route, confirmation UI, cache metadata, and manual fallback.
-- [ ] Run focused tests and typecheck; expect green.
-- [ ] Commit with `feat: add assisted vehicle plate lookup`.
+- [x] Write failing tests for plate normalization, disabled configuration, provider mapping, timeout/error fallback, and secret redaction.
+- [x] Run focused tests and verify failures.
+- [x] Implement the adapter, protected route, confirmation UI, cache metadata, and manual fallback.
+- [x] Run focused tests and typecheck; expect green.
+- [x] Commit with `feat: add assisted vehicle plate lookup`.
 
 ### Task 9: WhatsApp outbox, reminders, opt-out, and manual fallback
 

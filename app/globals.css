@@ -1842,9 +1842,13 @@ textarea:focus {
 .settings-rule-list { display: grid; gap: 0.55rem; margin-top: 1rem; }
 .settings-rule-list > div { justify-content: space-between; align-items: center; padding-top: 0.55rem; border-top: 1px solid var(--line); }
 .ledger-metrics { margin-top: 1rem; }
+.plate-lookup-row { display: grid; grid-template-columns: minmax(12rem, 1fr) auto; gap: 0.7rem; align-items: end; }
+.plate-lookup-row small { grid-column: 1 / -1; }
 
 @media (max-width: 760px) {
   .payment-row { display: grid; grid-template-columns: 1fr 1fr; align-items: end; }
+  .plate-lookup-row { grid-template-columns: 1fr; }
+  .plate-lookup-row small { grid-column: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

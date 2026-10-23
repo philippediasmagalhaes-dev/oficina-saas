@@ -141,7 +141,7 @@ export async function createVehicleAction(formData: FormData) {
   const input = parse(vehicleSchema.safeParse(formObject(formData)));
   if (!(await repository.findCustomer(workshopId, input.customerId)))
     throw new Error("Registro não encontrado");
-  await repository.createVehicle({ workshopId, ...input, year: input.year ?? input.modelYear });
+  await repository.createVehicle({ workshopId, ...input, year: input.year ?? input.modelYear, lookupAt: input.lookupProvider ? new Date() : null });
   revalidatePath("/clientes");
   revalidatePath("/veiculos");
 }
@@ -149,7 +149,7 @@ export async function createVehicleAction(formData: FormData) {
 export async function updateVehicleAction(formData: FormData) {
   const { workshopId } = await getOwnerContext();
   const input = parse(vehicleUpdateSchema.safeParse(formObject(formData)));
-  const vehicle = await updateVehicle({ workshopId, ...input, year: input.year ?? input.modelYear });
+  const vehicle = await updateVehicle({ workshopId, ...input, year: input.year ?? input.modelYear, lookupAt: input.lookupProvider ? new Date() : null });
   if (!vehicle) throw new Error("Veículo não encontrado.");
   revalidatePath("/veiculos");
   revalidatePath(`/veiculos/${input.vehicleId}`);

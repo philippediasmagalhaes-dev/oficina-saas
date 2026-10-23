@@ -1,5 +1,6 @@
-import { adjustInventoryAction, createCustomerAction, createInventoryItemAction, createServiceCatalogAction, createVehicleAction, updateCustomerAction, updateVehicleAction } from "../app/actions";
+import { adjustInventoryAction, createCustomerAction, createInventoryItemAction, createServiceCatalogAction, updateCustomerAction } from "../app/actions";
 import type { CustomerSummary, InventorySummary, VehicleSummary } from "../server/ports";
+import { PlateLookupForm } from "./plate-lookup-form";
 
 export function CustomerForm() {
   return <form action={createCustomerAction} className="form-grid">
@@ -37,42 +38,11 @@ export function CustomerEditForm({ customer }: { customer: CustomerSummary }) {
 }
 
 export function VehicleForm({ customers }: { customers: CustomerSummary[] }) {
-  return <form action={createVehicleAction} className="form-grid">
-    <label className="span-2">Proprietário<select name="customerId" required defaultValue=""><option value="" disabled>Selecione</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
-    <label>Placa<input name="plate" required placeholder="ABC1D23" /></label>
-    <label>Marca<input name="make" required placeholder="Chevrolet" /></label>
-    <label>Modelo<input name="model" required placeholder="Corsa" /></label>
-    <label>Categoria<select name="category" defaultValue="car"><option value="car">Carro</option><option value="two_wheels">Duas rodas</option><option value="utility">Utilitário</option><option value="other">Outro</option></select></label>
-    <label>Cor<input name="color" /></label>
-    <label>Ano fabricação<input name="manufactureYear" type="number" min="1900" max="2100" /></label>
-    <label>Ano modelo<input name="modelYear" type="number" min="1900" max="2100" /></label>
-    <input name="year" type="hidden" value="" />
-    <label>Combustível<input name="fuel" /></label><label>Cilindrada<input name="engineDisplacement" placeholder="1.6" /></label>
-    <label>Potência<input name="power" placeholder="92 cv" /></label><label>Chassi mascarado<input name="maskedChassis" placeholder="*****123456" /></label>
-    <label>Cidade<input name="municipality" /></label><label>UF<input name="state" maxLength={2} /></label>
-    <label>Quilometragem<input name="odometer" type="number" min="0" /></label>
-    <button className="primary-button" type="submit">Adicionar veículo</button>
-  </form>;
+  return <PlateLookupForm customers={customers} />;
 }
 
 export function VehicleEditForm({ vehicle, customers }: { vehicle: VehicleSummary; customers: CustomerSummary[] }) {
-  return <form action={updateVehicleAction} className="form-grid">
-    <input type="hidden" name="vehicleId" value={vehicle.id} />
-    <label className="span-2">Proprietário<select name="customerId" required defaultValue={vehicle.customerId}>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
-    <label>Placa<input name="plate" required defaultValue={vehicle.plate} /></label>
-    <label>Marca<input name="make" required defaultValue={vehicle.make} /></label>
-    <label>Modelo<input name="model" required defaultValue={vehicle.model} /></label>
-    <label>Categoria<select name="category" defaultValue={vehicle.category ?? "car"}><option value="car">Carro</option><option value="two_wheels">Duas rodas</option><option value="utility">Utilitário</option><option value="other">Outro</option></select></label>
-    <label>Cor<input name="color" defaultValue={vehicle.color ?? ""} /></label>
-    <label>Ano fabricação<input name="manufactureYear" type="number" min="1900" max="2100" defaultValue={vehicle.manufactureYear ?? ""} /></label>
-    <label>Ano modelo<input name="modelYear" type="number" min="1900" max="2100" defaultValue={vehicle.modelYear ?? vehicle.year ?? ""} /></label>
-    <input name="year" type="hidden" value={vehicle.modelYear ?? vehicle.year ?? ""} />
-    <label>Combustível<input name="fuel" defaultValue={vehicle.fuel ?? ""} /></label><label>Cilindrada<input name="engineDisplacement" defaultValue={vehicle.engineDisplacement ?? ""} /></label>
-    <label>Potência<input name="power" defaultValue={vehicle.power ?? ""} /></label><label>Chassi mascarado<input name="maskedChassis" defaultValue={vehicle.maskedChassis ?? ""} /></label>
-    <label>Cidade<input name="municipality" defaultValue={vehicle.municipality ?? ""} /></label><label>UF<input name="state" maxLength={2} defaultValue={vehicle.state ?? ""} /></label>
-    <label>Quilometragem<input name="odometer" type="number" min="0" defaultValue={vehicle.odometer ?? ""} /></label>
-    <button className="primary-button" type="submit">Salvar veículo</button>
-  </form>;
+  return <PlateLookupForm customers={customers} vehicle={vehicle} />;
 }
 
 export function ServiceCatalogForm() {
