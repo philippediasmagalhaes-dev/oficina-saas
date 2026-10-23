@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { describe, expect, it } from "vitest";
 import * as schema from "../db/schema";
+import type { Database } from "../db/client";
 import { createDrizzleRepository } from "./drizzle-repository";
 
 describe("Drizzle repository", () => {
@@ -11,7 +12,10 @@ describe("Drizzle repository", () => {
   run("records a service and inventory movement atomically", async () => {
     const pool = new Pool({ connectionString: process.env.TEST_DATABASE_URL! });
     const db = drizzle({ client: pool, schema });
-    const repository = createDrizzleRepository(db);
+    const repository = createDrizzleRepository(
+      db as unknown as Database,
+      (operation) => db.transaction(operation),
+    );
     const userId = `test-${randomUUID()}`;
     await db.insert(schema.user).values({ id: userId, name: "Teste", email: `${userId}@example.com`, emailVerified: true });
     try {

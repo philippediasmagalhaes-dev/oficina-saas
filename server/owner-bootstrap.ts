@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { hashPassword as hashBetterAuthPassword } from "better-auth/crypto";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { getDatabase } from "../db/client";
+import { getDatabase, runDatabaseTransaction } from "../db/client";
 import { account, user } from "../db/schema";
 
 const firstOwnerSchema = z
@@ -62,8 +62,7 @@ export async function isFirstOwnerAvailable(): Promise<boolean> {
 async function createFirstOwnerIfEmpty(
   input: StoredFirstOwner,
 ): Promise<boolean> {
-  const db = getDatabase();
-  return db.transaction(async (transaction) => {
+  return runDatabaseTransaction(async (transaction) => {
     await transaction.execute(sql`select pg_advisory_xact_lock(73194621)`);
     const [existing] = await transaction
       .select({ id: user.id })

@@ -1,7 +1,11 @@
 import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { Pool } from "@neondatabase/serverless";
-import { getDatabase } from "../db/client";
+import {
+  createDatabase,
+  getDatabase,
+  runDatabaseTransaction,
+  runDatabaseTransactionForUrl,
+  type Database,
+} from "../db/client";
 import {
   contactEvents,
   customers,
@@ -17,8 +21,6 @@ import type {
   PersistedServiceInput,
   ServiceWithInventoryInput,
 } from "./ports";
-
-type Database = ReturnType<typeof getDatabase>;
 
 function serviceValues(input: PersistedServiceInput) {
   return {
@@ -38,6 +40,7 @@ function serviceValues(input: PersistedServiceInput) {
 
 export function createDrizzleRepository(
   database: Database = getDatabase(),
+  runTransaction: typeof runDatabaseTransaction = runDatabaseTransaction,
 ): CrmRepository {
   return {
     async getWorkshopForUser(userId) {
@@ -308,7 +311,7 @@ export function createDrizzleRepository(
       return { ...row, completedAt: row.completedAt! };
     },
     async consumeInventoryAtomically(input: ServiceWithInventoryInput) {
-      return database.transaction(async (tx) => {
+      return runTransaction(async (tx) => {
         const [service] = await tx
           .insert(serviceRecords)
           .values(serviceValues(input))
@@ -348,7 +351,7 @@ export function createDrizzleRepository(
       return row;
     },
     async adjustInventory(input) {
-      return database.transaction(async (tx) => {
+      return runTransaction(async (tx) => {
         const [row] = await tx
           .update(inventoryItems)
           .set({
@@ -389,6 +392,8 @@ export function createDrizzleRepository(
 }
 
 export function createRepositoryForUrl(databaseUrl: string): CrmRepository {
-  const pool = new Pool({ connectionString: databaseUrl });
-  return createDrizzleRepository(drizzle(pool));
+  return createDrizzleRepository(
+    createDatabase(databaseUrl),
+    (operation) => runDatabaseTransactionForUrl(databaseUrl, operation),
+  );
 }

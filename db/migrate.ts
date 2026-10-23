@@ -1,4 +1,4 @@
-import { migrate } from "drizzle-orm/neon-serverless/migrator";
+import { migrate } from "drizzle-orm/neon-http/migrator";
 import { closeDatabase, getDatabase } from "./client";
 
 async function main() {

@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
-import { getDatabase } from "../db/client";
+import { getDatabase, runDatabaseTransaction } from "../db/client";
 import {
   customers,
   inventoryItems,
@@ -288,8 +288,7 @@ export async function updateWorkOrderStatus(workshopId: string, serviceRecordId:
 }
 
 export async function finalizeWorkOrder(input: { workshopId: string; serviceRecordId: string; paymentMethod: string; paymentStatus: string; warrantyDays: number | null; deliveredOdometer: number | null; returnIntervalDays: number | null; nextDueAt: Date | null }) {
-  const database = getDatabase();
-  await database.transaction(async (tx) => {
+  await runDatabaseTransaction(async (tx) => {
     const [order] = await tx.select({ id: serviceRecords.id, status: serviceRecords.status, description: serviceRecords.description }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId))).limit(1);
     if (!order || order.status !== "ready") throw new Error("A ordem precisa estar pronta antes da entrega.");
     const parts = await tx.select({ inventoryItemId: workOrderItems.inventoryItemId, quantity: workOrderItems.quantity, description: workOrderItems.description }).from(workOrderItems).where(and(eq(workOrderItems.workshopId, input.workshopId), eq(workOrderItems.serviceRecordId, input.serviceRecordId), eq(workOrderItems.type, "part")));

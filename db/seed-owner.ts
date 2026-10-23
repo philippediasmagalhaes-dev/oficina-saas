@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
-import { closeDatabase, getDatabase } from "./client";
+import { closeDatabase, getDatabase, runDatabaseTransaction } from "./client";
 import { account, user } from "./schema";
 
 async function main() {
@@ -18,7 +18,7 @@ async function main() {
   }
 
   const userId = randomUUID();
-  await db.transaction(async (tx) => {
+  await runDatabaseTransaction(async (tx) => {
     await tx.insert(user).values({ id: userId, email, name, emailVerified: true });
     await tx.insert(account).values({
       id: randomUUID(),
