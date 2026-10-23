@@ -96,11 +96,11 @@
 - Produces `saveInspection`, normalized damage marks, append-only `recordStatusEvent`, and quote approval/version records.
 - Later A4 printing consumes inspection, status, and approval summaries from `getWorkOrder`.
 
-- [ ] Write failing tests for checklist normalization, damage coordinate bounds, append-only events, and reapproval after a material quote change.
-- [ ] Run focused tests and verify expected failures.
-- [ ] Implement the inspection UI and persistence, damage-map controls, status history, and quote-version approval records.
-- [ ] Run focused tests, public quote tests, and typecheck; expect green.
-- [ ] Commit with `feat: add vehicle intake and auditable work order history`.
+- [x] Write failing tests for checklist normalization, damage coordinate bounds, append-only events, and reapproval after a material quote change.
+- [x] Run focused tests and verify expected failures.
+- [x] Implement the inspection UI and persistence, damage-map controls, status history, and quote-version approval records.
+- [x] Run focused tests, public quote tests, and typecheck; expect green.
+- [x] Commit with `feat: add vehicle intake and auditable work order history`.
 
 ### Task 4: Collaborators and labor-only compensation
 

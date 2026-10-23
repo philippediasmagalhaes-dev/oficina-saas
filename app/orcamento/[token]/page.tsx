@@ -22,7 +22,7 @@ export default async function PublicQuotePage({ params, searchParams }: { params
       {!answered && !expired && quote.quoteStatus === "sent" ? <section className="quote-decision"><h2>Autoriza a execução?</h2><p>Sua resposta ficará registrada com data e hora.</p><div><form action={respondToQuoteAction}><input type="hidden" name="token" value={token} /><input type="hidden" name="response" value="approved" /><button className="primary-button" type="submit">Aprovar orçamento</button></form><form action={respondToQuoteAction}><input type="hidden" name="token" value={token} /><input type="hidden" name="response" value="rejected" /><button className="secondary-button" type="submit">Recusar</button></form></div></section> : null}
       {quote.quoteStatus === "draft" ? <div className="quote-response rejected"><strong>Orçamento em preparação</strong><p>A oficina ainda está finalizando os itens desta proposta.</p></div> : null}
       {expired && !answered ? <div className="quote-response rejected"><strong>Orçamento expirado</strong><p>Entre em contato com a oficina para solicitar uma atualização.</p></div> : null}
-      <footer>Documento digital da ordem #{quote.id.slice(0, 8).toUpperCase()}</footer>
+      <footer>{quote.orderNumber ? `OS Nº ${quote.orderNumber}` : `Ordem #${quote.id.slice(0, 8).toUpperCase()}`} · Orçamento versão {quote.quoteVersion}</footer>
     </article>
   </main>;
 }

@@ -59,3 +59,8 @@ export function calculateQuoteTotal(
     totalCents: Math.max(subtotalCents - discountCents, 0),
   };
 }
+
+export function nextQuoteVersion(current: number) {
+  if (!Number.isInteger(current) || current < 1) throw new Error("Versão de orçamento inválida.");
+  return current + 1;
+}

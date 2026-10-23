@@ -11,6 +11,7 @@ import { createCrmService } from "../server/crm-service";
 import { createDrizzleRepository } from "../server/drizzle-repository";
 import { getOwnerContext, getOwnerUser } from "../server/owner-context";
 import { updateVehicle } from "../server/vehicles";
+import { saveInspection } from "../server/inspections";
 import {
   addQuoteItem,
   addServicePhoto,
@@ -18,6 +19,7 @@ import {
   finalizeWorkOrder,
   getWorkOrder,
   removeQuoteItem,
+  reopenApprovedQuote,
   respondToQuote,
   saveDiagnosis,
   sendQuote,
@@ -131,6 +133,34 @@ export async function saveDiagnosisAction(formData: FormData) {
   const input = parse(diagnosisSchema.safeParse(formObject(formData)));
   await saveDiagnosis({ workshopId, ...input });
   revalidatePath(`/ordens/${input.serviceRecordId}`);
+  revalidatePath("/ordens");
+}
+
+export async function saveInspectionAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const serviceRecordId = String(formData.get("serviceRecordId") ?? "");
+  const odometerValue = String(formData.get("inspectionOdometer") ?? "").trim();
+  const checklistKeys = ["frontPanel", "antenna", "speakers", "spareKey", "towHook", "jack", "extinguisher", "spareTire", "wheelKey", "documents"];
+  let marks: unknown = [];
+  try { marks = JSON.parse(String(formData.get("damageMarks") ?? "[]")); } catch { throw new Error("Mapa de avarias inválido."); }
+  await saveInspection({
+    workshopId,
+    serviceRecordId,
+    odometer: odometerValue ? Number(odometerValue) : null,
+    fuelLevel: String(formData.get("fuelLevel") ?? "") || null,
+    tireCondition: String(formData.get("tireCondition") ?? "") || null,
+    checklist: Object.fromEntries(checklistKeys.map((key) => [key, formData.get(`check_${key}`) === "on"])),
+    observations: String(formData.get("inspectionObservations") ?? "").trim() || null,
+    marks: Array.isArray(marks) ? marks as Parameters<typeof saveInspection>[0]["marks"] : [],
+  });
+  revalidatePath(`/ordens/${serviceRecordId}`);
+}
+
+export async function reopenApprovedQuoteAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const serviceRecordId = String(formData.get("serviceRecordId") ?? "");
+  await reopenApprovedQuote(workshopId, serviceRecordId);
+  revalidatePath(`/ordens/${serviceRecordId}`);
   revalidatePath("/ordens");
 }
 

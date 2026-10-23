@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
-import { getDatabase, runDatabaseTransaction } from "../db/client";
+import { getDatabase, runDatabaseTransaction, type DatabaseTransaction } from "../db/client";
 import {
   customers,
   inventoryItems,
@@ -8,10 +8,12 @@ import {
   servicePhotos,
   serviceRecords,
   vehicles,
+  workOrderApprovals,
   workOrderItems,
+  workOrderStatusEvents,
   workshops,
 } from "../db/schema";
-import { calculateQuoteTotal, type WorkOrderStatus } from "../domain/work-orders";
+import { calculateQuoteTotal, nextQuoteVersion, type WorkOrderStatus } from "../domain/work-orders";
 import {
   createPhotoService,
   type NewPhotoMetadata,
@@ -22,6 +24,7 @@ import {
   readPhotoStorageConfig,
 } from "./photo-storage";
 import { createDrizzleSequenceStore, nextWorkOrderNumber } from "./work-order-number";
+import { getInspection } from "./inspections";
 
 export type WorkOrderItemSummary = {
   id: string;
@@ -72,6 +75,7 @@ export type WorkOrderDetails = WorkOrderSummary & {
   quoteDiscountCents: number;
   quoteValidUntil: Date | null;
   quoteRespondedAt: Date | null;
+  quoteVersion: number;
   approvedAt: Date | null;
   readyAt: Date | null;
   deliveredAt: Date | null;
@@ -82,7 +86,14 @@ export type WorkOrderDetails = WorkOrderSummary & {
   items: WorkOrderItemSummary[];
   photos: WorkOrderPhotoSummary[];
   subtotalCents: number;
+  inspection: Awaited<ReturnType<typeof getInspection>>;
+  statusEvents: { id: string; fromStatus: string | null; toStatus: string; note: string | null; occurredAt: Date }[];
+  approvals: { id: string; quoteVersion: number; decision: string; source: string; customerNote: string | null; decidedAt: Date }[];
 };
+
+async function appendStatusEvent(transaction: Pick<DatabaseTransaction, "insert">, input: { workshopId: string; serviceRecordId: string; fromStatus: string | null; toStatus: string; note?: string | null }) {
+  await transaction.insert(workOrderStatusEvents).values({ ...input, note: input.note ?? null });
+}
 
 function validUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -145,6 +156,7 @@ export async function createWorkOrder(input: {
       odometer: input.odometer,
       notes: input.notes,
     }).returning({ id: serviceRecords.id, orderNumber: serviceRecords.orderNumber });
+    await appendStatusEvent(tx, { workshopId: input.workshopId, serviceRecordId: order.id, fromStatus: null, toStatus: "open" });
     return order;
   });
 }
@@ -190,6 +202,7 @@ export async function getWorkOrder(workshopId: string, serviceRecordId: string):
     quoteDiscountCents: serviceRecords.quoteDiscountCents,
     quoteValidUntil: serviceRecords.quoteValidUntil,
     quoteRespondedAt: serviceRecords.quoteRespondedAt,
+    quoteVersion: serviceRecords.quoteVersion,
     approvedAt: serviceRecords.approvedAt,
     readyAt: serviceRecords.readyAt,
     deliveredAt: serviceRecords.deliveredAt,
@@ -205,17 +218,24 @@ export async function getWorkOrder(workshopId: string, serviceRecordId: string):
     .leftJoin(vehicles, and(eq(vehicles.id, serviceRecords.vehicleId), eq(vehicles.workshopId, workshopId)))
     .where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId))).limit(1);
   if (!order) return null;
-  const [items, photos] = await Promise.all([
+  const [items, photos, inspection, statusEvents, approvals] = await Promise.all([
     loadItems(workshopId, serviceRecordId),
     database.select({ id: servicePhotos.id, kind: servicePhotos.kind, caption: servicePhotos.caption, fileName: servicePhotos.fileName, uploadedAt: servicePhotos.uploadedAt }).from(servicePhotos).where(and(eq(servicePhotos.workshopId, workshopId), eq(servicePhotos.serviceRecordId, serviceRecordId))).orderBy(desc(servicePhotos.uploadedAt)),
+    getInspection(workshopId, serviceRecordId),
+    database.select({ id: workOrderStatusEvents.id, fromStatus: workOrderStatusEvents.fromStatus, toStatus: workOrderStatusEvents.toStatus, note: workOrderStatusEvents.note, occurredAt: workOrderStatusEvents.occurredAt }).from(workOrderStatusEvents).where(and(eq(workOrderStatusEvents.workshopId, workshopId), eq(workOrderStatusEvents.serviceRecordId, serviceRecordId))).orderBy(workOrderStatusEvents.occurredAt),
+    database.select({ id: workOrderApprovals.id, quoteVersion: workOrderApprovals.quoteVersion, decision: workOrderApprovals.decision, source: workOrderApprovals.source, customerNote: workOrderApprovals.customerNote, decidedAt: workOrderApprovals.decidedAt }).from(workOrderApprovals).where(and(eq(workOrderApprovals.workshopId, workshopId), eq(workOrderApprovals.serviceRecordId, serviceRecordId))).orderBy(workOrderApprovals.decidedAt),
   ]);
   const totals = calculateQuoteTotal(items, order.quoteDiscountCents);
-  return { ...order, items, photos, subtotalCents: totals.subtotalCents };
+  return { ...order, items, photos, inspection, statusEvents, approvals, subtotalCents: totals.subtotalCents };
 }
 
 export async function saveDiagnosis(input: { workshopId: string; serviceRecordId: string; complaint: string; diagnosis: string; notes: string | null }) {
-  const [row] = await getDatabase().update(serviceRecords).set({ complaint: input.complaint, diagnosis: input.diagnosis, notes: input.notes, description: input.complaint.slice(0, 120), status: "diagnosis", quoteStatus: "draft" }).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId), inArray(serviceRecords.status, ["open", "diagnosis", "awaiting_approval"]))).returning({ id: serviceRecords.id });
-  if (!row) throw new Error("Ordem de serviço não encontrada ou já finalizada.");
+  await runDatabaseTransaction(async (tx) => {
+    const [before] = await tx.select({ status: serviceRecords.status }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId), inArray(serviceRecords.status, ["open", "diagnosis", "awaiting_approval"]))).limit(1);
+    if (!before) throw new Error("Ordem de serviço não encontrada ou já finalizada.");
+    await tx.update(serviceRecords).set({ complaint: input.complaint, diagnosis: input.diagnosis, notes: input.notes, description: input.complaint.slice(0, 120), status: "diagnosis", quoteStatus: "draft" }).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId)));
+    if (before.status !== "diagnosis") await appendStatusEvent(tx, { workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, fromStatus: before.status, toStatus: "diagnosis" });
+  });
 }
 
 async function recalculateWorkOrder(workshopId: string, serviceRecordId: string) {
@@ -269,30 +289,55 @@ export async function sendQuote(input: { workshopId: string; serviceRecordId: st
   await database.update(serviceRecords).set({ quoteDiscountCents: input.discountCents, quoteValidUntil: input.validUntil }).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId)));
   const totals = await recalculateWorkOrder(input.workshopId, input.serviceRecordId);
   if (totals.subtotalCents <= 0) throw new Error("Adicione pelo menos um item ao orçamento.");
-  const [published] = await database.update(serviceRecords).set({ quoteDiscountCents: totals.discountCents, amountCents: totals.totalCents, quoteStatus: "sent", status: "awaiting_approval" }).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId), eq(serviceRecords.status, "diagnosis"))).returning({ id: serviceRecords.id });
-  if (!published) throw new Error("Não foi possível publicar o orçamento.");
+  await runDatabaseTransaction(async (tx) => {
+    const [published] = await tx.update(serviceRecords).set({ quoteDiscountCents: totals.discountCents, amountCents: totals.totalCents, quoteStatus: "sent", status: "awaiting_approval" }).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId), eq(serviceRecords.status, "diagnosis"))).returning({ id: serviceRecords.id });
+    if (!published) throw new Error("Não foi possível publicar o orçamento.");
+    await appendStatusEvent(tx, { workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, fromStatus: "diagnosis", toStatus: "awaiting_approval" });
+  });
 }
 
 export async function respondToQuote(token: string, response: "approved" | "rejected") {
   if (!validUuid(token)) return null;
   const now = new Date();
-  const [row] = await getDatabase().update(serviceRecords).set({ quoteStatus: response, status: response === "approved" ? "approved" : "diagnosis", quoteRespondedAt: now, approvedAt: response === "approved" ? now : null }).where(and(eq(serviceRecords.quoteToken, token), eq(serviceRecords.quoteStatus, "sent"), eq(serviceRecords.status, "awaiting_approval"), or(isNull(serviceRecords.quoteValidUntil), gte(serviceRecords.quoteValidUntil, now)))).returning({ id: serviceRecords.id });
-  return row ?? null;
+  return runDatabaseTransaction(async (tx) => {
+    const toStatus = response === "approved" ? "approved" : "diagnosis";
+    const [row] = await tx.update(serviceRecords).set({ quoteStatus: response, status: toStatus, quoteRespondedAt: now, approvedAt: response === "approved" ? now : null }).where(and(eq(serviceRecords.quoteToken, token), eq(serviceRecords.quoteStatus, "sent"), eq(serviceRecords.status, "awaiting_approval"), or(isNull(serviceRecords.quoteValidUntil), gte(serviceRecords.quoteValidUntil, now)))).returning({ id: serviceRecords.id, workshopId: serviceRecords.workshopId, quoteVersion: serviceRecords.quoteVersion, quoteToken: serviceRecords.quoteToken });
+    if (!row) return null;
+    await tx.insert(workOrderApprovals).values({ workshopId: row.workshopId, serviceRecordId: row.id, quoteVersion: row.quoteVersion, decision: response, publicToken: row.quoteToken });
+    await appendStatusEvent(tx, { workshopId: row.workshopId, serviceRecordId: row.id, fromStatus: "awaiting_approval", toStatus });
+    return { id: row.id };
+  });
+}
+
+export async function reopenApprovedQuote(workshopId: string, serviceRecordId: string) {
+  return runDatabaseTransaction(async (tx) => {
+    const [order] = await tx.select({ quoteVersion: serviceRecords.quoteVersion }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId), eq(serviceRecords.status, "approved"))).limit(1);
+    if (!order) throw new Error("Somente um orçamento aprovado pode ser revisado.");
+    const quoteVersion = nextQuoteVersion(order.quoteVersion);
+    await tx.update(serviceRecords).set({ status: "diagnosis", quoteStatus: "draft", quoteVersion, approvedAt: null, quoteRespondedAt: null }).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId)));
+    await appendStatusEvent(tx, { workshopId, serviceRecordId, fromStatus: "approved", toStatus: "diagnosis", note: `Orçamento reaberto na versão ${quoteVersion}` });
+    return { id: serviceRecordId, quoteVersion };
+  });
 }
 
 export async function getPublicQuote(token: string) {
   if (!validUuid(token)) return null;
   const database = getDatabase();
-  const [order] = await database.select({ id: serviceRecords.id, workshopId: serviceRecords.workshopId, quoteToken: serviceRecords.quoteToken, quoteStatus: serviceRecords.quoteStatus, quoteValidUntil: serviceRecords.quoteValidUntil, quoteRespondedAt: serviceRecords.quoteRespondedAt, complaint: serviceRecords.complaint, diagnosis: serviceRecords.diagnosis, amountCents: serviceRecords.amountCents, quoteDiscountCents: serviceRecords.quoteDiscountCents, workshopName: workshops.name, customerName: customers.name, vehicleLabel: vehicleLabelSql() }).from(serviceRecords).innerJoin(workshops, eq(workshops.id, serviceRecords.workshopId)).innerJoin(customers, eq(customers.id, serviceRecords.customerId)).leftJoin(vehicles, eq(vehicles.id, serviceRecords.vehicleId)).where(eq(serviceRecords.quoteToken, token)).limit(1);
+  const [order] = await database.select({ id: serviceRecords.id, orderNumber: serviceRecords.orderNumber, workshopId: serviceRecords.workshopId, quoteToken: serviceRecords.quoteToken, quoteVersion: serviceRecords.quoteVersion, quoteStatus: serviceRecords.quoteStatus, quoteValidUntil: serviceRecords.quoteValidUntil, quoteRespondedAt: serviceRecords.quoteRespondedAt, complaint: serviceRecords.complaint, diagnosis: serviceRecords.diagnosis, amountCents: serviceRecords.amountCents, quoteDiscountCents: serviceRecords.quoteDiscountCents, workshopName: workshops.name, customerName: customers.name, vehicleLabel: vehicleLabelSql() }).from(serviceRecords).innerJoin(workshops, eq(workshops.id, serviceRecords.workshopId)).innerJoin(customers, eq(customers.id, serviceRecords.customerId)).leftJoin(vehicles, eq(vehicles.id, serviceRecords.vehicleId)).where(eq(serviceRecords.quoteToken, token)).limit(1);
   if (!order) return null;
   const items = await loadItems(order.workshopId, order.id);
   return { ...order, items, subtotalCents: items.reduce((total, item) => total + item.quantity * item.unitPriceCents, 0) };
 }
 
 export async function updateWorkOrderStatus(workshopId: string, serviceRecordId: string, status: WorkOrderStatus) {
-  const values: Partial<typeof serviceRecords.$inferInsert> = { status };
-  if (status === "ready") values.readyAt = new Date();
-  await getDatabase().update(serviceRecords).set(values).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId)));
+  await runDatabaseTransaction(async (tx) => {
+    const [order] = await tx.select({ status: serviceRecords.status }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId))).limit(1);
+    if (!order) throw new Error("Ordem de serviço não encontrada.");
+    const values: Partial<typeof serviceRecords.$inferInsert> = { status };
+    if (status === "ready") values.readyAt = new Date();
+    await tx.update(serviceRecords).set(values).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId)));
+    await appendStatusEvent(tx, { workshopId, serviceRecordId, fromStatus: order.status, toStatus: status });
+  });
 }
 
 export async function finalizeWorkOrder(input: { workshopId: string; serviceRecordId: string; paymentMethod: string; paymentStatus: string; warrantyDays: number | null; deliveredOdometer: number | null; returnIntervalDays: number | null; nextDueAt: Date | null }) {
@@ -308,6 +353,7 @@ export async function finalizeWorkOrder(input: { workshopId: string; serviceReco
     }
     const now = new Date();
     await tx.update(serviceRecords).set({ status: "delivered", completedAt: now, deliveredAt: now, paymentMethod: input.paymentMethod, paymentStatus: input.paymentStatus, warrantyDays: input.warrantyDays, deliveredOdometer: input.deliveredOdometer, returnIntervalDays: input.returnIntervalDays, nextDueAt: input.nextDueAt }).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId)));
+    await appendStatusEvent(tx, { workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, fromStatus: "ready", toStatus: "delivered" });
   });
 }
 
