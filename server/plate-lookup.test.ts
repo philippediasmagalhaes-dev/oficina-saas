@@ -51,6 +51,16 @@ describe("plate lookup", () => {
     });
   });
 
+  it("never exposes more than the final five chassis characters", () => {
+    expect(
+      mapPlateProviderResponse({
+        marca: "VW",
+        modelo: "GOL",
+        chassi: "123456789012*ABCD",
+      })?.maskedChassis,
+    ).toBe("************\u002aABCD");
+  });
+
   it("uses the FipePlaca endpoint, bearer token and returned balance", async () => {
     const calls: Array<{ url: string; authorization: string | null }> = [];
     const fetcher: typeof fetch = async (input, init) => {

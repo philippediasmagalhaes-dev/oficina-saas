@@ -57,8 +57,8 @@ function year(value: string | null) {
 function maskChassis(value: string | null) {
   if (!value) return null;
   const compact = value.replace(/\s/g, "");
-  if (compact.includes("*")) return compact;
-  return `${"*".repeat(Math.max(0, compact.length - 5))}${compact.slice(-5)}`;
+  const visibleSuffix = compact.match(/[^*]{1,5}$/)?.[0] ?? "";
+  return `${"*".repeat(Math.max(0, compact.length - visibleSuffix.length))}${visibleSuffix}`;
 }
 
 function withUnit(value: string | null, unit: string) {

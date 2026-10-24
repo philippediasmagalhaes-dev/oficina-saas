@@ -72,4 +72,3 @@
 - [ ] Documentar criação da conta, recarga mínima, chave única e configuração dos segredos.
 - [ ] Rodar suíte completa, typecheck e build Cloudflare.
 - [ ] Registrar que a ativação real depende de `PLATE_LOOKUP_API_TOKEN` e saldo no provedor.
-

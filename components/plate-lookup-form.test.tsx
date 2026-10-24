@@ -4,6 +4,7 @@ import {
   canRequestPlateLookup,
   plateLookupSuccessMessage,
   PlateLookupForm,
+  resetPlateLookupMetadata,
 } from "./plate-lookup-form";
 
 const customers = [
@@ -27,6 +28,14 @@ describe("paid plate lookup safeguards", () => {
     expect(canRequestPlateLookup("ABC1D23", "abc-1d23", "found")).toBe(false);
     expect(canRequestPlateLookup("ABC1D23", "DEF4G56", "idle")).toBe(true);
     expect(canRequestPlateLookup(null, "ABC", "idle")).toBe(false);
+  });
+
+  it("clears lookup metadata when the plate changes", () => {
+    expect(resetPlateLookupMetadata("ABC1D23", "DEF4G56")).toEqual({
+      lookupProvider: "",
+      lookupSnapshot: "",
+    });
+    expect(resetPlateLookupMetadata("ABC1D23", "abc-1d23")).toBeNull();
   });
 
   it("distinguishes a free cache hit from a paid lookup", () => {
