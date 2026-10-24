@@ -47,3 +47,13 @@ Estas pendências não bloqueiam o uso diário do piloto:
 ## Fora do piloto aprovado
 
 Login de funcionários, agenda, emissão fiscal, conciliação bancária automática, compras/fornecedores avançados, integração direta com API do Business Fin e cobrança automática da assinatura SaaS ficam para fases posteriores.
+
+## Evidência da liberação — 24/10/2026
+
+- Código implantado: `4f15719` (`codex/cloudflare-pilot`).
+- Cloudflare Worker: versão `f1e27469-0804-4863-8c58-a0d426ab1a15`.
+- Neon: migração `0007_release_hardening` aplicada e estrutura confirmada.
+- Testes: 156 aprovados; 1 integração destrutiva de banco ignorada sem `TEST_DATABASE_URL`.
+- Build: Next.js e Cloudflare concluídos; `vinext check` com 100% de compatibilidade.
+- Segurança de dependências: 0 vulnerabilidades de produção encontradas.
+- Smoke público: 22 de 22 verificações aprovadas em `https://oficina-saas.contato-ad4.workers.dev`.

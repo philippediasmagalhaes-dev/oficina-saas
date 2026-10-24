@@ -273,10 +273,10 @@
 - [x] Extend smoke tests for login, current-month dashboard, customer/vehicle edit, OS creation, inspection, public quote, A4 print, collaborator assignment, financial filters, CSV export, and integration fallback states.
 - [x] Run the smoke test test-suite and confirm the new assertions fail before script changes.
 - [x] Implement the extended smoke checks and deployment documentation.
-- [ ] Run `npm test`, `npm run typecheck`, `npm run build:cloudflare`, migration against the configured Neon database, and the production smoke test; all must exit zero.
+- [x] Run `npm test`, `npm run typecheck`, `npm run build:cloudflare`, migration against the configured Neon database, and the production smoke test; all must exit zero.
 - [x] Review the requirements line by line against the approved spec and record only external account dependencies as pending.
-- [ ] Commit with `chore: validate complete Paulinho Autocar pilot`.
-- [ ] Deploy to Cloudflare, verify the production version, and preserve the feature branch for review.
+- [x] Commit the validated Paulinho Autocar pilot release candidate.
+- [x] Deploy to Cloudflare, verify the production version, and preserve the feature branch for review.
 
 ### Task 12: Release-hardening after independent review
 
@@ -294,4 +294,4 @@
 - [x] Write failing regressions for quote republishing, reservation ownership, exact discount/tax allocation, settlement, hybrid monthly pay, immutable assignments, tenant-bound WhatsApp, outbox claims, export periods and scheduled failures.
 - [x] Implement transaction locks/claims, lifecycle guards, settlement/reversal and exact allocations.
 - [x] Add the additive backfill migration and cached plate lookup.
-- [ ] Re-run focused and full verification, apply the migration, deploy and execute production smoke tests.
+- [x] Re-run focused and full verification, apply the migration, deploy and execute production smoke tests.
