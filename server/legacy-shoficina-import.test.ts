@@ -3,6 +3,7 @@ import {
   APPROVED_SHOFICINA_BACKUP_HASH,
   assertLegacyImportComplete,
   assertLegacySourceHash,
+  buildLegacyOrderDateRepairs,
   buildLegacyVehicle,
   mapLegacyOrderStatus,
   normalizeLegacyDocument,
@@ -10,6 +11,7 @@ import {
   parseLegacyDate,
   parseLegacyPhotoName,
   reaisToCents,
+  resolveLegacyOrderDates,
   resolveLegacyOrderNumber,
   safeLegacyImportError,
   isLegacyImportLeaseExpired,
@@ -135,6 +137,62 @@ describe("SHOficina legacy import transformations", () => {
       1792524162000,
     );
     expect(parseLegacyDate(null)).toBeNull();
+  });
+
+  it("keeps a missing legacy entry date unknown instead of using the import date", () => {
+    const fallback = new Date("2026-10-24T12:00:00.000Z");
+
+    expect(
+      resolveLegacyOrderDates(
+        { ENTRADA: null, PRONTO: null, SAIDA: null },
+        fallback,
+      ),
+    ).toEqual({
+      intakeAt: null,
+      createdAt: fallback,
+      updatedAt: fallback,
+    });
+  });
+
+  it("preserves the original legacy entry and latest workflow date", () => {
+    const fallback = new Date("2026-10-24T12:00:00.000Z");
+
+    expect(
+      resolveLegacyOrderDates(
+        {
+          ENTRADA: "2025-06-01T10:00:00.000Z",
+          PRONTO: "2025-06-02T10:00:00.000Z",
+          SAIDA: "2025-06-03T10:00:00.000Z",
+        },
+        fallback,
+      ),
+    ).toEqual({
+      intakeAt: new Date("2025-06-01T10:00:00.000Z"),
+      createdAt: new Date("2025-06-01T10:00:00.000Z"),
+      updatedAt: new Date("2025-06-03T10:00:00.000Z"),
+    });
+  });
+
+  it("builds an idempotent repair set only for mapped legacy orders", () => {
+    expect(
+      buildLegacyOrderDateRepairs(
+        [
+          { CODIGO: 10, ENTRADA: null },
+          { CODIGO: 11, ENTRADA: "2025-02-03T10:00:00.000Z" },
+          { CODIGO: 12, ENTRADA: "2025-02-04T10:00:00.000Z" },
+        ],
+        new Map([
+          ["10", "target-10"],
+          ["11", "target-11"],
+        ]),
+      ),
+    ).toEqual([
+      { targetId: "target-10", intakeAt: null },
+      {
+        targetId: "target-11",
+        intakeAt: new Date("2025-02-03T10:00:00.000Z"),
+      },
+    ]);
   });
 
   it("preserves a free legacy order number and allocates safely on collision", () => {

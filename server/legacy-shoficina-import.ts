@@ -195,6 +195,32 @@ export function parseLegacyDate(value: unknown): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+export function resolveLegacyOrderDates(
+  row: { ENTRADA?: unknown; PRONTO?: unknown; SAIDA?: unknown },
+  fallback: Date,
+) {
+  const intakeAt = parseLegacyDate(row.ENTRADA);
+  const readyAt = parseLegacyDate(row.PRONTO);
+  const exitAt = parseLegacyDate(row.SAIDA);
+  return {
+    intakeAt,
+    createdAt: intakeAt ?? fallback,
+    updatedAt: exitAt ?? readyAt ?? intakeAt ?? fallback,
+  };
+}
+
+export function buildLegacyOrderDateRepairs(
+  orders: Array<{ CODIGO: unknown; ENTRADA?: unknown }>,
+  targetByLegacyId: Map<string, string>,
+) {
+  return orders.flatMap((row) => {
+    const targetId = targetByLegacyId.get(String(row.CODIGO));
+    return targetId
+      ? [{ targetId, intakeAt: parseLegacyDate(row.ENTRADA) }]
+      : [];
+  });
+}
+
 export function resolveLegacyOrderNumber(
   legacyNumber: number,
   occupied: Set<number>,

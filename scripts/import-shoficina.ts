@@ -33,6 +33,7 @@ import {
   parseLegacyDate,
   parseLegacyPhotoName,
   reaisToCents,
+  resolveLegacyOrderDates,
   resolveLegacyOrderNumber,
   safeLegacyImportError,
   isLegacyImportLeaseExpired,
@@ -484,9 +485,11 @@ async function buildPlan(
   const orderTotals = new Map<string, number>();
   const orderDates = new Map<string, Date>();
   const newOrdersById = new Map<string, typeof serviceRecords.$inferInsert>();
+  const importedAt = new Date();
 
   for (const row of dataset.orders) {
     const legacyId = String(row.CODIGO);
+    const dates = resolveLegacyOrderDates(row, importedAt);
     const previous = mapped.get(`work_order:${legacyId}`);
     const status = mapLegacyOrderStatus(
       statusNames.get(String(row.SITUACAO)),
@@ -494,7 +497,7 @@ async function buildPlan(
     );
     orderStatuses.set(legacyId, status);
     orderTotals.set(legacyId, orderTotalCents(row));
-    orderDates.set(legacyId, parseLegacyDate(row.ENTRADA) ?? new Date());
+    orderDates.set(legacyId, dates.createdAt);
     if (previous) {
       orderTargets.set(legacyId, previous);
       alreadyMapped += 1;
@@ -508,7 +511,7 @@ async function buildPlan(
     nextOrderNumber = resolvedNumber.nextOrderNumber;
     if (resolvedNumber.collided) orderCollisions += 1;
     const id = randomUUID();
-    const enteredAt = parseLegacyDate(row.ENTRADA) ?? new Date();
+    const enteredAt = dates.createdAt;
     const readyAt = parseLegacyDate(row.PRONTO);
     const exitAt = parseLegacyDate(row.SAIDA);
     const complaint = cleanLegacyText(row.DEFEITO);
@@ -537,6 +540,7 @@ async function buildPlan(
       status,
       quoteStatus: quoteStatusFor(status),
       quoteToken: randomUUID(),
+      intakeAt: dates.intakeAt,
       amountCents: orderTotals.get(legacyId)!,
       quoteDiscountCents: 0,
       odometer: positiveInteger(row.KILOMET),
@@ -560,7 +564,7 @@ async function buildPlan(
         status === "delivered" ? (exitAt ?? readyAt ?? enteredAt) : null,
       paymentStatus: "pending",
       createdAt: enteredAt,
-      updatedAt: exitAt ?? readyAt ?? enteredAt,
+      updatedAt: dates.updatedAt,
     };
     orderInserts.push(order);
     newOrdersById.set(id, order);
@@ -572,6 +576,7 @@ async function buildPlan(
       metadata: {
         importedOrderNumber: resolvedNumber.orderNumber,
         numberCollision: resolvedNumber.collided,
+        missingEntryDate: dates.intakeAt === null,
       },
     });
   }

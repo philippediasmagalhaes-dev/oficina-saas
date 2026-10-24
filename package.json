@@ -15,6 +15,7 @@
     "db:migrate": "tsx db/migrate.ts",
     "db:migrate-photos:r2": "tsx scripts/migrate-service-photos-to-r2.ts",
     "db:import-shoficina": "tsx scripts/import-shoficina.ts",
+    "db:repair-shoficina-dates": "tsx scripts/repair-shoficina-order-dates.ts",
     "db:seed-owner": "tsx db/seed-owner.ts",
     "dev:cloudflare": "vite dev --port 3001",
     "build:cloudflare": "vite build && next typegen",

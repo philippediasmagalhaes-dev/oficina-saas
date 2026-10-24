@@ -144,6 +144,7 @@ export async function createWorkOrder(input: {
   const [vehicle] = await database.select({ id: vehicles.id, customerId: vehicles.customerId }).from(vehicles).where(and(eq(vehicles.workshopId, input.workshopId), eq(vehicles.id, input.vehicleId))).limit(1);
   if (!customer || !vehicle || vehicle.customerId !== customer.id) throw new Error("Cliente ou veículo não encontrados.");
   return runDatabaseTransaction(async (tx) => {
+    const intakeAt = new Date();
     const orderNumber = await nextWorkOrderNumber(createDrizzleSequenceStore(tx), input.workshopId);
     const [order] = await tx.insert(serviceRecords).values({
       workshopId: input.workshopId,
@@ -154,6 +155,7 @@ export async function createWorkOrder(input: {
       description: input.complaint.slice(0, 120),
       complaint: input.complaint,
       status: "open",
+      intakeAt,
       amountCents: 0,
       completedAt: null,
       odometer: input.odometer,

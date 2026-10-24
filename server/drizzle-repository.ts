@@ -31,6 +31,7 @@ function serviceValues(input: PersistedServiceInput) {
     serviceCatalogId: input.serviceCatalogId,
     description: input.description,
     amountCents: input.amountCents,
+    intakeAt: input.completedAt,
     completedAt: input.completedAt,
     odometer: input.odometer,
     notes: input.notes,

@@ -242,6 +242,7 @@ export const serviceRecords = pgTable(
     serviceCatalogId: uuid("service_catalog_id").references(() => serviceCatalogItems.id, { onDelete: "set null" }),
     description: text("description").notNull(),
     status: serviceStatus("status").default("open").notNull(),
+    intakeAt: timestamp("intake_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     amountCents: integer("amount_cents").default(0).notNull(),
     odometer: integer("odometer"),
