@@ -57,6 +57,7 @@ export type WorkOrderSummary = {
   status: WorkOrderStatus;
   quoteStatus: "draft" | "sent" | "approved" | "rejected";
   amountCents: number;
+  intakeAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -121,6 +122,7 @@ export async function listWorkOrders(workshopId: string): Promise<WorkOrderSumma
       status: serviceRecords.status,
       quoteStatus: serviceRecords.quoteStatus,
       amountCents: serviceRecords.amountCents,
+      intakeAt: serviceRecords.intakeAt,
       createdAt: serviceRecords.createdAt,
       updatedAt: serviceRecords.updatedAt,
     })
@@ -217,6 +219,7 @@ export async function getWorkOrder(workshopId: string, serviceRecordId: string):
     taxBasisPoints: serviceRecords.taxBasisPoints,
     warrantyDays: serviceRecords.warrantyDays,
     deliveredOdometer: serviceRecords.deliveredOdometer,
+    intakeAt: serviceRecords.intakeAt,
     createdAt: serviceRecords.createdAt,
     updatedAt: serviceRecords.updatedAt,
   }).from(serviceRecords)

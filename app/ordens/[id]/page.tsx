@@ -18,6 +18,7 @@ import { IntakeInspectionForm } from "../../../components/intake-inspection-form
 import { AssignmentForm } from "../../../components/assignment-form";
 import { readServerConfig } from "../../../db/config";
 import { formatCents } from "../../../domain/money";
+import { formatOptionalDate } from "../../../domain/dates";
 import { workOrderStatusLabels } from "../../../domain/work-orders";
 import { formatWorkOrderNumber } from "../../../domain/workshop-settings";
 import { getWorkOrderData } from "../../../server/queries";
@@ -62,7 +63,7 @@ export default async function WorkOrderPage({ params }: { params: Promise<{ id: 
 
         {order.status === "ready" ? <section className="surface"><div className="section-title"><div><span>04 · Entrega</span><h2>Finalizar OS</h2></div></div><FinalizationForm serviceRecordId={order.id} totalCents={order.amountCents} odometer={order.odometer} recommendedDays={recommendedDays} defaultTaxPercent={(order.taxBasisPoints ?? data.financialSettings.settings.defaultTaxBasisPoints) / 100} /></section> : null}
 
-        <section className="surface order-facts"><div><span>Entrada</span><strong>{order.createdAt.toLocaleDateString("pt-BR")}</strong></div><div><span>Quilometragem</span><strong>{order.odometer ? `${order.odometer.toLocaleString("pt-BR")} km` : "Não informada"}</strong></div><div><span>Subtotal</span><strong>{formatCents(order.subtotalCents)}</strong></div><div><span>Desconto</span><strong>{formatCents(order.quoteDiscountCents)}</strong></div><div><span>Total</span><strong>{formatCents(order.amountCents)}</strong></div></section>
+        <section className="surface order-facts"><div><span>Entrada</span><strong>{formatOptionalDate(order.intakeAt)}</strong></div><div><span>Quilometragem</span><strong>{order.odometer ? `${order.odometer.toLocaleString("pt-BR")} km` : "Não informada"}</strong></div><div><span>Subtotal</span><strong>{formatCents(order.subtotalCents)}</strong></div><div><span>Desconto</span><strong>{formatCents(order.quoteDiscountCents)}</strong></div><div><span>Total</span><strong>{formatCents(order.amountCents)}</strong></div></section>
         <section className="surface"><div className="section-title"><div><span>Auditoria</span><h2>Histórico da OS</h2></div></div><div className="timeline-list">{order.statusEvents.map((event) => <div key={event.id}><i /><div><strong>{workOrderStatusLabels[event.toStatus as keyof typeof workOrderStatusLabels] ?? event.toStatus}</strong><small>{event.occurredAt.toLocaleString("pt-BR")}</small>{event.note ? <span>{event.note}</span> : null}</div></div>)}</div></section>
       </aside>
     </div>

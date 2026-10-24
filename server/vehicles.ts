@@ -77,10 +77,11 @@ export async function getVehicle(workshopId: string, vehicleId: string) {
     amountCents: serviceRecords.amountCents,
     odometer: serviceRecords.odometer,
     deliveredOdometer: serviceRecords.deliveredOdometer,
+    intakeAt: serviceRecords.intakeAt,
     createdAt: serviceRecords.createdAt,
     completedAt: serviceRecords.completedAt,
     nextDueAt: serviceRecords.nextDueAt,
-  }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.vehicleId, vehicleId))).orderBy(desc(serviceRecords.createdAt));
+  }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.vehicleId, vehicleId))).orderBy(desc(serviceRecords.intakeAt), desc(serviceRecords.createdAt));
   return { ...vehicle, history };
 }
 
