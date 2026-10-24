@@ -64,3 +64,8 @@ export function nextQuoteVersion(current: number) {
   if (!Number.isInteger(current) || current < 1) throw new Error("Versão de orçamento inválida.");
   return current + 1;
 }
+
+export function nextQuotePublication(input: { currentVersion: number; quoteStatus: string; currentToken: string; createToken: () => string }) {
+  if (input.quoteStatus !== "rejected" && input.quoteStatus !== "approved") return { quoteVersion: input.currentVersion, quoteToken: input.currentToken };
+  return { quoteVersion: nextQuoteVersion(input.currentVersion), quoteToken: input.createToken() };
+}

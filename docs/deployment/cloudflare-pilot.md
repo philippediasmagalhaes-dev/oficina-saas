@@ -32,7 +32,7 @@ Variáveis opcionais para liberar integrações externas depois do deploy:
 | Nome | Uso |
 | --- | --- |
 | `PLATE_LOOKUP_PROVIDER`, `PLATE_LOOKUP_API_URL`, `PLATE_LOOKUP_API_TOKEN` | Consulta assistida por placa |
-| `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID` | Meta WhatsApp Cloud API |
+| `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`, `WHATSAPP_WORKSHOP_ID` | Meta WhatsApp Cloud API vinculada explicitamente à oficina |
 | `WHATSAPP_REMINDER_TEMPLATE_NAME`, `WHATSAPP_READY_TEMPLATE_NAME`, `WHATSAPP_GRAPH_API_VERSION` | Templates aprovados de manutenção e veículo pronto |
 | `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` | Verificação e assinatura do webhook |
 | `CRON_SECRET` | Proteção da execução diária de lembretes |

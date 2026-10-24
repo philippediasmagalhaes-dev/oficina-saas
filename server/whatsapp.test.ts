@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createWhatsAppProvider, queueReminderCandidates, verifyWebhookChallenge, type ReminderQueueStore } from "./whatsapp";
+import { createWhatsAppProvider, getConfiguredWhatsAppWorkshopId, queueReminderCandidates, verifyWebhookChallenge, type ReminderQueueStore } from "./whatsapp";
 
 describe("WhatsApp automation", () => {
   it("does not configure delivery without all required credentials", () => {
@@ -16,5 +16,10 @@ describe("WhatsApp automation", () => {
   it("validates webhook challenges without exposing the token", () => {
     expect(verifyWebhookChallenge(new URL("https://x.test?hub.mode=subscribe&hub.verify_token=ok&hub.challenge=123"), "ok")).toEqual({ ok: true, challenge: "123" });
     expect(verifyWebhookChallenge(new URL("https://x.test?hub.mode=subscribe&hub.verify_token=secret&hub.challenge=123"), "ok")).toEqual({ ok: false });
+  });
+
+  it("requires an explicit tenant binding for official automation", () => {
+    expect(getConfiguredWhatsAppWorkshopId({})).toBeNull();
+    expect(getConfiguredWhatsAppWorkshopId({ WHATSAPP_WORKSHOP_ID: " workshop-a " })).toBe("workshop-a");
   });
 });

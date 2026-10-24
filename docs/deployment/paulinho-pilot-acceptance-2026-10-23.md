@@ -10,7 +10,7 @@ O escopo interno aprovado para o piloto está implementado. A oficina pode opera
 | --- | --- |
 | Acesso exclusivo do proprietário | Implementado com Better Auth; colaboradores não possuem login |
 | Clientes e consentimento de WhatsApp | Cadastro, edição, endereço, documento, consentimento e opt-out implementados |
-| Veículos para carros e motos | Cadastro e edição genéricos, histórico por veículo e busca assistida por placa implementados |
+| Veículos | Cadastro e edição genéricos, histórico por veículo e busca assistida por placa implementados |
 | Ordem de serviço numerada | Numeração sequencial por oficina, detalhes e histórico de status implementados |
 | Diagnóstico e orçamento digital | Diagnóstico, itens, versões, link público, aprovação e recusa implementados |
 | Aprovação sem internet pelo cliente | Registro presencial de aprovação ou recusa implementado pelo proprietário |
@@ -18,14 +18,14 @@ O escopo interno aprovado para o piloto está implementado. A oficina pode opera
 | Status do serviço e aviso de veículo pronto | Histórico auditável e envio oficial quando configurado, com link manual como alternativa |
 | Impressão A4 | OS completa com identidade, cliente, veículo, vistoria, itens, pagamentos, termos e assinaturas |
 | Próxima manutenção e retenção | Previsão automática conforme o serviço e painel de clientes a retornar implementados |
-| Lembretes automáticos por WhatsApp | Fila idempotente, consentimento, horários, bloqueio, cooldown, webhook e agendamento diário implementados |
+| Lembretes automáticos por WhatsApp | Fila idempotente, consentimento, horários, bloqueio, cooldown, webhook e agendamento diário implementados; ativação depende das credenciais Meta e do vínculo `WHATSAPP_WORKSHOP_ID` |
 | Preservar o número atual do WhatsApp | Implementado por configuração compatível com Meta; o modo manual continua usando o número atual |
 | Colaboradores sem login | Cadastro do colaborador e modelos mensal, por serviço, percentual ou híbrido implementados |
 | Vários colaboradores por serviço | Participação configurável, limitada a 100%, com comissão somente sobre mão de obra |
 | Estoque simples | Entradas, ajustes, reserva na aprovação, consumo no início, liberação e histórico implementados |
 | Taxa de cartão | Regras por meio/bandeira/parcelas e ajuste manual no fechamento implementados |
 | Reserva de imposto | Percentual padrão e ajuste por OS, ambos registrados no fechamento financeiro |
-| Financeiro completo do piloto | Pagamentos divididos, parcelas, caixa/competência, receber/pagar, filtros, anexos e totais implementados |
+| Financeiro completo do piloto | Pagamentos divididos, parcelas, caixa/competência, receber/pagar, baixas/estornos auditáveis, filtros e totais implementados |
 | Valores mensais recorrentes | Geração idempotente de ocorrências mensais implementada |
 | Integração com Business Fin | Exportação CSV UTF-8, identificadores estáveis e histórico antirrepetição implementados |
 | Dashboard do mês corrente | Serviços, OS abertas, veículos prontos, receita líquida e recebíveis do mês implementados |

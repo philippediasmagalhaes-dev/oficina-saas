@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lookupPlate, mapPlateProviderResponse } from "./plate-lookup";
+import { isPlateLookupCacheFresh, lookupPlate, mapPlateProviderResponse } from "./plate-lookup";
 
 describe("plate lookup", () => {
   it("normalizes the plate before calling the provider", async () => {
@@ -21,5 +21,12 @@ describe("plate lookup", () => {
     const result = await lookupPlate("ABC1D23", async () => { throw new Error("token super-secret expired"); });
     expect(result).toEqual(expect.objectContaining({ status: "unavailable" }));
     expect(JSON.stringify(result)).not.toContain("super-secret");
+  });
+
+  it("reuses only a recent plate lookup", () => {
+    const now = new Date("2026-10-24T12:00:00Z");
+    expect(isPlateLookupCacheFresh(new Date("2026-10-23T12:00:01Z"), now)).toBe(true);
+    expect(isPlateLookupCacheFresh(new Date("2026-10-23T11:59:59Z"), now)).toBe(false);
+    expect(isPlateLookupCacheFresh(null, now)).toBe(false);
   });
 });

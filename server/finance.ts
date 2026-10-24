@@ -1,7 +1,9 @@
-import { and, asc, desc, eq, gte, isNotNull, lte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lt, ne, notExists, sql } from "drizzle-orm";
 import { getDatabase, runDatabaseTransaction, type DatabaseTransaction } from "../db/client";
-import { collaboratorServiceRates, collaborators, financialAttachments, financialEntries, paymentFeeRules, serviceRecords, workOrderItemAssignments, workOrderItems, workOrderPayments, workshopFinancialSettings } from "../db/schema";
+import { businessFinExports, collaboratorServiceRates, collaborators, financialAttachments, financialEntries, financialEntryEvents, paymentFeeRules, serviceRecords, workOrderItemAssignments, workOrderItems, workOrderPayments, workshopFinancialSettings } from "../db/schema";
 import { calculateFinancialClosing, type FinancialClosing, type FinancialClosingInput } from "../domain/financial-closing";
+import { hasMonthlyCompensation, validateParticipationTotal } from "../domain/commissions";
+import { allocateCentsProportionally } from "../domain/money";
 
 export interface FinancialCloseStore {
   load(workshopId: string, serviceRecordId: string): Promise<{ state: "closed"; result: FinancialClosing } | { state: "open"; input: FinancialClosingInput }>;
@@ -43,17 +45,13 @@ async function activeFeeRule(tx: DatabaseTransaction, workshopId: string, method
 }
 
 function distributeDiscount(items: Array<{ id: string; grossCents: number }>, totalDiscount: number) {
-  const grossTotal = items.reduce((sum, item) => sum + item.grossCents, 0);
-  let allocated = 0;
-  return items.map((item, index) => {
-    const discountCents = index === items.length - 1 ? totalDiscount - allocated : grossTotal ? Math.round(totalDiscount * item.grossCents / grossTotal) : 0;
-    allocated += discountCents;
-    return { ...item, discountCents: Math.min(discountCents, item.grossCents) };
-  });
+  const allocations = allocateCentsProportionally(totalDiscount, items.map((item) => item.grossCents));
+  return items.map((item, index) => ({ ...item, discountCents: allocations[index] }));
 }
 
 export async function closeWorkOrderFinancialsTx(tx: DatabaseTransaction, input: { workshopId: string; serviceRecordId: string; payments: PaymentDraft[]; taxBasisPoints?: number; now?: Date }) {
   const now = input.now ?? new Date();
+  await tx.execute(sql`select id from service_records where workshop_id = ${input.workshopId} and id = ${input.serviceRecordId} for update`);
   const [order] = await tx.select().from(serviceRecords).where(and(eq(serviceRecords.workshopId, input.workshopId), eq(serviceRecords.id, input.serviceRecordId))).limit(1);
   if (!order) throw new Error("Ordem de serviço não encontrada.");
   if (order.financialClosedAt) {
@@ -65,6 +63,7 @@ export async function closeWorkOrderFinancialsTx(tx: DatabaseTransaction, input:
   const laborItems = [] as FinancialClosingInput["laborItems"];
   for (const item of itemRows.filter((row) => row.type === "service")) {
     const assignments = await tx.select({ id: workOrderItemAssignments.id, collaboratorId: workOrderItemAssignments.collaboratorId, participationBasisPoints: workOrderItemAssignments.participationBasisPoints, mode: collaborators.compensationMode, defaultCommission: collaborators.commissionBasisPoints, defaultFixed: collaborators.fixedPerServiceCents, overrideCommission: collaboratorServiceRates.commissionBasisPoints, overrideFixed: collaboratorServiceRates.fixedPerServiceCents }).from(workOrderItemAssignments).innerJoin(collaborators, and(eq(collaborators.id, workOrderItemAssignments.collaboratorId), eq(collaborators.workshopId, input.workshopId))).leftJoin(collaboratorServiceRates, and(eq(collaboratorServiceRates.workshopId, input.workshopId), eq(collaboratorServiceRates.collaboratorId, collaborators.id), item.serviceCatalogId ? eq(collaboratorServiceRates.serviceCatalogId, item.serviceCatalogId) : sql`false`)).where(and(eq(workOrderItemAssignments.workshopId, input.workshopId), eq(workOrderItemAssignments.workOrderItemId, item.id)));
+    validateParticipationTotal(assignments.map((assignment) => assignment.participationBasisPoints));
     laborItems.push({ id: item.id, grossCents: Number(item.grossCents), discountCents: discounted.find((value) => value.id === item.id)?.discountCents ?? 0, assignments: assignments.map((assignment) => ({ id: assignment.id, collaboratorId: assignment.collaboratorId, mode: assignment.mode, participationBasisPoints: assignment.participationBasisPoints, commissionBasisPoints: assignment.overrideCommission ?? assignment.defaultCommission, fixedPerServiceCents: assignment.overrideFixed ?? assignment.defaultFixed })) });
   }
   const paymentInputs = [] as FinancialClosingInput["payments"];
@@ -85,7 +84,13 @@ export async function closeWorkOrderFinancialsTx(tx: DatabaseTransaction, input:
     const draft = input.payments[payment.resultIndex];
     await tx.insert(financialEntries).values({ workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, paymentId: payment.id, externalId: `os:${input.serviceRecordId}:payment:${payment.resultIndex + 1}`, direction: "income", category: "service_income", description: `Recebimento OS ${order.orderNumber ?? ""}`.trim(), grossAmountCents: calculated.amountCents, feeAmountCents: calculated.feeAmountCents, netAmountCents: calculated.netAmountCents, competenceDate: now, dueDate: draft.expectedAt, settledAt: draft.paid ? now : null, status: draft.paid ? "settled" : "expected" }).onConflictDoNothing();
   }
-  if (result.taxReserveCents > 0) await tx.insert(financialEntries).values({ workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, externalId: `os:${input.serviceRecordId}:tax`, direction: "reserve", category: "tax_reserve", description: `Provisão de imposto OS ${order.orderNumber ?? ""}`.trim(), grossAmountCents: result.taxReserveCents, netAmountCents: result.taxReserveCents, competenceDate: now, dueDate: now, status: "expected" }).onConflictDoNothing();
+  const taxShares = result.taxReserveCents > 0 ? allocateCentsProportionally(result.taxReserveCents, result.payments.map((payment) => payment.amountCents)) : result.payments.map(() => 0);
+  for (const payment of persistedPayments) {
+    const taxCents = taxShares[payment.resultIndex];
+    if (!taxCents) continue;
+    const draft = input.payments[payment.resultIndex];
+    await tx.insert(financialEntries).values({ workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, paymentId: payment.id, externalId: `os:${input.serviceRecordId}:tax:${payment.resultIndex + 1}`, direction: "reserve", category: "tax_reserve", description: `Provisão de imposto OS ${order.orderNumber ?? ""}`.trim(), grossAmountCents: taxCents, netAmountCents: taxCents, competenceDate: now, dueDate: draft.expectedAt, settledAt: draft.paid ? now : null, status: draft.paid ? "settled" : "expected" }).onConflictDoNothing();
+  }
   for (const assignment of result.assignments) {
     await tx.update(workOrderItemAssignments).set({ laborBaseCentsSnapshot: assignment.laborBaseCents, compensationCentsSnapshot: assignment.compensationCents, commissionBasisPointsSnapshot: assignment.commissionBasisPoints, fixedPerServiceCentsSnapshot: assignment.fixedPerServiceCents, completedAt: now, updatedAt: now }).where(and(eq(workOrderItemAssignments.workshopId, input.workshopId), eq(workOrderItemAssignments.id, assignment.id)));
     if (assignment.compensationCents > 0) await tx.insert(financialEntries).values({ workshopId: input.workshopId, serviceRecordId: input.serviceRecordId, collaboratorId: assignment.collaboratorId, externalId: `os:${input.serviceRecordId}:commission:${assignment.id}`, direction: "expense", category: "labor_compensation", description: `Remuneração OS ${order.orderNumber ?? ""}`.trim(), grossAmountCents: assignment.compensationCents, netAmountCents: assignment.compensationCents, competenceDate: now, dueDate: now, status: "expected" }).onConflictDoNothing();
@@ -102,12 +107,12 @@ export type FinancialEntryFilters = { from?: Date; to?: Date; status?: string; c
 
 export async function listFinancialEntries(workshopId: string, filters: FinancialEntryFilters = {}) {
   const recognitionColumn = filters.recognitionMode === "cash" ? financialEntries.settledAt : financialEntries.competenceDate;
-  return getDatabase().select().from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), filters.from ? gte(recognitionColumn, filters.from) : undefined, filters.to ? lte(recognitionColumn, filters.to) : undefined, filters.status ? eq(financialEntries.status, filters.status as "expected" | "settled" | "cancelled") : undefined, filters.category ? eq(financialEntries.category, filters.category) : undefined)).orderBy(desc(financialEntries.competenceDate));
+  return getDatabase().select().from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), filters.from ? gte(recognitionColumn, filters.from) : undefined, filters.to ? lt(recognitionColumn, filters.to) : undefined, filters.status ? eq(financialEntries.status, filters.status as "expected" | "settled" | "cancelled") : undefined, filters.category ? eq(financialEntries.category, filters.category) : undefined)).orderBy(desc(financialEntries.competenceDate));
 }
 
 export async function listFinancialReportEntries(workshopId: string, filters: FinancialEntryFilters = {}) {
   const recognitionColumn = filters.recognitionMode === "cash" ? financialEntries.settledAt : financialEntries.competenceDate;
-  return getDatabase().select({ id: financialEntries.id, externalId: financialEntries.externalId, direction: financialEntries.direction, category: financialEntries.category, description: financialEntries.description, grossAmountCents: financialEntries.grossAmountCents, feeAmountCents: financialEntries.feeAmountCents, netAmountCents: financialEntries.netAmountCents, competenceDate: financialEntries.competenceDate, dueDate: financialEntries.dueDate, settledAt: financialEntries.settledAt, status: financialEntries.status, paymentMethod: workOrderPayments.paymentMethod, collaboratorId: financialEntries.collaboratorId, collaboratorName: collaborators.name, serviceRecordId: financialEntries.serviceRecordId }).from(financialEntries).leftJoin(workOrderPayments, and(eq(workOrderPayments.id, financialEntries.paymentId), eq(workOrderPayments.workshopId, workshopId))).leftJoin(collaborators, and(eq(collaborators.id, financialEntries.collaboratorId), eq(collaborators.workshopId, workshopId))).where(and(eq(financialEntries.workshopId, workshopId), filters.from ? gte(recognitionColumn, filters.from) : undefined, filters.to ? lte(recognitionColumn, filters.to) : undefined, filters.status ? eq(financialEntries.status, filters.status as "expected" | "settled" | "cancelled") : undefined, filters.category ? eq(financialEntries.category, filters.category) : undefined, filters.paymentMethod ? eq(workOrderPayments.paymentMethod, filters.paymentMethod) : undefined, filters.collaboratorId ? eq(financialEntries.collaboratorId, filters.collaboratorId) : undefined)).orderBy(desc(financialEntries.competenceDate));
+  return getDatabase().select({ id: financialEntries.id, externalId: financialEntries.externalId, direction: financialEntries.direction, category: financialEntries.category, description: financialEntries.description, grossAmountCents: financialEntries.grossAmountCents, feeAmountCents: financialEntries.feeAmountCents, netAmountCents: financialEntries.netAmountCents, competenceDate: financialEntries.competenceDate, dueDate: financialEntries.dueDate, settledAt: financialEntries.settledAt, status: financialEntries.status, paymentId: financialEntries.paymentId, paymentMethod: workOrderPayments.paymentMethod, collaboratorId: financialEntries.collaboratorId, collaboratorName: collaborators.name, serviceRecordId: financialEntries.serviceRecordId }).from(financialEntries).leftJoin(workOrderPayments, and(eq(workOrderPayments.id, financialEntries.paymentId), eq(workOrderPayments.workshopId, workshopId))).leftJoin(collaborators, and(eq(collaborators.id, financialEntries.collaboratorId), eq(collaborators.workshopId, workshopId))).where(and(eq(financialEntries.workshopId, workshopId), filters.from ? gte(recognitionColumn, filters.from) : undefined, filters.to ? lt(recognitionColumn, filters.to) : undefined, filters.status ? eq(financialEntries.status, filters.status as "expected" | "settled" | "cancelled") : undefined, filters.category ? eq(financialEntries.category, filters.category) : undefined, filters.paymentMethod ? eq(workOrderPayments.paymentMethod, filters.paymentMethod) : undefined, filters.collaboratorId ? eq(financialEntries.collaboratorId, filters.collaboratorId) : undefined)).orderBy(desc(financialEntries.competenceDate));
 }
 
 export async function createManualFinancialEntry(input: { workshopId: string; direction: "income" | "expense" | "reserve"; category: string; description: string; amountCents: number; competenceDate: Date; dueDate: Date; settled: boolean; recurrenceKey?: string | null }) {
@@ -120,11 +125,47 @@ export async function ensureMonthlyCollaboratorPayables(workshopId: string, mont
   const monthKey = `${month.getUTCFullYear()}-${String(month.getUTCMonth() + 1).padStart(2, "0")}`;
   const competenceDate = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 1));
   const dueDate = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 5));
-  const rows = await getDatabase().select().from(collaborators).where(and(eq(collaborators.workshopId, workshopId), eq(collaborators.active, true), eq(collaborators.compensationMode, "fixed_monthly")));
+  const rows = await getDatabase().select().from(collaborators).where(and(eq(collaborators.workshopId, workshopId), eq(collaborators.active, true), inArray(collaborators.compensationMode, ["fixed_monthly", "hybrid"])));
   for (const collaborator of rows) {
+    if (!hasMonthlyCompensation(collaborator.compensationMode)) continue;
     if (!collaborator.monthlyFixedCents) continue;
     await getDatabase().insert(financialEntries).values({ workshopId, collaboratorId: collaborator.id, externalId: `monthly:${collaborator.id}:${monthKey}`, direction: "expense", category: "fixed_payroll", description: `Pagamento mensal — ${collaborator.name}`, grossAmountCents: collaborator.monthlyFixedCents, netAmountCents: collaborator.monthlyFixedCents, competenceDate, dueDate, status: "expected", recurrenceKey: `monthly:${collaborator.id}` }).onConflictDoNothing();
   }
+}
+
+export async function setFinancialEntrySettlement(workshopId: string, financialEntryId: string, settle: boolean, now = new Date()) {
+  return runDatabaseTransaction(async (tx) => {
+    await tx.execute(sql`select id from financial_entries where workshop_id = ${workshopId} and id = ${financialEntryId} for update`);
+    const [entry] = await tx.select().from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), eq(financialEntries.id, financialEntryId))).limit(1);
+    if (!entry || entry.status === "cancelled") throw new Error("Lançamento financeiro não encontrado.");
+    const toStatus: "settled" | "expected" = settle ? "settled" : "expected";
+    if (entry.status === toStatus) return entry;
+    const [updated] = await tx.update(financialEntries).set({ status: toStatus, settledAt: settle ? now : null, updatedAt: now }).where(and(eq(financialEntries.workshopId, workshopId), eq(financialEntries.id, financialEntryId))).returning();
+    await tx.insert(financialEntryEvents).values({ workshopId, financialEntryId, fromStatus: entry.status, toStatus, occurredAt: now });
+    if (entry.paymentId) {
+      await tx.update(workOrderPayments).set({ status: settle ? "paid" : "expected", paidAt: settle ? now : null, updatedAt: now }).where(and(eq(workOrderPayments.workshopId, workshopId), eq(workOrderPayments.id, entry.paymentId)));
+      const linkedTaxEntries = await tx.select({ id: financialEntries.id, status: financialEntries.status }).from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), eq(financialEntries.paymentId, entry.paymentId), eq(financialEntries.category, "tax_reserve"), ne(financialEntries.status, toStatus)));
+      if (linkedTaxEntries.length) {
+        await tx.update(financialEntries).set({ status: toStatus, settledAt: settle ? now : null, updatedAt: now }).where(and(eq(financialEntries.workshopId, workshopId), inArray(financialEntries.id, linkedTaxEntries.map((tax) => tax.id))));
+        await tx.insert(financialEntryEvents).values(linkedTaxEntries.map((tax) => ({ workshopId, financialEntryId: tax.id, fromStatus: tax.status, toStatus, occurredAt: now })));
+      }
+      if (entry.serviceRecordId) {
+        const [outstanding] = await tx.select({ id: workOrderPayments.id }).from(workOrderPayments).where(and(eq(workOrderPayments.workshopId, workshopId), eq(workOrderPayments.serviceRecordId, entry.serviceRecordId), eq(workOrderPayments.status, "expected"))).limit(1);
+        await tx.update(serviceRecords).set({ paymentStatus: outstanding ? "pending" : "paid", updatedAt: now }).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, entry.serviceRecordId)));
+      }
+    }
+    return updated;
+  });
+}
+
+export async function claimBusinessFinEntries(workshopId: string, filters: FinancialEntryFilters = {}) {
+  return runDatabaseTransaction(async (tx) => {
+    const recognitionColumn = filters.recognitionMode === "cash" ? financialEntries.settledAt : financialEntries.competenceDate;
+    const unexported = tx.select({ workshopId: financialEntries.workshopId, financialEntryId: financialEntries.id, externalId: financialEntries.externalId }).from(financialEntries).leftJoin(workOrderPayments, and(eq(workOrderPayments.id, financialEntries.paymentId), eq(workOrderPayments.workshopId, workshopId))).where(and(eq(financialEntries.workshopId, workshopId), filters.from ? gte(recognitionColumn, filters.from) : undefined, filters.to ? lt(recognitionColumn, filters.to) : undefined, filters.status ? eq(financialEntries.status, filters.status as "expected" | "settled" | "cancelled") : undefined, filters.category ? eq(financialEntries.category, filters.category) : undefined, filters.paymentMethod ? eq(workOrderPayments.paymentMethod, filters.paymentMethod) : undefined, filters.collaboratorId ? eq(financialEntries.collaboratorId, filters.collaboratorId) : undefined, notExists(tx.select({ id: businessFinExports.id }).from(businessFinExports).where(and(eq(businessFinExports.workshopId, workshopId), eq(businessFinExports.financialEntryId, financialEntries.id))))));
+    const claimed = await tx.insert(businessFinExports).select(unexported).onConflictDoNothing().returning({ financialEntryId: businessFinExports.financialEntryId });
+    if (!claimed.length) return [];
+    return tx.select().from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), inArray(financialEntries.id, claimed.map((row) => row.financialEntryId)))).orderBy(desc(financialEntries.competenceDate));
+  });
 }
 
 export function monthlyOccurrenceDate(year: number, zeroBasedMonth: number, preferredDay: number) {

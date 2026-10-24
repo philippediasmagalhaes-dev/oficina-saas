@@ -110,6 +110,7 @@ export const financialDirection = pgEnum("financial_direction", ["income", "expe
 export const financialStatus = pgEnum("financial_status", ["expected", "settled", "cancelled"]);
 export const messageOutboxStatus = pgEnum("message_outbox_status", [
   "pending",
+  "processing",
   "sent",
   "delivered",
   "read",
@@ -611,6 +612,15 @@ export const financialAttachments = pgTable("financial_attachments", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const financialEntryEvents = pgTable("financial_entry_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
+  financialEntryId: uuid("financial_entry_id").notNull().references(() => financialEntries.id, { onDelete: "cascade" }),
+  fromStatus: financialStatus("from_status").notNull(),
+  toStatus: financialStatus("to_status").notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("financial_entry_events_entry_idx").on(table.workshopId, table.financialEntryId, table.occurredAt)]);
+
 export const messageOutbox = pgTable("message_outbox", {
   id: uuid("id").defaultRandom().primaryKey(),
   workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
@@ -659,7 +669,7 @@ export const schema = {
   workshopIntegrations, messageTemplates, vehicleInspections,
   inspectionDamageMarks, workOrderStatusEvents, workOrderApprovals,
   collaborators, collaboratorServiceRates, workOrderItemAssignments,
-  workOrderPayments, financialEntries, financialAttachments, messageOutbox,
+  workOrderPayments, financialEntries, financialAttachments, financialEntryEvents, messageOutbox,
   messageDeliveries, businessFinExports,
 };
 

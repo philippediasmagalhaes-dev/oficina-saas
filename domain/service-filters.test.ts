@@ -3,6 +3,7 @@ import {
   describeFinancialPeriod,
   filterFinancialServices,
   parseFinancialPeriod,
+  resolveFinancialPeriodBounds,
   type FinancialFilters,
 } from "./service-filters";
 
@@ -40,5 +41,9 @@ describe("financial service filters", () => {
     const result = filterFinancialServices(services, filters({ from: "2026-08-10", to: "2026-09-05" }));
     expect(result).toEqual([services[0], services[1]]);
     expect(describeFinancialPeriod(filters({ from: "2026-08-10", to: "2026-09-05" }))).toBe("10/08/2026 até 05/09/2026");
+  });
+
+  it("resolves quick periods to explicit export bounds", () => {
+    expect(resolveFinancialPeriodBounds(filters({ period: "previous_month" }), new Date("2026-09-20T12:00:00Z"))).toEqual({ start: new Date("2026-08-01T00:00:00.000Z"), end: new Date("2026-09-01T00:00:00.000Z") });
   });
 });

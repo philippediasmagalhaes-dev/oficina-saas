@@ -13,7 +13,7 @@ import { getOwnerContext, getOwnerUser } from "../server/owner-context";
 import { updateVehicle } from "../server/vehicles";
 import { saveInspection } from "../server/inspections";
 import { assignWorkOrderItem, createCollaborator, removeWorkOrderAssignment, setCollaboratorServiceRate } from "../server/collaborators";
-import { createManualFinancialEntry, saveFinancialSettings, savePaymentFeeRule } from "../server/finance";
+import { createManualFinancialEntry, saveFinancialSettings, savePaymentFeeRule, setFinancialEntrySettlement } from "../server/finance";
 import { enqueueVehicleReadyMessage } from "../server/whatsapp";
 import {
   addQuoteItem,
@@ -117,6 +117,16 @@ export async function removeCollaboratorAssignmentAction(formData: FormData) {
   const serviceRecordId = String(formData.get("serviceRecordId") ?? "");
   await removeWorkOrderAssignment(workshopId, assignmentId);
   revalidatePath(`/ordens/${serviceRecordId}`);
+}
+
+export async function setFinancialEntrySettlementAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const financialEntryId = String(formData.get("financialEntryId") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(financialEntryId) || !["settle", "reopen"].includes(decision)) throw new Error("Baixa financeira inválida.");
+  await setFinancialEntrySettlement(workshopId, financialEntryId, decision === "settle");
+  revalidatePath("/financeiro");
+  revalidatePath("/");
 }
 
 export async function updateCustomerAction(formData: FormData) {
@@ -452,7 +462,8 @@ export async function notifyServiceReadyAction(formData: FormData) {
     throw new Error(
       "Cliente sem telefone válido ou consentimento para WhatsApp.",
     );
-  const queued = await enqueueVehicleReadyMessage({ workshopId, customerId: order.customerId, serviceRecordId: order.id, recipientPhone: normalizeBrazilianPhone(order.customerPhone ?? ""), customerName: order.customerName, workshopName: workshop.name, vehicleLabel: order.vehicleLabel ?? null });
+  const forceManual = String(formData.get("forceManual") ?? "") === "1";
+  const queued = forceManual ? false : await enqueueVehicleReadyMessage({ workshopId, customerId: order.customerId, serviceRecordId: order.id, recipientPhone: normalizeBrazilianPhone(order.customerPhone ?? ""), customerName: order.customerName, workshopName: workshop.name, vehicleLabel: order.vehicleLabel ?? null });
   if (queued) {
     revalidatePath(`/ordens/${order.id}`);
     revalidatePath("/retencao");

@@ -29,3 +29,18 @@ export function applyReservedConsumption(position: StockPosition, quantity: numb
   const reserved = position.reserved - quantity;
   return { current, reserved, available: current - reserved };
 }
+
+export type ReservationState = "none" | "reserved" | "released" | "consumed";
+
+export function inventoryOperationKey(operation: "reserve" | "release" | "consume", itemId: string, quoteVersion: number) {
+  if (!itemId || !Number.isInteger(quoteVersion) || quoteVersion < 1) throw new Error("Operação de estoque inválida.");
+  return `${operation}:${itemId}:v${quoteVersion}`;
+}
+
+export function shouldReleaseReservation(state: string): state is "reserved" {
+  return state === "reserved";
+}
+
+export function shouldConsumeReservation(state: string): state is "reserved" {
+  return state === "reserved";
+}

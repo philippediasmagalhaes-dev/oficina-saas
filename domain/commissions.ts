@@ -22,9 +22,15 @@ export function calculateAssignmentCompensation(input: AssignmentCompensationInp
   const laborBaseCents = Math.round(input.discountedLaborCents * input.participationBasisPoints / 10000);
   const usesCommission = input.mode === "percentage" || input.mode === "hybrid";
   const usesFixed = input.mode === "fixed_per_service" || input.mode === "hybrid";
-  const commissionCents = usesCommission ? Math.round(laborBaseCents * input.commissionBasisPoints / 10000) : 0;
+  const commissionNumerator = BigInt(input.discountedLaborCents) * BigInt(input.participationBasisPoints) * BigInt(input.commissionBasisPoints);
+  const commissionDenominator = BigInt(100_000_000);
+  const commissionCents = usesCommission ? Number((commissionNumerator + commissionDenominator / BigInt(2)) / commissionDenominator) : 0;
   const fixedPerServiceCents = usesFixed ? input.fixedPerServiceCents : 0;
   return { laborBaseCents, commissionCents, fixedPerServiceCents, totalCents: commissionCents + fixedPerServiceCents };
+}
+
+export function hasMonthlyCompensation(mode: CompensationMode) {
+  return mode === "fixed_monthly" || mode === "hybrid";
 }
 
 export function validateParticipationTotal(values: number[]) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateQuoteTotal, canTransitionWorkOrder, nextQuoteVersion } from "./work-orders";
+import { calculateQuoteTotal, canTransitionWorkOrder, nextQuotePublication, nextQuoteVersion } from "./work-orders";
 
 describe("work order workflow", () => {
   it("allows the expected service path and blocks shortcuts", () => {
@@ -18,5 +18,10 @@ describe("work order workflow", () => {
   it("increments the quote version when an approved proposal is revised", () => {
     expect(nextQuoteVersion(1)).toBe(2);
     expect(() => nextQuoteVersion(0)).toThrow("Versão de orçamento inválida");
+  });
+
+  it("rotates version and token after a decided quote", () => {
+    expect(nextQuotePublication({ currentVersion: 1, quoteStatus: "rejected", currentToken: "old", createToken: () => "new" })).toEqual({ quoteVersion: 2, quoteToken: "new" });
+    expect(nextQuotePublication({ currentVersion: 2, quoteStatus: "draft", currentToken: "same", createToken: () => "unused" })).toEqual({ quoteVersion: 2, quoteToken: "same" });
   });
 });

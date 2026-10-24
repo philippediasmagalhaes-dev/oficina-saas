@@ -73,6 +73,15 @@ function periodBounds(period: FinancialPeriod, now: Date) {
   return { start: null, end: null };
 }
 
+export function resolveFinancialPeriodBounds(filters: Pick<FinancialFilters, "period" | "from" | "to">, now = new Date()) {
+  const hasCustomDates = validDateInput(filters.from) || validDateInput(filters.to);
+  const preset = hasCustomDates ? { start: null, end: null } : periodBounds(filters.period, now);
+  return {
+    start: validDateInput(filters.from) ? dateInput(filters.from) : preset.start,
+    end: validDateInput(filters.to) ? addUtcDays(dateInput(filters.to), 1) : preset.end,
+  };
+}
+
 export function parseFinancialPeriod(value?: string): FinancialPeriod {
   return financialPeriods.includes(value as FinancialPeriod)
     ? (value as FinancialPeriod)
@@ -84,14 +93,7 @@ export function filterFinancialServices<T extends FilterableService>(
   filters: FinancialFilters,
   now = new Date(),
 ): T[] {
-  const hasCustomDates = validDateInput(filters.from) || validDateInput(filters.to);
-  const preset = hasCustomDates
-    ? { start: null, end: null }
-    : periodBounds(filters.period, now);
-  const start = validDateInput(filters.from) ? dateInput(filters.from) : preset.start;
-  const end = validDateInput(filters.to)
-    ? addUtcDays(dateInput(filters.to), 1)
-    : preset.end;
+  const { start, end } = resolveFinancialPeriodBounds(filters, now);
   const query = normalizeSearch(filters.query.trim());
 
   return services.filter((service) => {

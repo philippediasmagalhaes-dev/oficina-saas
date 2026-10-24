@@ -103,7 +103,7 @@ O Worker executa diariamente às 09:00 de Brasília o endpoint protegido da fila
 ## Integrações opcionais
 
 - Consulta de placa: `PLATE_LOOKUP_PROVIDER`, `PLATE_LOOKUP_API_URL` e `PLATE_LOOKUP_API_TOKEN`.
-- WhatsApp oficial: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`, `WHATSAPP_REMINDER_TEMPLATE_NAME`, `WHATSAPP_READY_TEMPLATE_NAME`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` e `CRON_SECRET`.
+- WhatsApp oficial: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`, `WHATSAPP_WORKSHOP_ID`, `WHATSAPP_REMINDER_TEMPLATE_NAME`, `WHATSAPP_READY_TEMPLATE_NAME`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` e `CRON_SECRET`.
 - Fotos: credenciais privadas do bucket R2 já descritas no runbook.
 
 Se as integrações externas não estiverem configuradas, placa e WhatsApp permanecem operacionais no modo manual.

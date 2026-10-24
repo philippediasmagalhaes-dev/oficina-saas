@@ -277,3 +277,21 @@
 - [x] Review the requirements line by line against the approved spec and record only external account dependencies as pending.
 - [ ] Commit with `chore: validate complete Paulinho Autocar pilot`.
 - [ ] Deploy to Cloudflare, verify the production version, and preserve the feature branch for review.
+
+### Task 12: Release-hardening after independent review
+
+**Files:**
+- Modify: `server/work-orders.ts`, `server/inventory.ts`, `server/finance.ts`, `server/collaborators.ts`, `server/whatsapp.ts`
+- Modify: `app/ordens/[id]/page.tsx`, `app/financeiro/page.tsx`, `app/api/financeiro/business-fin/route.ts`
+- Modify: `db/schema.ts`, `db/migrations/meta/_journal.json`
+- Create: `db/migrations/0007_release_hardening.sql`
+- Modify/Create: focused domain, server, migration, worker, and smoke tests
+
+**Interfaces:**
+- Makes quote revisions, reservations, closing, settlement, exports and outbox processing safe under retries and concurrent requests.
+- Backfills existing customers, vehicles, open orders and historical financial entries without deleting prior data.
+
+- [x] Write failing regressions for quote republishing, reservation ownership, exact discount/tax allocation, settlement, hybrid monthly pay, immutable assignments, tenant-bound WhatsApp, outbox claims, export periods and scheduled failures.
+- [x] Implement transaction locks/claims, lifecycle guards, settlement/reversal and exact allocations.
+- [x] Add the additive backfill migration and cached plate lookup.
+- [ ] Re-run focused and full verification, apply the migration, deploy and execute production smoke tests.

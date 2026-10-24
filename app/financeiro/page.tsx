@@ -5,7 +5,7 @@ import { formatCents } from "../../domain/money";
 import { parseFinancialPeriod } from "../../domain/service-filters";
 import { getFinancialDashboard } from "../../server/queries";
 import { ConfigurationPending } from "../configurar/page";
-import { createManualFinancialEntryAction } from "../actions";
+import { createManualFinancialEntryAction, setFinancialEntrySettlementAction } from "../actions";
 
 type SearchParams = {
   period?: string;
@@ -41,8 +41,14 @@ export default async function FinancialPage({
   };
   const data = await getFinancialDashboard(filters);
   const exportQuery = new URLSearchParams();
+  exportQuery.set("period", filters.period);
   if (filters.from) exportQuery.set("from", filters.from);
   if (filters.to) exportQuery.set("to", filters.to);
+  exportQuery.set("recognition", filters.recognitionMode);
+  if (filters.status) exportQuery.set("status", filters.status);
+  if (filters.category) exportQuery.set("category", filters.category);
+  if (filters.paymentMethod) exportQuery.set("payment", filters.paymentMethod);
+  if (filters.collaboratorId) exportQuery.set("collaborator", filters.collaboratorId);
   const maxMonthlyRevenue = Math.max(
     ...data.snapshot.monthlyRevenue.map((month) => month.revenueCents),
     1,
@@ -120,7 +126,7 @@ export default async function FinancialPage({
       </section>
 
       <div className="split-grid">
-        <section className="surface"><div className="section-title"><div><span>Contas a receber e pagar</span><h2>Livro financeiro</h2></div></div>{data.entries.length ? <div className="finance-list">{data.entries.slice(0, 30).map((entry) => <div key={entry.id}><span><strong>{entry.description}</strong><small>{entry.category.replaceAll("_", " ")} · {entry.status === "settled" ? "realizado" : "previsto"} · {entry.competenceDate.toLocaleDateString("pt-BR")}</small></span><b className={entry.direction === "income" ? "ok" : "warning"}>{entry.direction === "income" ? "+" : "−"}{formatCents(entry.netAmountCents)}</b></div>)}</div> : <EmptyState title="Sem lançamentos" description="Finalize uma OS ou registre uma conta manual." />}</section>
+        <section className="surface"><div className="section-title"><div><span>Contas a receber e pagar</span><h2>Livro financeiro</h2></div></div>{data.entries.length ? <div className="finance-list">{data.entries.slice(0, 30).map((entry) => <div key={entry.id}><span><strong>{entry.description}</strong><small>{entry.category.replaceAll("_", " ")} · {entry.status === "settled" ? "realizado" : "previsto"} · {entry.competenceDate.toLocaleDateString("pt-BR")}</small></span><b className={entry.direction === "income" ? "ok" : "warning"}>{entry.direction === "income" ? "+" : "−"}{formatCents(entry.netAmountCents)}</b>{entry.status !== "cancelled" && entry.category !== "tax_reserve" ? <form action={setFinancialEntrySettlementAction}><input type="hidden" name="financialEntryId" value={entry.id} /><input type="hidden" name="decision" value={entry.status === "settled" ? "reopen" : "settle"} /><button className="text-button" type="submit">{entry.status === "settled" ? "Estornar baixa" : "Dar baixa"}</button></form> : null}</div>)}</div> : <EmptyState title="Sem lançamentos" description="Finalize uma OS ou registre uma conta manual." />}</section>
         <section className="surface"><div className="section-title"><div><span>Entrada manual</span><h2>Receita ou despesa</h2></div></div><form action={createManualFinancialEntryAction} className="form-grid compact-form">
           <label>Tipo<select name="direction" defaultValue="expense"><option value="expense">Despesa</option><option value="income">Receita</option><option value="reserve">Reserva</option></select></label>
           <label>Categoria<input name="category" defaultValue="operational" required /></label>

@@ -1,6 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { getDatabase, runDatabaseTransaction, type DatabaseTransaction } from "../db/client";
 import { inventoryItems, inventoryMovements, serviceRecords, workOrderItems } from "../db/schema";
+import { inventoryOperationKey, shouldConsumeReservation, shouldReleaseReservation } from "../domain/inventory";
 
 export type InventoryOperation = { operationKey: string; quantityDelta: number; reservationDelta: number };
 
@@ -16,7 +17,13 @@ export async function runIdempotentInventoryOperation(store: InventoryOperationS
 }
 
 async function loadPartItems(tx: DatabaseTransaction, workshopId: string, serviceRecordId: string) {
-  return tx.select({ id: workOrderItems.id, inventoryItemId: workOrderItems.inventoryItemId, quantity: workOrderItems.quantity, description: workOrderItems.description }).from(workOrderItems).where(and(eq(workOrderItems.workshopId, workshopId), eq(workOrderItems.serviceRecordId, serviceRecordId), eq(workOrderItems.type, "part")));
+  return tx.select({ id: workOrderItems.id, inventoryItemId: workOrderItems.inventoryItemId, quantity: workOrderItems.quantity, description: workOrderItems.description, reservationState: workOrderItems.reservationState }).from(workOrderItems).where(and(eq(workOrderItems.workshopId, workshopId), eq(workOrderItems.serviceRecordId, serviceRecordId), eq(workOrderItems.type, "part")));
+}
+
+async function quoteVersion(tx: DatabaseTransaction, workshopId: string, serviceRecordId: string) {
+  const [order] = await tx.select({ quoteVersion: serviceRecords.quoteVersion }).from(serviceRecords).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId))).limit(1);
+  if (!order) throw new Error("Ordem de serviço não encontrada.");
+  return order.quoteVersion;
 }
 
 async function alreadyApplied(tx: DatabaseTransaction, workshopId: string, operationKey: string) {
@@ -25,10 +32,12 @@ async function alreadyApplied(tx: DatabaseTransaction, workshopId: string, opera
 }
 
 export async function reserveApprovedOrderStockTx(tx: DatabaseTransaction, workshopId: string, serviceRecordId: string) {
+  const version = await quoteVersion(tx, workshopId, serviceRecordId);
   const parts = await loadPartItems(tx, workshopId, serviceRecordId);
   for (const part of parts) {
     if (!part.inventoryItemId) continue;
-    const operationKey = `reserve:${part.id}`;
+    if (part.reservationState === "reserved" || part.reservationState === "consumed") continue;
+    const operationKey = inventoryOperationKey("reserve", part.id, version);
     if (await alreadyApplied(tx, workshopId, operationKey)) continue;
     const [stock] = await tx.update(inventoryItems).set({ reservedQuantity: sql`${inventoryItems.reservedQuantity} + ${part.quantity}` }).where(and(eq(inventoryItems.workshopId, workshopId), eq(inventoryItems.id, part.inventoryItemId), sql`${inventoryItems.currentQuantity} - ${inventoryItems.reservedQuantity} >= ${part.quantity}`)).returning({ id: inventoryItems.id });
     if (!stock) throw new Error(`Estoque disponível insuficiente para ${part.description}.`);
@@ -38,23 +47,28 @@ export async function reserveApprovedOrderStockTx(tx: DatabaseTransaction, works
 }
 
 export async function consumeReservedOrderStockTx(tx: DatabaseTransaction, workshopId: string, serviceRecordId: string) {
+  const version = await quoteVersion(tx, workshopId, serviceRecordId);
   const parts = await loadPartItems(tx, workshopId, serviceRecordId);
   for (const part of parts) {
     if (!part.inventoryItemId) continue;
-    const operationKey = `consume:${part.id}`;
+    if (part.reservationState === "consumed") continue;
+    const operationKey = inventoryOperationKey("consume", part.id, version);
     if (await alreadyApplied(tx, workshopId, operationKey)) continue;
-    const [stock] = await tx.update(inventoryItems).set({ currentQuantity: sql`${inventoryItems.currentQuantity} - ${part.quantity}`, reservedQuantity: sql`${inventoryItems.reservedQuantity} - ${part.quantity}` }).where(and(eq(inventoryItems.workshopId, workshopId), eq(inventoryItems.id, part.inventoryItemId), sql`${inventoryItems.currentQuantity} >= ${part.quantity}`, sql`${inventoryItems.reservedQuantity} >= ${part.quantity}`)).returning({ id: inventoryItems.id });
-    if (!stock) throw new Error(`Reserva insuficiente para ${part.description}.`);
-    await tx.insert(inventoryMovements).values({ workshopId, inventoryItemId: part.inventoryItemId, serviceRecordId, type: "consumption", quantityDelta: -part.quantity, reservationDelta: -part.quantity, operationKey, note: "Consumo na execução da OS" });
+    const consumesReservation = shouldConsumeReservation(part.reservationState);
+    const [stock] = await tx.update(inventoryItems).set({ currentQuantity: sql`${inventoryItems.currentQuantity} - ${part.quantity}`, ...(consumesReservation ? { reservedQuantity: sql`${inventoryItems.reservedQuantity} - ${part.quantity}` } : {}) }).where(and(eq(inventoryItems.workshopId, workshopId), eq(inventoryItems.id, part.inventoryItemId), sql`${inventoryItems.currentQuantity} >= ${part.quantity}`, consumesReservation ? sql`${inventoryItems.reservedQuantity} >= ${part.quantity}` : undefined)).returning({ id: inventoryItems.id });
+    if (!stock) throw new Error(`${consumesReservation ? "Reserva" : "Estoque"} insuficiente para ${part.description}.`);
+    await tx.insert(inventoryMovements).values({ workshopId, inventoryItemId: part.inventoryItemId, serviceRecordId, type: "consumption", quantityDelta: -part.quantity, reservationDelta: consumesReservation ? -part.quantity : 0, operationKey, note: consumesReservation ? "Consumo na execução da OS" : "Consumo reconciliado de OS existente" });
     await tx.update(workOrderItems).set({ reservationState: "consumed", completionState: "completed" }).where(and(eq(workOrderItems.workshopId, workshopId), eq(workOrderItems.id, part.id)));
   }
 }
 
 export async function releaseCancelledOrderStockTx(tx: DatabaseTransaction, workshopId: string, serviceRecordId: string) {
+  const version = await quoteVersion(tx, workshopId, serviceRecordId);
   const parts = await loadPartItems(tx, workshopId, serviceRecordId);
   for (const part of parts) {
     if (!part.inventoryItemId) continue;
-    const operationKey = `release:${part.id}`;
+    if (!shouldReleaseReservation(part.reservationState)) continue;
+    const operationKey = inventoryOperationKey("release", part.id, version);
     if (await alreadyApplied(tx, workshopId, operationKey)) continue;
     const [stock] = await tx.update(inventoryItems).set({ reservedQuantity: sql`${inventoryItems.reservedQuantity} - ${part.quantity}` }).where(and(eq(inventoryItems.workshopId, workshopId), eq(inventoryItems.id, part.inventoryItemId), sql`${inventoryItems.reservedQuantity} >= ${part.quantity}`)).returning({ id: inventoryItems.id });
     if (!stock) continue;

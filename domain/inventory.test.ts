@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyReservation, applyReservedConsumption, applyStockDelta } from "./inventory";
+import { applyReservation, applyReservedConsumption, applyStockDelta, inventoryOperationKey, shouldConsumeReservation, shouldReleaseReservation } from "./inventory";
 
 describe("inventory", () => {
   it("applies entries and consumption", () => {
@@ -24,5 +24,14 @@ describe("inventory", () => {
   it("turns a reservation into consumption exactly once", () => {
     expect(applyReservedConsumption({ current: 10, reserved: 4 }, 3)).toEqual({ current: 7, reserved: 1, available: 6 });
     expect(() => applyReservedConsumption({ current: 10, reserved: 2 }, 3)).toThrow("Reserva insuficiente");
+  });
+
+  it("scopes movements to the quote generation and active reservation state", () => {
+    expect(inventoryOperationKey("reserve", "item-a", 2)).toBe("reserve:item-a:v2");
+    expect(shouldReleaseReservation("reserved")).toBe(true);
+    expect(shouldReleaseReservation("consumed")).toBe(false);
+    expect(shouldReleaseReservation("none")).toBe(false);
+    expect(shouldConsumeReservation("reserved")).toBe(true);
+    expect(shouldConsumeReservation("consumed")).toBe(false);
   });
 });

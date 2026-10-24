@@ -46,6 +46,7 @@ describe("real workshop operations schema", () => {
       "workOrderPayments",
       "financialEntries",
       "financialAttachments",
+      "financialEntryEvents",
       "messageOutbox",
       "messageDeliveries",
       "businessFinExports",
