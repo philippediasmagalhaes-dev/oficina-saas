@@ -39,6 +39,24 @@ Variáveis opcionais para liberar integrações externas depois do deploy:
 
 O Worker possui um agendamento diário às 12:00 UTC (09:00 de Brasília). Sem `CRON_SECRET` e as credenciais completas da Meta, ele encerra com segurança e o envio manual permanece disponível.
 
+### Ativar consulta por placa com FipePlaca
+
+A consulta usa somente a rota cadastral `GET /placa/{placa}`, atualmente informada pelo provedor a R$ 0,08 por resultado entregue. Ela não chama a rota FIPE adicional. O cadastro manual continua disponível quando a integração está sem saldo, desconfigurada ou indisponível.
+
+1. Crie a conta em `https://www.fipeplaca.com.br/` e confirme o e-mail.
+2. Faça a recarga pré-paga mínima indicada no painel — a documentação pública informa R$ 30,00 no momento deste runbook.
+3. Crie uma chave de API. Ela começa com `fp_live_` e aparece completa uma única vez; guarde-a diretamente no gerenciador de segredos.
+4. Configure no Worker:
+   - `PLATE_LOOKUP_PROVIDER=fipeplaca` como variável comum;
+   - `PLATE_LOOKUP_API_TOKEN` como segredo;
+   - deixe `PLATE_LOOKUP_API_URL` vazia para usar o endpoint oficial padrão da integração.
+5. Implante novamente e faça uma consulta de placa real conhecida. Confira os dados antes de salvar o veículo.
+6. Acompanhe saldo e extrato no painel FipePlaca. O formulário informa o saldo retornado pelo provedor após uma consulta paga.
+
+Resultados salvos para a mesma placa e oficina são reaproveitados por 30 dias sem nova chamada. O botão também bloqueia repetição imediata enquanto a placa não for alterada. O provedor não entrega Renavam nem dados do proprietário nessa rota; não adicione integrações paralelas para obter esses dados no piloto.
+
+A funcionalidade só fica ativa depois que `PLATE_LOOKUP_API_TOKEN` estiver cadastrado e houver saldo. Sem isso, o sistema orienta o preenchimento manual e não bloqueia o cadastro.
+
 `OWNER_EMAIL`, `OWNER_PASSWORD` e `OWNER_NAME` só são usados para criar o primeiro proprietário. Não os mantenha configurados depois do seed.
 
 ## 1. Preparar a conta Cloudflare e o R2
