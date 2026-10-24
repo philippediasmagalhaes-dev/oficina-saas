@@ -402,6 +402,36 @@ export const contactEvents = pgTable(
   ],
 );
 
+export const legacyImportRuns = pgTable("legacy_import_runs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
+  sourceSystem: text("source_system").notNull(),
+  sourceHash: text("source_hash").notNull(),
+  status: text("status").default("running").notNull(),
+  summary: jsonb("summary").$type<Record<string, unknown>>(),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (table) => [
+  uniqueIndex("legacy_import_runs_source_unique").on(table.workshopId, table.sourceSystem, table.sourceHash),
+  index("legacy_import_runs_workshop_idx").on(table.workshopId, table.startedAt),
+]);
+
+export const legacyImportMappings = pgTable("legacy_import_mappings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  runId: uuid("run_id").notNull().references(() => legacyImportRuns.id, { onDelete: "cascade" }),
+  workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
+  sourceSystem: text("source_system").notNull(),
+  entityType: text("entity_type").notNull(),
+  legacyId: text("legacy_id").notNull(),
+  targetId: uuid("target_id").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("legacy_import_mappings_source_unique").on(table.workshopId, table.sourceSystem, table.entityType, table.legacyId),
+  index("legacy_import_mappings_target_idx").on(table.workshopId, table.entityType, table.targetId),
+]);
+
 export const workshopFinancialSettings = pgTable("workshop_financial_settings", {
   id: uuid("id").defaultRandom().primaryKey(),
   workshopId: uuid("workshop_id").notNull().unique().references(() => workshops.id, { onDelete: "cascade" }),
@@ -664,7 +694,7 @@ export const businessFinExports = pgTable("business_fin_exports", {
 export const schema = {
   user, session, account, verification, workshops, customers, vehicles,
   serviceCatalogItems, serviceRecords, workOrderItems, servicePhotos,
-  inventoryItems, inventoryMovements, contactEvents,
+  inventoryItems, inventoryMovements, contactEvents, legacyImportRuns, legacyImportMappings,
   workshopFinancialSettings, paymentFeeRules, workshopSequences,
   workshopIntegrations, messageTemplates, vehicleInspections,
   inspectionDamageMarks, workOrderStatusEvents, workOrderApprovals,
@@ -684,3 +714,5 @@ export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type Collaborator = typeof collaborators.$inferSelect;
 export type WorkOrderPayment = typeof workOrderPayments.$inferSelect;
 export type FinancialEntry = typeof financialEntries.$inferSelect;
+export type LegacyImportRun = typeof legacyImportRuns.$inferSelect;
+export type LegacyImportMapping = typeof legacyImportMappings.$inferSelect;
