@@ -4,8 +4,15 @@ import { getDatabase } from "../db/client";
 import { vehicles } from "../db/schema";
 
 export type PlateData = { plate: string; make: string; model: string; color: string | null; manufactureYear: number | null; modelYear: number | null; fuel: string | null; engineDisplacement: string | null; power: string | null; municipality: string | null; state: string | null; maskedChassis: string | null };
-export type PlateProvider = (plate: string) => Promise<unknown>;
-export type PlateLookupResult = { status: "found"; provider: string; data: PlateData; snapshot: Record<string, unknown> } | { status: "unavailable"; message: string } | { status: "not_found"; message: string };
+export type PlateProviderResponse = { payload: unknown; balanceCents: number | null };
+export type PlateProvider = (plate: string) => Promise<unknown | PlateProviderResponse>;
+export type PlateLookupResult = { status: "found"; provider: string; data: PlateData; snapshot: Record<string, unknown>; balanceCents: number | null } | { status: "unavailable"; message: string } | { status: "not_found"; message: string };
+
+export class PlateProviderError extends Error {
+  constructor(readonly code: string) {
+    super("plate_provider_error");
+  }
+}
 
 export function isPlateLookupCacheFresh(lookupAt: Date | null, now = new Date(), maxAgeMs = 24 * 60 * 60 * 1000) {
   return Boolean(lookupAt && lookupAt.getTime() >= now.getTime() - maxAgeMs);
@@ -22,6 +29,7 @@ export async function getCachedPlateLookup(workshopId: string, plateValue: strin
     provider: vehicle.lookupProvider ?? "cache",
     data: { plate, make: vehicle.make, model: vehicle.model, color: vehicle.color, manufactureYear: vehicle.manufactureYear, modelYear: vehicle.modelYear, fuel: vehicle.fuel, engineDisplacement: vehicle.engineDisplacement, power: vehicle.power, municipality: vehicle.municipality, state: vehicle.state, maskedChassis: vehicle.maskedChassis },
     snapshot: vehicle.lookupSnapshot,
+    balanceCents: null,
   };
 }
 
@@ -46,7 +54,13 @@ function year(value: string | null) {
 function maskChassis(value: string | null) {
   if (!value) return null;
   const compact = value.replace(/\s/g, "");
+  if (compact.includes("*")) return compact;
   return `${"*".repeat(Math.max(0, compact.length - 5))}${compact.slice(-5)}`;
+}
+
+function withUnit(value: string | null, unit: string) {
+  if (!value) return null;
+  return /^\d+(?:[.,]\d+)?$/.test(value) ? `${value} ${unit}` : value;
 }
 
 export function mapPlateProviderResponse(value: unknown, plate = ""): PlateData | null {
@@ -54,7 +68,31 @@ export function mapPlateProviderResponse(value: unknown, plate = ""): PlateData 
   const make = pick(source, ["marca", "make", "brand"]);
   const model = pick(source, ["modelo", "model", "vehicleModel"]);
   if (!make || !model) return null;
-  return { plate: normalizePlate(pick(source, ["placa", "plate"]) ?? plate), make, model, color: pick(source, ["cor", "color"]), manufactureYear: year(pick(source, ["anoFabricacao", "ano_fabricacao", "manufactureYear", "yearManufacture"])), modelYear: year(pick(source, ["anoModelo", "ano_modelo", "modelYear", "yearModel", "ano"])), fuel: pick(source, ["combustivel", "fuel"]), engineDisplacement: pick(source, ["cilindrada", "engineDisplacement"]), power: pick(source, ["potencia", "power"]), municipality: pick(source, ["municipio", "cidade", "municipality", "city"]), state: pick(source, ["uf", "estado", "state"])?.toUpperCase() ?? null, maskedChassis: maskChassis(pick(source, ["chassi", "chassis"])) };
+  const fipeDisplacement = pick(source, ["cilindradas"]);
+  return { plate: normalizePlate(pick(source, ["placa", "plate"]) ?? plate), make, model, color: pick(source, ["cor", "color"]), manufactureYear: year(pick(source, ["anoFabricacao", "ano_fabricacao", "manufactureYear", "yearManufacture"])), modelYear: year(pick(source, ["anoModelo", "ano_modelo", "modelYear", "yearModel", "ano"])), fuel: pick(source, ["combustivel", "fuel"]), engineDisplacement: fipeDisplacement ? withUnit(fipeDisplacement, "cc") : pick(source, ["cilindrada", "engineDisplacement"]), power: withUnit(pick(source, ["potencia", "power"]), "cv"), municipality: pick(source, ["municipio", "cidade", "municipality", "city"]), state: pick(source, ["uf", "estado", "state"])?.toUpperCase() ?? null, maskedChassis: maskChassis(pick(source, ["chassi", "chassis"])) };
+}
+
+function unwrapProviderResponse(value: unknown): PlateProviderResponse {
+  if (value && typeof value === "object" && "payload" in value) {
+    const response = value as Partial<PlateProviderResponse>;
+    return {
+      payload: response.payload,
+      balanceCents: Number.isInteger(response.balanceCents) ? response.balanceCents! : null,
+    };
+  }
+  return { payload: value, balanceCents: null };
+}
+
+function safeProviderFailure(error: unknown): PlateLookupResult {
+  if (!(error instanceof PlateProviderError))
+    return { status: "unavailable", message: "A consulta está temporariamente indisponível. Continue o cadastro manualmente." };
+  if (error.code === "PLACA_NAO_ENCONTRADA")
+    return { status: "not_found", message: "A placa não foi encontrada. Confira o número e preencha manualmente." };
+  if (error.code === "SEM_SALDO")
+    return { status: "unavailable", message: "Saldo da consulta por placa esgotado. Continue manualmente até a recarga." };
+  if (error.code === "CHAVE_INVALIDA")
+    return { status: "unavailable", message: "A consulta por placa precisa de configuração. Continue o cadastro manualmente." };
+  return { status: "unavailable", message: "A consulta está temporariamente indisponível. Continue o cadastro manualmente." };
 }
 
 export async function lookupPlate(plateValue: string, provider: PlateProvider | null, providerName = "configured"): Promise<PlateLookupResult> {
@@ -62,28 +100,39 @@ export async function lookupPlate(plateValue: string, provider: PlateProvider | 
   if (!/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(plate)) return { status: "not_found", message: "Informe uma placa válida." };
   if (!provider) return { status: "unavailable", message: "Consulta automática não configurada. Continue o cadastro manualmente." };
   try {
-    const raw = await provider(plate);
-    const data = mapPlateProviderResponse(raw, plate);
+    const response = unwrapProviderResponse(await provider(plate));
+    const data = mapPlateProviderResponse(response.payload, plate);
     if (!data) return { status: "not_found", message: "Não encontramos dados confiáveis para esta placa. Confira manualmente." };
-    return { status: "found", provider: providerName, data, snapshot: record(raw) };
-  } catch {
-    return { status: "unavailable", message: "A consulta está temporariamente indisponível. Continue o cadastro manualmente." };
+    return { status: "found", provider: providerName, data, snapshot: record(response.payload), balanceCents: response.balanceCents };
+  } catch (error) {
+    return safeProviderFailure(error);
   }
 }
 
-export function configuredPlateProvider(env: NodeJS.ProcessEnv): { provider: PlateProvider | null; name: string } {
-  const endpoint = env.PLATE_LOOKUP_API_URL?.trim();
+async function providerErrorCode(response: Response) {
+  try {
+    const body = await response.json() as { erro?: { codigo?: unknown } };
+    return typeof body.erro?.codigo === "string" ? body.erro.codigo : `HTTP_${response.status}`;
+  } catch {
+    return `HTTP_${response.status}`;
+  }
+}
+
+export function configuredPlateProvider(env: NodeJS.ProcessEnv, fetcher: typeof fetch = fetch): { provider: PlateProvider | null; name: string } {
+  const name = env.PLATE_LOOKUP_PROVIDER?.trim().toLocaleLowerCase("pt-BR") || "plate_api";
+  const endpoint = env.PLATE_LOOKUP_API_URL?.trim() || (name === "fipeplaca" ? "https://api.fipeplaca.com.br/gateway/v1/placa/{plate}" : "");
   const token = env.PLATE_LOOKUP_API_TOKEN?.trim();
   if (!endpoint || !token) return { provider: null, name: "disabled" };
-  return { name: env.PLATE_LOOKUP_PROVIDER?.trim() || "plate_api", provider: async (plate) => {
+  return { name, provider: async (plate) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8_000);
     try {
       const url = endpoint.includes("{plate}") ? endpoint.replace("{plate}", encodeURIComponent(plate)) : `${endpoint.replace(/\/$/, "")}/${encodeURIComponent(plate)}`;
-      const response = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }, signal: controller.signal });
-      if (response.status === 404) return {};
-      if (!response.ok) throw new Error("provider_error");
-      return await response.json();
+      const response = await fetcher(url, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }, signal: controller.signal });
+      if (!response.ok) throw new PlateProviderError(await providerErrorCode(response));
+      const balance = response.headers.get("X-Saldo-Centavos");
+      const balanceCents = balance && /^\d+$/.test(balance) ? Number.parseInt(balance, 10) : null;
+      return { payload: await response.json(), balanceCents };
     } finally { clearTimeout(timeout); }
   } };
 }
