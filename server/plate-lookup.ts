@@ -6,7 +6,9 @@ import { vehicles } from "../db/schema";
 export type PlateData = { plate: string; make: string; model: string; color: string | null; manufactureYear: number | null; modelYear: number | null; fuel: string | null; engineDisplacement: string | null; power: string | null; municipality: string | null; state: string | null; maskedChassis: string | null };
 export type PlateProviderResponse = { payload: unknown; balanceCents: number | null };
 export type PlateProvider = (plate: string) => Promise<unknown | PlateProviderResponse>;
-export type PlateLookupResult = { status: "found"; provider: string; data: PlateData; snapshot: Record<string, unknown>; balanceCents: number | null } | { status: "unavailable"; message: string } | { status: "not_found"; message: string };
+export type PlateLookupResult = { status: "found"; provider: string; data: PlateData; snapshot: Record<string, unknown>; balanceCents: number | null; cached: boolean } | { status: "unavailable"; message: string } | { status: "not_found"; message: string };
+
+const PLATE_LOOKUP_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export class PlateProviderError extends Error {
   constructor(readonly code: string) {
@@ -14,14 +16,14 @@ export class PlateProviderError extends Error {
   }
 }
 
-export function isPlateLookupCacheFresh(lookupAt: Date | null, now = new Date(), maxAgeMs = 24 * 60 * 60 * 1000) {
+export function isPlateLookupCacheFresh(lookupAt: Date | null, now = new Date(), maxAgeMs = PLATE_LOOKUP_CACHE_MS) {
   return Boolean(lookupAt && lookupAt.getTime() >= now.getTime() - maxAgeMs);
 }
 
 export async function getCachedPlateLookup(workshopId: string, plateValue: string, now = new Date()): Promise<PlateLookupResult | null> {
   const plate = normalizePlate(plateValue);
   if (!/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(plate)) return null;
-  const threshold = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const threshold = new Date(now.getTime() - PLATE_LOOKUP_CACHE_MS);
   const [vehicle] = await getDatabase().select().from(vehicles).where(and(eq(vehicles.workshopId, workshopId), eq(vehicles.plateNormalized, plate), gte(vehicles.lookupAt, threshold), isNotNull(vehicles.lookupSnapshot))).orderBy(desc(vehicles.lookupAt)).limit(1);
   if (!vehicle || !isPlateLookupCacheFresh(vehicle.lookupAt, now) || !vehicle.lookupSnapshot) return null;
   return {
@@ -30,6 +32,7 @@ export async function getCachedPlateLookup(workshopId: string, plateValue: strin
     data: { plate, make: vehicle.make, model: vehicle.model, color: vehicle.color, manufactureYear: vehicle.manufactureYear, modelYear: vehicle.modelYear, fuel: vehicle.fuel, engineDisplacement: vehicle.engineDisplacement, power: vehicle.power, municipality: vehicle.municipality, state: vehicle.state, maskedChassis: vehicle.maskedChassis },
     snapshot: vehicle.lookupSnapshot,
     balanceCents: null,
+    cached: true,
   };
 }
 
@@ -103,7 +106,7 @@ export async function lookupPlate(plateValue: string, provider: PlateProvider | 
     const response = unwrapProviderResponse(await provider(plate));
     const data = mapPlateProviderResponse(response.payload, plate);
     if (!data) return { status: "not_found", message: "Não encontramos dados confiáveis para esta placa. Confira manualmente." };
-    return { status: "found", provider: providerName, data, snapshot: record(response.payload), balanceCents: response.balanceCents };
+    return { status: "found", provider: providerName, data, snapshot: record(response.payload), balanceCents: response.balanceCents, cached: false };
   } catch (error) {
     return safeProviderFailure(error);
   }

@@ -140,8 +140,19 @@ describe("plate lookup", () => {
 
   it("reuses only a recent plate lookup", () => {
     const now = new Date("2026-10-24T12:00:00Z");
-    expect(isPlateLookupCacheFresh(new Date("2026-10-23T12:00:01Z"), now)).toBe(true);
-    expect(isPlateLookupCacheFresh(new Date("2026-10-23T11:59:59Z"), now)).toBe(false);
+    expect(isPlateLookupCacheFresh(new Date("2026-09-24T12:00:01Z"), now)).toBe(true);
+    expect(isPlateLookupCacheFresh(new Date("2026-09-24T11:59:59Z"), now)).toBe(false);
     expect(isPlateLookupCacheFresh(null, now)).toBe(false);
+  });
+
+  it("marks a live provider result as billable rather than cached", async () => {
+    const result = await lookupPlate("ABC1D23", async () => ({
+      payload: { marca: "VW", modelo: "GOL" },
+      balanceCents: 2992,
+    }), "fipeplaca");
+
+    expect(result).toEqual(
+      expect.objectContaining({ status: "found", cached: false, balanceCents: 2992 }),
+    );
   });
 });
