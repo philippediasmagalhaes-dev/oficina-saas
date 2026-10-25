@@ -41,4 +41,27 @@ describe("Cloudflare build target", () => {
     expect(cloudflareConfig.worker?.entrypoint).toBe("./worker.ts");
     expect(cloudflareConfig.worker?.triggers).toEqual([{ type: "scheduled", schedule: "0 12 * * *" }]);
   });
+
+  it("requires every production secret when creating a Cloudflare version", () => {
+    expect(cloudflareConfig.worker?.env).toMatchObject({
+      PLATE_LOOKUP_PROVIDER: { type: "text", value: "fipeplaca" },
+    });
+
+    for (const secretName of [
+      "AUTH_TRUSTED_ORIGINS",
+      "BETTER_AUTH_SECRET",
+      "BETTER_AUTH_URL",
+      "DATABASE_URL",
+      "NEXT_PUBLIC_APP_URL",
+      "PLATE_LOOKUP_API_TOKEN",
+      "R2_ACCESS_KEY_ID",
+      "R2_ACCOUNT_ID",
+      "R2_BUCKET_NAME",
+      "R2_SECRET_ACCESS_KEY",
+    ]) {
+      expect(cloudflareConfig.worker?.env, `${secretName} must be required`).toHaveProperty(secretName, {
+        type: "secret",
+      });
+    }
+  });
 });

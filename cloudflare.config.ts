@@ -16,6 +16,17 @@ export default defineConfig({
     },
     env: {
       ASSETS: bindings.assets(),
+      AUTH_TRUSTED_ORIGINS: bindings.secret(),
+      BETTER_AUTH_SECRET: bindings.secret(),
+      BETTER_AUTH_URL: bindings.secret(),
+      DATABASE_URL: bindings.secret(),
+      NEXT_PUBLIC_APP_URL: bindings.secret(),
+      PLATE_LOOKUP_API_TOKEN: bindings.secret(),
+      PLATE_LOOKUP_PROVIDER: bindings.text("fipeplaca"),
+      R2_ACCESS_KEY_ID: bindings.secret(),
+      R2_ACCOUNT_ID: bindings.secret(),
+      R2_BUCKET_NAME: bindings.secret(),
+      R2_SECRET_ACCESS_KEY: bindings.secret(),
     },
   }),
 });
