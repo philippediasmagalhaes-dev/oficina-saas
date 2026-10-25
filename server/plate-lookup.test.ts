@@ -1,7 +1,42 @@
 import { describe, expect, it } from "vitest";
-import { configuredPlateProvider, isPlateLookupCacheFresh, lookupPlate, mapPlateProviderResponse } from "./plate-lookup";
+import { configuredPlateProvider, isPlateLookupCacheFresh, lookupPlate, mapPlateProviderResponse, plateLookupCacheControl } from "./plate-lookup";
 
 describe("plate lookup", () => {
+  it("never caches unavailable provider responses in the browser", () => {
+    expect(
+      plateLookupCacheControl({
+        status: "unavailable",
+        message: "Consulta automática não configurada.",
+      }),
+    ).toBe("private, no-store");
+  });
+
+  it("allows the browser to reuse only successful lookup responses", () => {
+    expect(
+      plateLookupCacheControl({
+        status: "found",
+        provider: "cache",
+        data: {
+          plate: "FRY4B58",
+          make: "Chevrolet",
+          model: "Onix",
+          color: null,
+          manufactureYear: null,
+          modelYear: null,
+          fuel: null,
+          engineDisplacement: null,
+          power: null,
+          municipality: null,
+          state: null,
+          maskedChassis: null,
+        },
+        snapshot: {},
+        balanceCents: null,
+        cached: true,
+      }),
+    ).toBe("private, max-age=3600");
+  });
+
   it("normalizes the plate before calling the provider", async () => {
     let received = "";
     const result = await lookupPlate("abc-1d23", async (plate) => { received = plate; return { marca: "Chevrolet", modelo: "Onix" }; });

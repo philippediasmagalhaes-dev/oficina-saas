@@ -27,6 +27,12 @@ export function resetPlateLookupMetadata(currentPlate: string, nextPlate: string
     : { lookupProvider: "", lookupSnapshot: "" };
 }
 
+export function createPlateLookupRequest(plate: string, origin = window.location.origin) {
+  const url = new URL("/api/veiculos/consultar-placa", origin);
+  url.searchParams.set("plate", plate);
+  return new Request(url, { cache: "no-store" });
+}
+
 export function PlateLookupForm({ customers, vehicle }: { customers: CustomerSummary[]; vehicle?: VehicleSummary }) {
   const [values, setValues] = useState<Values>({ plate: vehicle?.plate ?? "", make: vehicle?.make ?? "", model: vehicle?.model ?? "", category: vehicle?.category ?? "car", color: vehicle?.color ?? "", manufactureYear: String(vehicle?.manufactureYear ?? ""), modelYear: String(vehicle?.modelYear ?? vehicle?.year ?? ""), fuel: vehicle?.fuel ?? "", engineDisplacement: vehicle?.engineDisplacement ?? "", power: vehicle?.power ?? "", municipality: vehicle?.municipality ?? "", state: vehicle?.state ?? "", maskedChassis: vehicle?.maskedChassis ?? "", odometer: String(vehicle?.odometer ?? ""), lookupProvider: vehicle?.lookupProvider ?? "", lookupSnapshot: vehicle?.lookupSnapshot ? JSON.stringify(vehicle.lookupSnapshot) : "" });
   const [lookupState, setLookupState] = useState<LookupState>("idle");
@@ -36,7 +42,7 @@ export function PlateLookupForm({ customers, vehicle }: { customers: CustomerSum
   const lookup = async () => {
     setLookupState("loading"); setMessage("Consultando placa…");
     try {
-      const response = await fetch(`/api/veiculos/consultar-placa?plate=${encodeURIComponent(values.plate)}`);
+      const response = await fetch(createPlateLookupRequest(values.plate));
       const result = await response.json() as { status: string; message?: string; provider?: string; data?: Partial<Record<keyof Values, string | number | null>>; snapshot?: Record<string, unknown>; cached?: boolean; balanceCents?: number | null };
       if (result.status !== "found" || !result.data) { setLookupState("manual"); setMessage(result.message ?? "Preencha os dados manualmente."); return; }
       setValues((current) => ({ ...current, plate: String(result.data?.plate ?? current.plate), make: String(result.data?.make ?? current.make), model: String(result.data?.model ?? current.model), color: String(result.data?.color ?? current.color), manufactureYear: String(result.data?.manufactureYear ?? current.manufactureYear), modelYear: String(result.data?.modelYear ?? current.modelYear), fuel: String(result.data?.fuel ?? current.fuel), engineDisplacement: String(result.data?.engineDisplacement ?? current.engineDisplacement), power: String(result.data?.power ?? current.power), municipality: String(result.data?.municipality ?? current.municipality), state: String(result.data?.state ?? current.state), maskedChassis: String(result.data?.maskedChassis ?? current.maskedChassis), lookupProvider: result.provider ?? "", lookupSnapshot: JSON.stringify(result.snapshot ?? {}) }));

@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   canRequestPlateLookup,
+  createPlateLookupRequest,
   plateLookupSuccessMessage,
   PlateLookupForm,
   resetPlateLookupMetadata,
@@ -24,6 +25,18 @@ const customers = [
 ];
 
 describe("paid plate lookup safeguards", () => {
+  it("ignores stale browser responses when requesting a plate", () => {
+    const request = createPlateLookupRequest(
+      "fry-4b58",
+      "https://oficina-saas.contato-ad4.workers.dev",
+    );
+
+    expect(request.url).toBe(
+      "https://oficina-saas.contato-ad4.workers.dev/api/veiculos/consultar-placa?plate=fry-4b58",
+    );
+    expect(request.cache).toBe("no-store");
+  });
+
   it("blocks a repeated successful plate until the plate changes", () => {
     expect(canRequestPlateLookup("ABC1D23", "abc-1d23", "found")).toBe(false);
     expect(canRequestPlateLookup("ABC1D23", "DEF4G56", "idle")).toBe(true);

@@ -10,6 +10,12 @@ export type PlateLookupResult = { status: "found"; provider: string; data: Plate
 
 const PLATE_LOOKUP_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
 
+export function plateLookupCacheControl(result: PlateLookupResult) {
+  return result.status === "found"
+    ? "private, max-age=3600"
+    : "private, no-store";
+}
+
 export class PlateProviderError extends Error {
   constructor(readonly code: string) {
     super("plate_provider_error");
