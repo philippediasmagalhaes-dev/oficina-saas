@@ -2,11 +2,18 @@ import { and, desc, eq, inArray, lte } from "drizzle-orm";
 import { getDatabase } from "../db/client";
 import { customers, messageDeliveries, messageOutbox, serviceRecords, workshops } from "../db/schema";
 import { buildReminderCandidate, type ReminderCandidate } from "../domain/reminders";
+import { normalizeBrazilianPhone } from "../domain/outreach";
 
 export interface ReminderQueueStore { enqueue(candidate: ReminderCandidate): Promise<boolean> }
 
 export function getConfiguredWhatsAppWorkshopId(env: Record<string, string | undefined>) {
   return env.WHATSAPP_WORKSHOP_ID?.trim() || null;
+}
+
+export function normalizeReadyRecipient(input: { consent: boolean; phone: string | null }) {
+  return input.consent && input.phone
+    ? normalizeBrazilianPhone(input.phone)
+    : null;
 }
 
 export async function queueReminderCandidates(store: ReminderQueueStore, candidates: ReminderCandidate[]) {

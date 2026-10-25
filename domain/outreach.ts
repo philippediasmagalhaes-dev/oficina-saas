@@ -65,3 +65,22 @@ export function buildQuoteDraft(
     url: `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
   };
 }
+
+export function buildWorkOrderDraft(
+  input: ServiceReadyInput & {
+    orderNumber: string;
+    status: string;
+    total: string;
+    orderUrl: string;
+  },
+): WhatsAppDraft | null {
+  if (!input.consent || !input.phone) return null;
+  const phone = normalizeBrazilianPhone(input.phone);
+  if (!phone) return null;
+  const vehicle = input.vehicle ? ` · ${input.vehicle}` : "";
+  const message = `Olá, ${input.customer}! Aqui é da ${input.workshop}. Segue a ${input.orderNumber}${vehicle}. Status: ${input.status}. Total: ${input.total}. Consulte os detalhes pelo link seguro: ${input.orderUrl}`;
+  return {
+    message,
+    url: `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
+  };
+}

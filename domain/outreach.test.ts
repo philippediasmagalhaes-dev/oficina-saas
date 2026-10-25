@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildQuoteDraft,
   buildServiceReadyDraft,
+  buildWorkOrderDraft,
   buildWhatsAppDraft,
 } from "./outreach";
 
@@ -49,6 +50,22 @@ describe("WhatsApp outreach", () => {
       total: "R$ 800,00",
       quoteUrl: "https://example.com/orcamento/token",
     });
+    expect(draft?.message).toContain("R$ 800,00");
+    expect(draft?.message).toContain("/orcamento/token");
+  });
+
+  it("creates a work-order message with status, total, and secure link", () => {
+    const draft = buildWorkOrderDraft({
+      ...base,
+      vehicle: "Honda Civic · ABC1D23",
+      orderNumber: "OS 001281",
+      status: "Pronto para entrega",
+      total: "R$ 800,00",
+      orderUrl: "https://example.com/orcamento/token",
+    });
+
+    expect(draft?.message).toContain("OS 001281");
+    expect(draft?.message).toContain("Pronto para entrega");
     expect(draft?.message).toContain("R$ 800,00");
     expect(draft?.message).toContain("/orcamento/token");
   });

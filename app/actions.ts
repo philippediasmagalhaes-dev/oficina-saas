@@ -14,7 +14,7 @@ import { updateVehicle } from "../server/vehicles";
 import { saveInspection } from "../server/inspections";
 import { assignWorkOrderItem, createCollaborator, removeWorkOrderAssignment, setCollaboratorServiceRate } from "../server/collaborators";
 import { createManualFinancialEntry, saveFinancialSettings, savePaymentFeeRule, setFinancialEntrySettlement } from "../server/finance";
-import { enqueueVehicleReadyMessage } from "../server/whatsapp";
+import { enqueueVehicleReadyMessage, normalizeReadyRecipient } from "../server/whatsapp";
 import {
   addQuoteItem,
   addServicePhoto,
@@ -290,11 +290,32 @@ export async function recordOfflineQuoteDecisionAction(formData: FormData) {
 }
 
 export async function updateWorkOrderStatusAction(formData: FormData) {
-  const { workshopId } = await getOwnerContext();
+  const { workshop, workshopId } = await getOwnerContext();
   const input = parse(workOrderStatusSchema.safeParse(formObject(formData)));
   const order = await getWorkOrder(workshopId, input.serviceRecordId);
   if (!order || !canTransitionWorkOrder(order.status, input.status)) throw new Error("Mudança de status não permitida.");
   await updateWorkOrderStatus(workshopId, input.serviceRecordId, input.status);
+  if (input.status === "ready") {
+    const recipientPhone = normalizeReadyRecipient({
+      consent: order.customerWhatsappConsent,
+      phone: order.customerPhone,
+    });
+    if (recipientPhone) {
+      try {
+        await enqueueVehicleReadyMessage({
+          workshopId,
+          customerId: order.customerId,
+          serviceRecordId: order.id,
+          recipientPhone,
+          customerName: order.customerName,
+          workshopName: workshop.name,
+          vehicleLabel: order.vehicleLabel,
+        });
+      } catch (error) {
+        console.error("Falha ao programar aviso de veículo pronto.", error);
+      }
+    }
+  }
   revalidatePath(`/ordens/${input.serviceRecordId}`);
   revalidatePath("/ordens");
 }
@@ -462,13 +483,6 @@ export async function notifyServiceReadyAction(formData: FormData) {
     throw new Error(
       "Cliente sem telefone válido ou consentimento para WhatsApp.",
     );
-  const forceManual = String(formData.get("forceManual") ?? "") === "1";
-  const queued = forceManual ? false : await enqueueVehicleReadyMessage({ workshopId, customerId: order.customerId, serviceRecordId: order.id, recipientPhone: normalizeBrazilianPhone(order.customerPhone ?? ""), customerName: order.customerName, workshopName: workshop.name, vehicleLabel: order.vehicleLabel ?? null });
-  if (queued) {
-    revalidatePath(`/ordens/${order.id}`);
-    revalidatePath("/retencao");
-    return;
-  }
   await repository.recordContact({
     workshopId,
     customerId: order.customerId,

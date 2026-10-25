@@ -1,5 +1,5 @@
 @page { size: A4 portrait; margin: 8mm; }
-.print-root { width: 100%; max-width: 194mm; margin: 0 auto; padding: 5mm; background: #fff; color: #101014; font: 10px/1.35 Arial, sans-serif; }
+.print-root { width: 100%; max-width: 194mm; margin: 0 auto; padding: 5mm; background: #fff; color: #101014; font: 9px/1.28 Arial, sans-serif; }
 .print-root * { box-sizing: border-box; }
 .print-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .print-actions a, .print-button { border: 1px solid #c51f32; border-radius: 8px; padding: 8px 12px; color: #101014; background: #fff; font-weight: 700; text-decoration: none; }
@@ -7,10 +7,10 @@
 .print-header { display: grid; grid-template-columns: 38mm 1fr auto; gap: 4mm; align-items: center; padding-bottom: 3mm; border-bottom: 2px solid #c51f32; }
 .print-header img { width: 38mm; height: 24mm; object-fit: contain; }
 .print-header h1, .print-header p { margin: 0; }
-.print-header h1 { font-size: 20px; }
-.print-header > strong { font-size: 15px; }
+.print-header h1 { font-size: 18px; }
+.print-header > strong { font-size: 14px; }
 .print-title { display: flex; justify-content: space-between; align-items: center; padding: 2mm 0; }
-.print-title h2 { margin: 0; font-size: 16px; }
+.print-title h2 { margin: 0; font-size: 14px; }
 .print-grid { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid #777; border-bottom: 0; }
 .print-grid > div { min-height: 12mm; padding: 2mm; border-right: 1px solid #999; border-bottom: 1px solid #999; }
 .print-grid > div:nth-child(4n) { border-right: 0; }
@@ -18,7 +18,7 @@
 .print-grid span { display: block; color: #555; font-size: 8px; text-transform: uppercase; }
 .print-inspection, .print-split { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin-top: 3mm; }
 .print-inspection > div, .print-text, .print-split > div, .print-terms { border: 1px solid #999; padding: 2.5mm; break-inside: avoid; }
-.print-root h3 { margin: 0 0 1.5mm; font-size: 11px; text-transform: uppercase; }
+.print-root h3 { margin: 0 0 1.5mm; font-size: 10px; text-transform: uppercase; }
 .print-root p { margin: 1mm 0; }
 .print-checklist { display: flex; flex-wrap: wrap; gap: 1mm 3mm; }
 .print-inspection ul { margin: 0; padding-left: 5mm; }
