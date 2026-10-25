@@ -1,4 +1,16 @@
-import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  max,
+  or,
+  sql,
+} from "drizzle-orm";
 import {
   createDatabase,
   getDatabase,
@@ -22,6 +34,7 @@ import type {
   ServiceWithInventoryInput,
 } from "./ports";
 import { normalizeBrazilianPhone, normalizePlate } from "../domain/workshop-settings";
+import { buildPageWindow, escapeLikePattern } from "../domain/pagination";
 
 function serviceValues(input: PersistedServiceInput) {
   return {
@@ -122,30 +135,107 @@ export function createDrizzleRepository(
       const services = await database
         .select({
           customerId: serviceRecords.customerId,
-          completedAt: serviceRecords.completedAt,
-          nextDueAt: serviceRecords.nextDueAt,
+          lastServiceAt: max(serviceRecords.completedAt),
+          nextDueAt: max(serviceRecords.nextDueAt),
         })
         .from(serviceRecords)
         .where(eq(serviceRecords.workshopId, workshopId))
-        .orderBy(desc(serviceRecords.completedAt));
+        .groupBy(serviceRecords.customerId);
       const vehicleRows = await database
-        .select({ customerId: vehicles.customerId })
+        .select({ customerId: vehicles.customerId, vehicleCount: count() })
         .from(vehicles)
-        .where(eq(vehicles.workshopId, workshopId));
+        .where(eq(vehicles.workshopId, workshopId))
+        .groupBy(vehicles.customerId);
+      const servicesByCustomer = new Map(
+        services.map((service) => [service.customerId, service]),
+      );
+      const vehiclesByCustomer = new Map(
+        vehicleRows.map((vehicle) => [vehicle.customerId, Number(vehicle.vehicleCount)]),
+      );
       return rows.map((customer) => {
-        const history = services.filter(
-          (service) => service.customerId === customer.id,
-        );
+        const history = servicesByCustomer.get(customer.id);
         return {
           ...customer,
-          lastServiceAt: history[0]?.completedAt ?? null,
-          nextDueAt:
-            history.find((service) => service.nextDueAt)?.nextDueAt ?? null,
-          vehicleCount: vehicleRows.filter(
-            (vehicle) => vehicle.customerId === customer.id,
-          ).length,
+          lastServiceAt: history?.lastServiceAt ?? null,
+          nextDueAt: history?.nextDueAt ?? null,
+          vehicleCount: vehiclesByCustomer.get(customer.id) ?? 0,
         };
       });
+    },
+    async listCustomersPage(workshopId, input) {
+      const query = input.query.trim();
+      const pattern = `%${escapeLikePattern(query)}%`;
+      const filter = and(
+        eq(customers.workshopId, workshopId),
+        query
+          ? or(
+              ilike(customers.name, pattern),
+              ilike(customers.phone, pattern),
+              ilike(customers.email, pattern),
+              ilike(customers.document, pattern),
+            )
+          : undefined,
+      );
+      const [{ total: rawTotal }] = await database
+        .select({ total: count() })
+        .from(customers)
+        .where(filter);
+      const window = buildPageWindow({
+        total: Number(rawTotal),
+        page: input.page,
+        pageSize: input.pageSize,
+      });
+      const rows = await database
+        .select()
+        .from(customers)
+        .where(filter)
+        .orderBy(customers.name)
+        .limit(window.pageSize)
+        .offset(window.offset);
+      if (!rows.length) return { ...window, items: [] };
+      const customerIds = rows.map((customer) => customer.id);
+      const [services, vehicleRows] = await Promise.all([
+        database
+          .select({
+            customerId: serviceRecords.customerId,
+            lastServiceAt: max(serviceRecords.completedAt),
+            nextDueAt: max(serviceRecords.nextDueAt),
+          })
+          .from(serviceRecords)
+          .where(
+            and(
+              eq(serviceRecords.workshopId, workshopId),
+              inArray(serviceRecords.customerId, customerIds),
+            ),
+          )
+          .groupBy(serviceRecords.customerId),
+        database
+          .select({ customerId: vehicles.customerId, vehicleCount: count() })
+          .from(vehicles)
+          .where(
+            and(
+              eq(vehicles.workshopId, workshopId),
+              inArray(vehicles.customerId, customerIds),
+            ),
+          )
+          .groupBy(vehicles.customerId),
+      ]);
+      const servicesByCustomer = new Map(
+        services.map((service) => [service.customerId, service]),
+      );
+      const vehiclesByCustomer = new Map(
+        vehicleRows.map((vehicle) => [vehicle.customerId, Number(vehicle.vehicleCount)]),
+      );
+      return {
+        ...window,
+        items: rows.map((customer) => ({
+          ...customer,
+          lastServiceAt:
+            servicesByCustomer.get(customer.id)?.lastServiceAt ?? null,
+          nextDueAt: servicesByCustomer.get(customer.id)?.nextDueAt ?? null,
+          vehicleCount: vehiclesByCustomer.get(customer.id) ?? 0,
+        })),
+      };
     },
     async listVehicles(workshopId) {
       return database

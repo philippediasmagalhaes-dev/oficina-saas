@@ -599,6 +599,25 @@ textarea:focus {
 .filter-surface {
   padding-block: 1rem;
 }
+.compact-list-surface {
+  padding: 1rem;
+}
+.pagination-nav {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+.pagination-nav > :last-child {
+  justify-self: end;
+}
+.pagination-nav small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
 .finance-filter {
   display: grid;
   grid-template-columns:
@@ -914,6 +933,17 @@ textarea:focus {
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.68);
 }
+.compact-card-list .list-card {
+  gap: 0.65rem;
+  padding: 0.58rem 0.7rem;
+  border-radius: 0.78rem;
+}
+.compact-card-list .avatar {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.65rem;
+  font-size: 0.66rem;
+}
 .avatar {
   display: grid;
   width: 2.7rem;
@@ -1192,6 +1222,21 @@ textarea:focus {
   border-top: 1px solid var(--line);
   color: var(--muted);
 }
+.compact-vehicle-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+.compact-vehicle-grid .vehicle-card {
+  padding: 0.78rem;
+  border-radius: 0.78rem;
+}
+.compact-vehicle-grid .vehicle-card h3 {
+  margin-top: 0.42rem;
+  font-size: 0.92rem;
+}
+.compact-vehicle-grid .vehicle-card > div {
+  padding-top: 0.5rem;
+}
 .timeline-list {
   display: grid;
 }
@@ -1249,6 +1294,12 @@ textarea:focus {
   color: var(--yellow-soft);
   font-size: 1.35rem;
 }
+.compact-stage-grid article {
+  padding: 0.72rem 0.85rem;
+}
+.compact-stage-grid strong {
+  font-size: 1.05rem;
+}
 .work-order-list {
   display: grid;
 }
@@ -1270,6 +1321,15 @@ textarea:focus {
 .work-order-list small {
   color: var(--muted);
   font-size: 0.72rem;
+}
+.compact-order-list > a {
+  grid-template-columns: 8.5rem 1fr auto;
+  gap: 0.75rem;
+  padding: 0.62rem 0;
+}
+.compact-order-list strong,
+.compact-order-list b {
+  font-size: 0.82rem;
 }
 .order-list-meta {
   justify-items: end;
@@ -1771,6 +1831,18 @@ textarea:focus {
   .vehicle-search,
   .quote-decision > div {
     flex-direction: column;
+  }
+  .pagination-nav {
+    grid-template-columns: 1fr 1fr;
+  }
+  .pagination-nav small {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    justify-self: center;
+  }
+  .pagination-nav > :first-child,
+  .pagination-nav > :last-child {
+    grid-row: 2;
   }
   .vehicle-grid,
   .photo-grid,

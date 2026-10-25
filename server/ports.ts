@@ -174,6 +174,10 @@ export interface CrmRepository {
     serviceCatalogId: string,
   ): Promise<ServiceCatalogSummary | null>;
   listCustomers(workshopId: string): Promise<CustomerSummary[]>;
+  listCustomersPage(
+    workshopId: string,
+    input: { query: string; page: number; pageSize: number },
+  ): Promise<import("../domain/pagination").PagedResult<CustomerSummary>>;
   listVehicles(workshopId: string): Promise<VehicleSummary[]>;
   listServices(workshopId: string): Promise<ServiceSummary[]>;
   getServiceOrder(

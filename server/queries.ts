@@ -6,10 +6,10 @@ import {
   type FinancialFilters,
 } from "../domain/service-filters";
 import { getOwnerContext } from "./owner-context";
-import { getVehicle, listVehicles } from "./vehicles";
+import { getVehicle, listVehicles, listVehiclesPage } from "./vehicles";
 import { listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
 import { listInventoryMovements } from "./inventory";
-import { getWorkOrder, listWorkOrders } from "./work-orders";
+import { countWorkOrdersByStatus, getWorkOrder, listWorkOrders, listWorkOrdersPage } from "./work-orders";
 import { ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialSettings, listFinancialReportEntries, listWorkOrderPayments } from "./finance";
 import { getWhatsAppAutomationStatus } from "./whatsapp";
 
@@ -66,11 +66,11 @@ export async function getDashboardData() {
   };
 }
 
-export async function getCustomers() {
+export async function getCustomers(input: { query: string; page: number; pageSize: number }) {
   const context = await getOwnerContext();
   return {
     ...context,
-    customers: await context.repository.listCustomers(context.workshopId),
+    customers: await context.repository.listCustomersPage(context.workshopId, input),
   };
 }
 
@@ -164,14 +164,15 @@ export async function getFinancialDashboard(filters: FinancialFilters & { status
   };
 }
 
-export async function getWorkOrdersData() {
+export async function getWorkOrdersData(input: { query: string; page: number; pageSize: number; includeFormOptions?: boolean }) {
   const context = await getOwnerContext();
-  const [orders, customers, vehicles] = await Promise.all([
-    listWorkOrders(context.workshopId),
-    context.repository.listCustomers(context.workshopId),
-    context.repository.listVehicles(context.workshopId),
+  const [orders, statusCounts, customers, vehicles] = await Promise.all([
+    listWorkOrdersPage(context.workshopId, input),
+    countWorkOrdersByStatus(context.workshopId),
+    input.includeFormOptions ? context.repository.listCustomers(context.workshopId) : Promise.resolve([]),
+    input.includeFormOptions ? context.repository.listVehicles(context.workshopId) : Promise.resolve([]),
   ]);
-  return { ...context, orders, customers, vehicles };
+  return { ...context, orders, statusCounts, customers, vehicles };
 }
 
 export async function getWorkOrderData(serviceRecordId: string) {
@@ -198,11 +199,11 @@ export async function getCollaboratorsData() {
   return { ...context, collaborators, rates, catalog };
 }
 
-export async function getVehiclesData() {
+export async function getVehiclesData(input: { query: string; page: number; pageSize: number; includeFormOptions?: boolean }) {
   const context = await getOwnerContext();
   const [vehicles, customers] = await Promise.all([
-    listVehicles(context.workshopId),
-    context.repository.listCustomers(context.workshopId),
+    listVehiclesPage(context.workshopId, input),
+    input.includeFormOptions ? context.repository.listCustomers(context.workshopId) : Promise.resolve([]),
   ]);
   return { ...context, vehicles, customers };
 }

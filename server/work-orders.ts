@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { getDatabase, runDatabaseTransaction, type DatabaseTransaction } from "../db/client";
 import {
   customers,
@@ -26,6 +26,11 @@ import { createDrizzleSequenceStore, nextWorkOrderNumber } from "./work-order-nu
 import { getInspection } from "./inspections";
 import { consumeReservedOrderStockTx, releaseCancelledOrderStockTx, reserveApprovedOrderStockTx } from "./inventory";
 import { closeWorkOrderFinancialsTx, type PaymentDraft } from "./finance";
+import {
+  buildPageWindow,
+  escapeLikePattern,
+  type PagedResult,
+} from "../domain/pagination";
 
 export type WorkOrderItemSummary = {
   id: string;
@@ -131,6 +136,104 @@ export async function listWorkOrders(workshopId: string): Promise<WorkOrderSumma
     .leftJoin(vehicles, and(eq(vehicles.id, serviceRecords.vehicleId), eq(vehicles.workshopId, workshopId)))
     .where(eq(serviceRecords.workshopId, workshopId))
     .orderBy(desc(serviceRecords.updatedAt));
+}
+
+export async function listWorkOrdersPage(
+  workshopId: string,
+  input: { query: string; page: number; pageSize: number },
+): Promise<PagedResult<WorkOrderSummary>> {
+  const database = getDatabase();
+  const query = input.query.trim();
+  const pattern = `%${escapeLikePattern(query)}%`;
+  const filter = and(
+    eq(serviceRecords.workshopId, workshopId),
+    query
+      ? or(
+          ilike(serviceRecords.complaint, pattern),
+          ilike(serviceRecords.description, pattern),
+          ilike(customers.name, pattern),
+          ilike(vehicles.plate, pattern),
+          sql<boolean>`cast(${serviceRecords.orderNumber} as text) ilike ${pattern}`,
+        )
+      : undefined,
+  );
+  const [{ total: rawTotal }] = await database
+    .select({ total: count() })
+    .from(serviceRecords)
+    .innerJoin(
+      customers,
+      and(
+        eq(customers.id, serviceRecords.customerId),
+        eq(customers.workshopId, workshopId),
+      ),
+    )
+    .leftJoin(
+      vehicles,
+      and(
+        eq(vehicles.id, serviceRecords.vehicleId),
+        eq(vehicles.workshopId, workshopId),
+      ),
+    )
+    .where(filter);
+  const window = buildPageWindow({
+    total: Number(rawTotal),
+    page: input.page,
+    pageSize: input.pageSize,
+  });
+  const items = await database
+    .select({
+      id: serviceRecords.id,
+      orderNumber: serviceRecords.orderNumber,
+      customerId: serviceRecords.customerId,
+      customerName: customers.name,
+      vehicleId: serviceRecords.vehicleId,
+      vehicleLabel: vehicleLabelSql(),
+      complaint: serviceRecords.complaint,
+      description: serviceRecords.description,
+      status: serviceRecords.status,
+      quoteStatus: serviceRecords.quoteStatus,
+      amountCents: serviceRecords.amountCents,
+      intakeAt: serviceRecords.intakeAt,
+      createdAt: serviceRecords.createdAt,
+      updatedAt: serviceRecords.updatedAt,
+    })
+    .from(serviceRecords)
+    .innerJoin(
+      customers,
+      and(
+        eq(customers.id, serviceRecords.customerId),
+        eq(customers.workshopId, workshopId),
+      ),
+    )
+    .leftJoin(
+      vehicles,
+      and(
+        eq(vehicles.id, serviceRecords.vehicleId),
+        eq(vehicles.workshopId, workshopId),
+      ),
+    )
+    .where(filter)
+    .orderBy(desc(serviceRecords.updatedAt))
+    .limit(window.pageSize)
+    .offset(window.offset);
+  return { ...window, items };
+}
+
+export async function countWorkOrdersByStatus(workshopId: string) {
+  const rows = await getDatabase()
+    .select({ status: serviceRecords.status, total: count() })
+    .from(serviceRecords)
+    .where(eq(serviceRecords.workshopId, workshopId))
+    .groupBy(serviceRecords.status);
+  const counts = new Map(rows.map((row) => [row.status, Number(row.total)]));
+  const delivered = (counts.get("delivered") ?? 0) + (counts.get("completed") ?? 0);
+  const cancelled = counts.get("cancelled") ?? 0;
+  return {
+    active: rows.reduce((sum, row) => sum + Number(row.total), 0) - delivered - cancelled,
+    awaitingApproval: counts.get("awaiting_approval") ?? 0,
+    ready: counts.get("ready") ?? 0,
+    delivered,
+  };
 }
 
 export async function createWorkOrder(input: {
