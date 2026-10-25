@@ -12,7 +12,7 @@ import { createDrizzleRepository } from "../server/drizzle-repository";
 import { getOwnerContext, getOwnerUser } from "../server/owner-context";
 import { updateVehicle } from "../server/vehicles";
 import { saveInspection } from "../server/inspections";
-import { assignWorkOrderItem, createCollaborator, removeWorkOrderAssignment, setCollaboratorServiceRate } from "../server/collaborators";
+import { assignWorkOrderItem, createCollaborator, deactivateCollaborator, deleteCollaboratorServiceRate, removeWorkOrderAssignment, setCollaboratorServiceRate, updateCollaborator } from "../server/collaborators";
 import { createManualFinancialEntry, saveFinancialSettings, savePaymentFeeRule, setFinancialEntrySettlement } from "../server/finance";
 import { enqueueVehicleReadyMessage, normalizeReadyRecipient } from "../server/whatsapp";
 import {
@@ -32,7 +32,10 @@ import {
 import {
   customerSchema,
   collaboratorRateSchema,
+  collaboratorRateIdSchema,
   collaboratorSchema,
+  collaboratorIdSchema,
+  collaboratorUpdateSchema,
   assignmentSchema,
   diagnosisSchema,
   finalizationSchema,
@@ -101,6 +104,38 @@ export async function setCollaboratorServiceRateAction(formData: FormData) {
   const { workshopId } = await getOwnerContext();
   const input = parse(collaboratorRateSchema.safeParse(formObject(formData)));
   await setCollaboratorServiceRate({ workshopId, collaboratorId: input.collaboratorId, serviceCatalogId: input.serviceCatalogId, fixedPerServiceCents: input.fixedPerService ? parseCurrencyToCents(input.fixedPerService) : null, commissionBasisPoints: input.commissionPercent === null ? null : Math.round(input.commissionPercent * 100) });
+  revalidatePath("/colaboradores");
+}
+
+export async function updateCollaboratorAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(collaboratorUpdateSchema.safeParse(formObject(formData)));
+  await updateCollaborator({
+    workshopId,
+    collaboratorId: input.collaboratorId,
+    name: input.name,
+    phone: input.phone,
+    compensationMode: input.compensationMode,
+    monthlyFixedCents: parseCurrencyToCents(input.monthlyFixed),
+    fixedPerServiceCents: parseCurrencyToCents(input.fixedPerService),
+    commissionBasisPoints: Math.round(input.commissionPercent * 100),
+  });
+  revalidatePath("/colaboradores");
+  revalidatePath("/financeiro");
+}
+
+export async function deactivateCollaboratorAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(collaboratorIdSchema.safeParse(formObject(formData)));
+  await deactivateCollaborator(workshopId, input.collaboratorId);
+  revalidatePath("/colaboradores");
+  revalidatePath("/financeiro");
+}
+
+export async function deleteCollaboratorServiceRateAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(collaboratorRateIdSchema.safeParse(formObject(formData)));
+  await deleteCollaboratorServiceRate(workshopId, input.rateId);
   revalidatePath("/colaboradores");
 }
 

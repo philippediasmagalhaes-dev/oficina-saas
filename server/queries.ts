@@ -7,7 +7,7 @@ import {
 } from "../domain/service-filters";
 import { getOwnerContext } from "./owner-context";
 import { getVehicle, listVehicles, listVehiclesPage } from "./vehicles";
-import { listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
+import { listCollaboratorPayables, listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
 import { listInventoryMovements } from "./inventory";
 import { countWorkOrdersByStatus, getWorkOrder, listWorkOrders, listWorkOrdersPage } from "./work-orders";
 import { ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialSettings, listFinancialReportEntries, listWorkOrderPayments } from "./finance";
@@ -193,10 +193,16 @@ export async function getWorkOrderData(serviceRecordId: string) {
   return { ...context, order, catalog, inventory, collaborators, assignments, financialSettings, customer, vehicle, payments };
 }
 
-export async function getCollaboratorsData() {
+export async function getCollaboratorsData(period: { from: Date; to: Date }) {
   const context = await getOwnerContext();
-  const [collaborators, rates, catalog] = await Promise.all([listCollaborators(context.workshopId), listCollaboratorRates(context.workshopId), context.repository.listServiceCatalog(context.workshopId)]);
-  return { ...context, collaborators, rates, catalog };
+  await ensureMonthlyCollaboratorPayables(context.workshopId, period.from);
+  const [collaborators, rates, catalog, payables] = await Promise.all([
+    listCollaborators(context.workshopId),
+    listCollaboratorRates(context.workshopId),
+    context.repository.listServiceCatalog(context.workshopId),
+    listCollaboratorPayables(context.workshopId, period),
+  ]);
+  return { ...context, collaborators, rates, catalog, payables };
 }
 
 export async function getVehiclesData(input: { query: string; page: number; pageSize: number; includeFormOptions?: boolean }) {

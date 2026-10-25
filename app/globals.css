@@ -1925,11 +1925,58 @@ textarea:focus {
 .metric-card strong { font-size: clamp(1.45rem, 2.4vw, 2.15rem); }
 .plate-lookup-row { display: grid; grid-template-columns: minmax(12rem, 1fr) auto; gap: 0.7rem; align-items: end; }
 .plate-lookup-row small { grid-column: 1 / -1; }
+.compensation-explainer {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+.compensation-explainer article {
+  padding: 0.78rem;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.58);
+}
+.compensation-explainer strong { font-size: 0.78rem; }
+.compensation-explainer p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.68rem; line-height: 1.45; }
+.remuneration-grid { grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr)); }
+.remuneration-card { min-height: auto; gap: 0.7rem; }
+.rule-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+.rule-summary-grid > span { display: grid; gap: 0.1rem; padding: 0.52rem; border-radius: 0.65rem; background: rgba(17, 17, 20, 0.045); }
+.rule-summary-grid small { color: var(--muted); font-size: 0.63rem; }
+.rule-summary-grid strong { font-size: 0.76rem; }
+.rule-editor { border-top: 1px solid var(--line); padding-top: 0.6rem; }
+.rule-editor summary { cursor: pointer; color: var(--yellow-soft); font-size: 0.74rem; font-weight: 750; }
+.rule-editor form { margin-top: 0.7rem; }
+.rule-editor .danger-zone { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.rule-editor .danger-zone small { color: var(--muted); font-size: 0.65rem; }
+.specific-rate-list { display: grid; gap: 0.4rem; padding-top: 0.65rem; border-top: 1px solid var(--line); }
+.specific-rate-row { display: flex; align-items: center; gap: 0.4rem; }
+.specific-rate-row > form:first-child { flex: 1; }
+.specific-rate-row .inline-form { grid-template-columns: minmax(7rem, 1fr) 5.5rem 4.5rem auto; }
+.specific-rate-row strong { font-size: 0.68rem; }
+.danger-text { color: #a51d2d; }
+.month-filter { display: flex; gap: 0.45rem; }
+.commission-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 0.8rem; }
+.commission-report { display: grid; }
+.commission-report > div { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.7rem 0; border-bottom: 1px solid var(--line); }
+.commission-report > div:last-child { border-bottom: 0; }
+.commission-report span { display: grid; gap: 0.15rem; }
+.commission-report span:last-child { text-align: right; }
+.commission-report small { color: var(--muted); font-size: 0.68rem; }
+.commission-report b { color: var(--yellow-soft); font-size: 0.8rem; }
 
 @media (max-width: 760px) {
   .payment-row { display: grid; grid-template-columns: 1fr 1fr; align-items: end; }
   .plate-lookup-row { grid-template-columns: 1fr; }
   .plate-lookup-row small { grid-column: auto; }
+  .compensation-explainer,
+  .commission-metrics,
+  .rule-summary-grid { grid-template-columns: 1fr 1fr; }
+  .remuneration-grid { grid-template-columns: 1fr; }
+  .specific-rate-row { align-items: flex-end; }
+  .specific-rate-row .inline-form { grid-template-columns: 1fr; }
+  .commission-report > div { align-items: flex-start; }
 }
 
 @media (prefers-reduced-motion: reduce) {

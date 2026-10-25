@@ -195,12 +195,19 @@ export const collaboratorSchema = z.object({
   commissionPercent: z.coerce.number().min(0).max(100),
 });
 
+export const collaboratorUpdateSchema = collaboratorSchema.extend({
+  collaboratorId: z.string().uuid(),
+});
+
 export const collaboratorRateSchema = z.object({
   collaboratorId: z.string().uuid(),
   serviceCatalogId: z.string().uuid(),
   fixedPerService: z.string().trim().default(""),
   commissionPercent: z.union([z.literal(""), z.coerce.number().min(0).max(100)]).transform((value) => value === "" ? null : value),
 });
+
+export const collaboratorIdSchema = z.object({ collaboratorId: z.string().uuid() });
+export const collaboratorRateIdSchema = z.object({ rateId: z.string().uuid() });
 
 export const assignmentSchema = z.object({
   serviceRecordId: z.string().uuid(),

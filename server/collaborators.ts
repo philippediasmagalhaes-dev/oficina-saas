@@ -1,9 +1,180 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { getDatabase, runDatabaseTransaction } from "../db/client";
-import { collaboratorServiceRates, collaborators, serviceCatalogItems, serviceRecords, workOrderItemAssignments, workOrderItems } from "../db/schema";
+import { collaboratorServiceRates, collaborators, financialEntries, serviceCatalogItems, serviceRecords, workOrderItemAssignments, workOrderItems } from "../db/schema";
 import { validateParticipationTotal, type CompensationMode } from "../domain/commissions";
 
 export type AssignmentInput = { workshopId: string; workOrderItemId: string; collaboratorId: string; participationBasisPoints: number };
+
+export type CollaboratorUpdateInput = {
+  workshopId: string;
+  collaboratorId: string;
+  name: string;
+  phone: string | null;
+  compensationMode: CompensationMode;
+  monthlyFixedCents: number;
+  fixedPerServiceCents: number;
+  commissionBasisPoints: number;
+};
+
+export interface CollaboratorAdminStore {
+  update(input: CollaboratorUpdateInput): Promise<{ id: string } | null>;
+  deactivate(workshopId: string, collaboratorId: string): Promise<boolean>;
+  deleteRate(workshopId: string, rateId: string): Promise<boolean>;
+}
+
+export function createCollaboratorAdminService(store: CollaboratorAdminStore) {
+  return {
+    async update(input: CollaboratorUpdateInput) {
+      const row = await store.update(input);
+      if (!row) throw new Error("Colaborador não encontrado.");
+      return row;
+    },
+    async deactivate(workshopId: string, collaboratorId: string) {
+      if (!(await store.deactivate(workshopId, collaboratorId)))
+        throw new Error("Colaborador não encontrado.");
+    },
+    async deleteRate(workshopId: string, rateId: string) {
+      if (!(await store.deleteRate(workshopId, rateId)))
+        throw new Error("Regra de remuneração não encontrada.");
+    },
+  };
+}
+
+export function createDrizzleCollaboratorAdminStore(): CollaboratorAdminStore {
+  const database = getDatabase();
+  return {
+    async update(input) {
+      const [row] = await database
+        .update(collaborators)
+        .set({
+          name: input.name,
+          phone: input.phone,
+          compensationMode: input.compensationMode,
+          monthlyFixedCents: input.monthlyFixedCents,
+          fixedPerServiceCents: input.fixedPerServiceCents,
+          commissionBasisPoints: input.commissionBasisPoints,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(collaborators.workshopId, input.workshopId),
+            eq(collaborators.id, input.collaboratorId),
+          ),
+        )
+        .returning({ id: collaborators.id });
+      return row ?? null;
+    },
+    async deactivate(workshopId, collaboratorId) {
+      const rows = await database
+        .update(collaborators)
+        .set({ active: false, updatedAt: new Date() })
+        .where(
+          and(
+            eq(collaborators.workshopId, workshopId),
+            eq(collaborators.id, collaboratorId),
+          ),
+        )
+        .returning({ id: collaborators.id });
+      return rows.length > 0;
+    },
+    async deleteRate(workshopId, rateId) {
+      const rows = await database
+        .delete(collaboratorServiceRates)
+        .where(
+          and(
+            eq(collaboratorServiceRates.workshopId, workshopId),
+            eq(collaboratorServiceRates.id, rateId),
+          ),
+        )
+        .returning({ id: collaboratorServiceRates.id });
+      return rows.length > 0;
+    },
+  };
+}
+
+export async function updateCollaborator(input: CollaboratorUpdateInput) {
+  return createCollaboratorAdminService(createDrizzleCollaboratorAdminStore()).update(input);
+}
+
+export async function deactivateCollaborator(workshopId: string, collaboratorId: string) {
+  return createCollaboratorAdminService(createDrizzleCollaboratorAdminStore()).deactivate(workshopId, collaboratorId);
+}
+
+export async function deleteCollaboratorServiceRate(workshopId: string, rateId: string) {
+  return createCollaboratorAdminService(createDrizzleCollaboratorAdminStore()).deleteRate(workshopId, rateId);
+}
+
+export type CollaboratorPayableEntry = {
+  collaboratorId: string;
+  collaboratorName: string;
+  category: string;
+  status: string;
+  amountCents: number;
+};
+
+export function summarizeCollaboratorPayables(entries: CollaboratorPayableEntry[]) {
+  const summaries = new Map<string, {
+    collaboratorId: string;
+    collaboratorName: string;
+    commissionCents: number;
+    fixedCents: number;
+    settledCents: number;
+    pendingCents: number;
+    totalCents: number;
+  }>();
+  for (const entry of entries) {
+    if (entry.status === "cancelled") continue;
+    const summary = summaries.get(entry.collaboratorId) ?? {
+      collaboratorId: entry.collaboratorId,
+      collaboratorName: entry.collaboratorName,
+      commissionCents: 0,
+      fixedCents: 0,
+      settledCents: 0,
+      pendingCents: 0,
+      totalCents: 0,
+    };
+    if (entry.category === "labor_compensation") summary.commissionCents += entry.amountCents;
+    if (entry.category === "fixed_payroll") summary.fixedCents += entry.amountCents;
+    if (entry.status === "settled") summary.settledCents += entry.amountCents;
+    else summary.pendingCents += entry.amountCents;
+    summary.totalCents += entry.amountCents;
+    summaries.set(entry.collaboratorId, summary);
+  }
+  return [...summaries.values()].sort((a, b) =>
+    a.collaboratorName.localeCompare(b.collaboratorName, "pt-BR"),
+  );
+}
+
+export async function listCollaboratorPayables(
+  workshopId: string,
+  period: { from: Date; to: Date },
+) {
+  const rows = await getDatabase()
+    .select({
+      collaboratorId: collaborators.id,
+      collaboratorName: collaborators.name,
+      category: financialEntries.category,
+      status: financialEntries.status,
+      amountCents: financialEntries.netAmountCents,
+    })
+    .from(financialEntries)
+    .innerJoin(
+      collaborators,
+      and(
+        eq(collaborators.id, financialEntries.collaboratorId),
+        eq(collaborators.workshopId, workshopId),
+      ),
+    )
+    .where(
+      and(
+        eq(financialEntries.workshopId, workshopId),
+        inArray(financialEntries.category, ["labor_compensation", "fixed_payroll"]),
+        gte(financialEntries.competenceDate, period.from),
+        lt(financialEntries.competenceDate, period.to),
+      ),
+    );
+  return summarizeCollaboratorPayables(rows);
+}
 
 export interface CollaboratorAssignmentStore {
   getLaborItem(workshopId: string, workOrderItemId: string): Promise<{ id: string; type: "service" | "part"; financialClosedAt: Date | null } | null>;
