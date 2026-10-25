@@ -1,5 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { config, isPublicRoute } from "../proxy";
+import { config, getCanonicalRedirectUrl, isPublicRoute } from "../proxy";
+
+describe("endereço oficial do piloto", () => {
+  it("leva a URL antiga da Vercel para a Cloudflare preservando caminho e busca", () => {
+    expect(
+      getCanonicalRedirectUrl(
+        new URL(
+          "https://oficina-saas-green.vercel.app/veiculos?cliente=philippe",
+        ),
+      )?.toString(),
+    ).toBe(
+      "https://oficina-saas.contato-ad4.workers.dev/veiculos?cliente=philippe",
+    );
+  });
+
+  it("não redireciona o endereço oficial da Cloudflare", () => {
+    expect(
+      getCanonicalRedirectUrl(
+        new URL("https://oficina-saas.contato-ad4.workers.dev/veiculos"),
+      ),
+    ).toBeNull();
+  });
+});
 
 describe("rotas públicas do PWA", () => {
   it.each([
