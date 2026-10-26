@@ -23,9 +23,16 @@ describe("maintenance forecast", () => {
     expect(slow.dueAt.toISOString().slice(0, 10)).toBe("2027-04-01");
   });
 
+  it("honors an explicit non-oil return date", () => {
+    const result = forecastMaintenance({ serviceName: "Fluido de freio", completedAt: new Date("2026-10-01"), odometer: 55000, intervalDays: 180, explicitDueAt: new Date("2027-10-01") });
+    expect(result.dueAt.toISOString().slice(0, 10)).toBe("2027-10-01");
+  });
+
   it("recognizes oil changes without confusing a leak diagnosis", () => {
     expect(isOilChange("Troca de óleo e filtro")).toBe(true);
     expect(isOilChange("Vazamento de óleo")).toBe(false);
+    expect(isOilChange("Troca de óleo do câmbio automático")).toBe(false);
+    expect(isOilChange("Troca de óleo do diferencial")).toBe(false);
   });
 
   it("builds a service-specific draft with actual last mileage and opt-out", () => {

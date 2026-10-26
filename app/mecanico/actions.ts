@@ -27,6 +27,17 @@ function refresh(serviceRecordId: string, token: string) {
 export async function saveMechanicWorkAction(form: FormData) {
   const { workshopId, serviceRecordId, token, order } = await context(form);
   const task = String(form.get("task") ?? "save");
+  if (!["save", "start", "ready"].includes(task)) throw new Error("Ação inválida.");
+  if (task === "ready" && order.status !== "in_progress") throw new Error("Inicie a execução antes de marcar como pronto.");
+  if (task === "start" && order.status !== "approved") throw new Error("A OS precisa estar aprovada.");
+  const odometerText = String(form.get("odometer") ?? "").trim();
+  const odometer = odometerText ? Number(odometerText) : null;
+  if (odometer !== null && (!Number.isInteger(odometer) || odometer < 0 || odometer > 10000000)) throw new Error("Quilometragem inválida.");
+  if (["open", "diagnosis"].includes(order.status)) {
+    const diagnosis = String(form.get("diagnosis") ?? "").trim();
+    if (diagnosis) await saveDiagnosis({ workshopId, serviceRecordId, complaint: order.complaint ?? order.description, diagnosis: diagnosis.slice(0, 10000), notes: order.notes });
+  }
+  await getDatabase().update(serviceRecords).set({ mechanicNotes: String(form.get("mechanicNotes") ?? "").trim().slice(0, 10000), odometer, updatedAt: new Date() }).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId), inArray(serviceRecords.status, ["open", "diagnosis", "awaiting_approval", "approved", "in_progress", "ready"])));
   if (task === "ready") {
     if (order.status !== "in_progress") throw new Error("Inicie a execução antes de marcar como pronto.");
     await updateWorkOrderStatus(workshopId, serviceRecordId, "ready");
@@ -38,15 +49,6 @@ export async function saveMechanicWorkAction(form: FormData) {
   } else if (task === "start") {
     if (order.status !== "approved") throw new Error("A OS precisa estar aprovada.");
     await updateWorkOrderStatus(workshopId, serviceRecordId, "in_progress");
-  } else {
-    const odometerText = String(form.get("odometer") ?? "").trim();
-    const odometer = odometerText ? Number(odometerText) : null;
-    if (odometer !== null && (!Number.isInteger(odometer) || odometer < 0 || odometer > 10000000)) throw new Error("Quilometragem inválida.");
-    if (["open", "diagnosis"].includes(order.status)) {
-      const diagnosis = String(form.get("diagnosis") ?? "").trim();
-      if (diagnosis) await saveDiagnosis({ workshopId, serviceRecordId, complaint: order.complaint ?? order.description, diagnosis: diagnosis.slice(0, 10000), notes: order.notes });
-    }
-    await getDatabase().update(serviceRecords).set({ mechanicNotes: String(form.get("mechanicNotes") ?? "").trim().slice(0, 10000), odometer, updatedAt: new Date() }).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, serviceRecordId), inArray(serviceRecords.status, ["open", "diagnosis", "awaiting_approval", "approved", "in_progress", "ready"])));
   }
   refresh(serviceRecordId, token);
 }

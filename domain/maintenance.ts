@@ -2,6 +2,7 @@ import { normalizeBrazilianPhone, type WhatsAppDraft } from "./outreach";
 
 export function isOilChange(name: string) {
   const text = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/cambio|transmiss|diferencial|hidraul|freio/.test(text)) return false;
   return /troca.*oleo|oleo.*troca/.test(text);
 }
 
@@ -30,7 +31,7 @@ export function forecastMaintenance(input: {
     dueAt = new Date(Math.min(dueAt.getTime(), input.completedAt.getTime() + input.intervalDays * 86400000));
   }
   if (input.explicitDueAt && input.explicitDueAt > input.completedAt) {
-    dueAt = new Date(Math.min(dueAt.getTime(), input.explicitDueAt.getTime()));
+    dueAt = oil ? new Date(Math.min(dueAt.getTime(), input.explicitDueAt.getTime())) : new Date(input.explicitDueAt);
   }
   const intervalKm = input.intervalKm ?? (oil ? 5000 : null);
   const validOdometer = input.odometer !== null && input.odometer >= 0;

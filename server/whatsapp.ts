@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, lte } from "drizzle-orm";
 import { getDatabase } from "../db/client";
-import { customers, messageDeliveries, messageOutbox, serviceRecords, workshops } from "../db/schema";
+import { customers, messageDeliveries, messageOutbox, serviceRecords, workshops, workshopIntegrations } from "../db/schema";
 import { buildReminderCandidate, type ReminderCandidate } from "../domain/reminders";
 import { normalizeBrazilianPhone } from "../domain/outreach";
 import { listMaintenanceReturns } from "./retention";
@@ -59,19 +59,19 @@ export async function scheduleMaintenanceReminders(now = new Date()) {
   const workshopId = getConfiguredWhatsAppWorkshopId(process.env);
   if (!process.env.WHATSAPP_REMINDER_TEMPLATE_NAME || !workshopId) return 0;
   const database = getDatabase();
-  const [[workshop], previous] = await Promise.all([
+  const [[workshop], [cursor]] = await Promise.all([
     database.select({ name: workshops.name }).from(workshops).where(eq(workshops.id, workshopId)).limit(1),
-    database.select({ serviceRecordId: messageOutbox.serviceRecordId, sentAt: messageOutbox.sentAt, createdAt: messageOutbox.createdAt }).from(messageOutbox).where(and(eq(messageOutbox.workshopId, workshopId), inArray(messageOutbox.status, ["sent", "delivered", "read"]))).orderBy(desc(messageOutbox.createdAt)),
+    database.select({ metadata: workshopIntegrations.metadata }).from(workshopIntegrations).where(and(eq(workshopIntegrations.workshopId, workshopId), eq(workshopIntegrations.provider, "maintenance-cursor"))).limit(1),
   ]);
+  if (!workshop) return 0;
+  const day = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const savedPage = Number(cursor?.metadata?.page);
+  const page = cursor?.metadata?.day === day && Number.isSafeInteger(savedPage) && savedPage > 0 ? savedPage : 1;
+  const batch = await listMaintenanceReturns(workshopId, String(page), now);
+  const ids = [...new Set(batch.items.map((row) => row.serviceRecordId))];
+  const previous = ids.length ? await database.select({ serviceRecordId: messageOutbox.serviceRecordId, sentAt: messageOutbox.sentAt, createdAt: messageOutbox.createdAt }).from(messageOutbox).where(and(eq(messageOutbox.workshopId, workshopId), inArray(messageOutbox.serviceRecordId, ids), inArray(messageOutbox.status, ["sent", "delivered", "read"]))).orderBy(desc(messageOutbox.createdAt)).limit(100) : [];
   const latest = new Map<string, Date>();
   for (const row of previous) if (row.serviceRecordId && !latest.has(row.serviceRecordId)) latest.set(row.serviceRecordId, row.sentAt ?? row.createdAt);
-  if (!workshop) return 0;
-  let inserted = 0;
-  let page = 1;
-  let pageCount = 1;
-  do {
-    const batch = await listMaintenanceReturns(workshopId, String(page));
-    pageCount = batch.pageCount;
     const candidates = batch.items.flatMap((row) => {
       const candidate = buildReminderCandidate({
         workshopId, workshopName: workshop.name, customerId: row.customerId,
@@ -87,9 +87,8 @@ export async function scheduleMaintenanceReminders(now = new Date()) {
       candidate.payload.lastOdometer = row.odometer;
       return [candidate];
     });
-    inserted += await queueReminderCandidates(createDrizzleReminderQueueStore(), candidates);
-    page += 1;
-  } while (page <= pageCount);
+  const inserted = await queueReminderCandidates(createDrizzleReminderQueueStore(), candidates);
+  await database.insert(workshopIntegrations).values({ workshopId, provider: "maintenance-cursor", enabled: true, status: "ready", metadata: { day, page: batch.nextPage ?? 1 } }).onConflictDoUpdate({ target: [workshopIntegrations.workshopId, workshopIntegrations.provider], set: { metadata: { day, page: batch.nextPage ?? 1 }, updatedAt: now } });
   return inserted;
 }
 

@@ -39,7 +39,7 @@ describe("Cloudflare build target", () => {
       observability: { enabled: true },
     });
     expect(cloudflareConfig.worker?.entrypoint).toBe("./worker.ts");
-    expect(cloudflareConfig.worker?.triggers).toEqual([{ type: "scheduled", schedule: "0 12 * * *" }]);
+    expect(cloudflareConfig.worker?.triggers).toEqual([{ type: "scheduled", schedule: "0 12-20 * * *" }]);
   });
 
   it("requires every production secret when creating a Cloudflare version", () => {

@@ -17,20 +17,25 @@ export type MaintenanceReturn = {
   completedAt: Date; odometer: number | null;
 } & ReturnType<typeof forecastMaintenance>;
 
-export async function listMaintenanceReturns(workshopId: string, page?: string): Promise<PagedResult<MaintenanceReturn>> {
+export async function listMaintenanceReturns(workshopId: string, page?: string, reminderDate?: Date): Promise<PagedResult<MaintenanceReturn>> {
   const request = normalizePageRequest({ page });
   // All ranking and history selection happens in PostgreSQL; at most 24 rows reach the Worker.
   const result = await getDatabase().execute<RecallRow>(sql`
-    with history as (
+    with history_lines as (
       select distinct s.id, s.customer_id, s.vehicle_id,
         coalesce(i.service_catalog_id, s.service_catalog_id)::text as catalog_id,
         coalesce(i.description, s.description) as service_name,
         s.completed_at, coalesce(s.delivered_odometer, s.odometer) as odometer,
         s.next_due_at, s.return_interval_days,
-        case when translate(lower(coalesce(i.description,s.description)), 'óÓ', 'oO') ~ '(troca.*oleo|oleo.*troca)' then 'oil-change' else lower(coalesce(i.description, s.description)) end as service_key
+        case when translate(lower(coalesce(i.description,s.description)), 'óâãíçé', 'oaaice') ~ '(troca.*oleo|oleo.*troca)'
+          and translate(lower(coalesce(i.description,s.description)), 'óâãíçé', 'oaaice') !~ '(cambio|transmiss|diferencial|hidraul|freio)'
+          then 'oil-change' else lower(coalesce(i.description, s.description)) end as service_key
       from service_records s
       left join work_order_items i on i.service_record_id=s.id and i.workshop_id=${workshopId} and i.type='service'
       where s.workshop_id=${workshopId} and s.status in ('completed','delivered') and s.completed_at is not null
+    ), history as (
+      select distinct on (id, case when service_key='oil-change' then service_key else coalesce(catalog_id,service_key) end) *
+      from history_lines order by id, case when service_key='oil-change' then service_key else coalesce(catalog_id,service_key) end, catalog_id nulls last
     ), ranked as (
       select *, row_number() over w as rn,
         lead(completed_at) over w as previous_at,
@@ -40,20 +45,29 @@ export async function listMaintenanceReturns(workshopId: string, page?: string):
     ), latest as (
       select r.*, c.name as customer_name, c.phone, c.whatsapp_consent as consent,
         coalesce(concat(v.make,' ',v.model,' · ',v.plate),'veículo') as vehicle_label,
-        coalesce(sc.default_return_interval_days,r.return_interval_days) as interval_days,
+        coalesce(r.return_interval_days,sc.default_return_interval_days) as interval_days,
         sc.default_return_interval_km as interval_km
       from ranked r
       join customers c on c.id=r.customer_id and c.workshop_id=${workshopId}
       left join vehicles v on v.id=r.vehicle_id and v.workshop_id=${workshopId}
       left join service_catalog sc on sc.id::text=r.catalog_id and sc.workshop_id=${workshopId}
       where r.rn=1
+    ), due as (
+      select *, case when service_key!='oil-change' and next_due_at>completed_at then next_due_at else least(
+        case when service_key='oil-change' then completed_at + interval '6 months' else completed_at + make_interval(days=>coalesce(interval_days,180)) end,
+        case when interval_days>0 then completed_at + make_interval(days=>interval_days) end,
+        case when next_due_at>completed_at then next_due_at end,
+        case when service_key='oil-change' and odometer>previous_odometer and completed_at-previous_at>=interval '7 days'
+          then completed_at + make_interval(days=>greatest(7,least(366,ceil(coalesce(interval_km,5000)::numeric * extract(epoch from completed_at-previous_at)/86400 / nullif(odometer-previous_odometer,0))))::integer) end
+      ) end as calculated_due from latest
     )
-    select *, count(*) over()::integer as total from latest
-    order by coalesce(next_due_at,completed_at + make_interval(days=>coalesce(interval_days,180))) asc, id
+    select *, count(*) over()::integer as total from due
+    where ${reminderDate ? sql`(calculated_due at time zone 'America/Sao_Paulo')::date - (${reminderDate.toISOString()}::timestamptz at time zone 'America/Sao_Paulo')::date in (7,0,-14)` : sql`true`}
+    order by calculated_due asc, id
     limit ${request.pageSize} offset ${(request.page - 1) * request.pageSize}
   `);
   const rows = result.rows;
-  if (!rows.length && request.page > 1) return listMaintenanceReturns(workshopId, "1");
+  if (!rows.length && request.page > 1) return listMaintenanceReturns(workshopId, "1", reminderDate);
   const total = Number(rows[0]?.total ?? 0);
   const window = buildPageWindow({ ...request, total });
   return {

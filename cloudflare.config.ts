@@ -8,7 +8,7 @@ export default defineConfig({
     compatibilityFlags: ["nodejs_compat"],
     previewUrls: true,
     observability: { enabled: true },
-    triggers: [triggers.scheduled({ schedule: "0 12 * * *" })],
+    triggers: [triggers.scheduled({ schedule: "0 12-20 * * *" })],
     assets: {
       htmlHandling: "none",
       notFoundHandling: "none",

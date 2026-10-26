@@ -118,7 +118,7 @@ export default async function CollaboratorsPage({
             {data.payables.map((row) => (
               <div key={row.collaboratorId}>
                 <span><strong>{row.collaboratorName}</strong><small>Comissão {formatCents(row.commissionCents)} · fixo {formatCents(row.fixedCents)}</small></span>
-                <span><small>Pago {formatCents(row.settledCents)}</small><b>{formatCents(row.pendingCents)} a pagar</b></span>
+                <span><small>Pago {formatCents(row.settledCents)}</small><b>{formatCents(row.pendingCents)} a pagar</b><a className="table-link" href={`/financeiro?recognition=accrual&status=expected&collaborator=${row.collaboratorId}&from=${period.from.toISOString().slice(0, 10)}&to=${new Date(period.to.getTime() - 86400000).toISOString().slice(0, 10)}`}>Registrar pagamento</a></span>
               </div>
             ))}
           </div>
