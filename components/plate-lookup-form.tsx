@@ -18,7 +18,7 @@ export function plateLookupSuccessMessage(result: { cached: boolean; balanceCent
   const balance = result.balanceCents === null
     ? ""
     : ` Saldo no provedor: R$ ${(result.balanceCents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`;
-  return `Consulta concluída por R$ 0,08.${balance}`;
+  return `Consulta concluída.${balance}`;
 }
 
 export function resetPlateLookupMetadata(currentPlate: string, nextPlate: string) {

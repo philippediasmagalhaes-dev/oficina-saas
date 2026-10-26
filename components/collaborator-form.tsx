@@ -6,6 +6,7 @@ import {
   updateCollaboratorAction,
 } from "../app/actions";
 import type { ServiceCatalogSummary } from "../server/ports";
+import { MoneyInput } from "./money-input";
 
 export const compensationModeLabels = {
   fixed_monthly: "Fixo mensal",
@@ -48,11 +49,11 @@ function CompensationFields({ collaborator }: { collaborator?: CollaboratorValue
       </label>
       <label>
         Fixo mensal (R$)
-        <input name="monthlyFixed" inputMode="decimal" defaultValue={money(collaborator?.monthlyFixedCents ?? 0)} />
+        <MoneyInput name="monthlyFixed" defaultValue={money(collaborator?.monthlyFixedCents ?? 0)} />
       </label>
       <label>
         Valor por serviço (R$)
-        <input name="fixedPerService" inputMode="decimal" defaultValue={money(collaborator?.fixedPerServiceCents ?? 0)} />
+        <MoneyInput name="fixedPerService" defaultValue={money(collaborator?.fixedPerServiceCents ?? 0)} />
       </label>
       <label>
         Comissão sobre mão de obra (%)
@@ -99,7 +100,7 @@ export function CollaboratorRateForm({ collaboratorId, catalog }: { collaborator
         <option value="" disabled>Serviço específico</option>
         {catalog.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}
       </select>
-      <input name="fixedPerService" inputMode="decimal" placeholder="Fixo R$" aria-label="Valor fixo específico" />
+      <MoneyInput name="fixedPerService" allowEmpty defaultValue="" placeholder="Fixo R$" aria-label="Valor fixo específico" />
       <input name="commissionPercent" type="number" min="0" max="100" step="0.01" placeholder="%" aria-label="Comissão específica" />
       <button className="secondary-button" type="submit">Adicionar regra</button>
     </form>
@@ -124,7 +125,7 @@ export function CollaboratorRateEditor({
         <input type="hidden" name="collaboratorId" value={rate.collaboratorId} />
         <input type="hidden" name="serviceCatalogId" value={rate.serviceCatalogId} />
         <strong>{rate.serviceName}</strong>
-        <input name="fixedPerService" inputMode="decimal" aria-label={`Valor fixo para ${rate.serviceName}`} defaultValue={rate.fixedPerServiceCents === null ? "" : money(rate.fixedPerServiceCents)} placeholder="padrão" />
+        <MoneyInput name="fixedPerService" allowEmpty aria-label={`Valor fixo para ${rate.serviceName}`} defaultValue={rate.fixedPerServiceCents === null ? "" : money(rate.fixedPerServiceCents)} placeholder="padrão" />
         <input name="commissionPercent" type="number" min="0" max="100" step="0.01" aria-label={`Comissão para ${rate.serviceName}`} defaultValue={rate.commissionBasisPoints === null ? "" : rate.commissionBasisPoints / 100} placeholder="padrão %" />
         <button className="text-button" type="submit">Salvar</button>
       </form>

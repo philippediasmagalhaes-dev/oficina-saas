@@ -43,7 +43,7 @@ export function PaymentForm({ totalCents, feeRules = [] }: { totalCents: number;
       <label>Valor<MoneyInput value={row.amount} onValueChange={(amount) => update(row.key, { amount })} /></label>
       <label>Parcelas<input type="number" min="1" max="24" value={row.installmentCount} onChange={(event) => update(row.key, { installmentCount: event.target.value })} /></label>
       <label>Vencimento<input type="date" value={row.expectedAt} onChange={(event) => update(row.key, { expectedAt: event.target.value })} /></label>
-      <label>Taxa manual<input value={row.manualFee} inputMode="decimal" placeholder="usar regra configurada" onFocus={(event) => event.currentTarget.select()} onChange={(event) => update(row.key, { manualFee: event.target.value })} /></label>
+      <label>Taxa manual<MoneyInput allowEmpty value={row.manualFee} placeholder="usar regra configurada" onValueChange={(manualFee) => update(row.key, { manualFee })} /></label>
       <label className="payment-paid"><input type="checkbox" checked={row.paid} onChange={(event) => update(row.key, { paid: event.target.checked })} /> Pagamento recebido</label>
       <small className="field-hint">{feeLabel}{!rule && row.paymentMethod.includes("card") && !row.manualFee ? " · Sem regra cadastrada para estas parcelas." : ""}</small>
       {rows.length > 1 ? <button className="text-button" type="button" onClick={() => setRows((current) => current.filter((item) => item.key !== row.key))}>Remover</button> : null}

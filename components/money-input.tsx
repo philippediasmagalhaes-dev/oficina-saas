@@ -17,11 +17,13 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue
   value?: string;
   defaultValue?: string;
   onValueChange?: (value: string) => void;
+  allowEmpty?: boolean;
 };
 
-export function MoneyInput({ value, defaultValue = "0,00", onValueChange, onFocus, ...props }: Props) {
-  const [internal, setInternal] = useState(() => formatMoneyInput(defaultValue));
-  const shown = value === undefined ? internal : formatMoneyInput(value);
+export function MoneyInput({ value, defaultValue = "0,00", onValueChange, onFocus, allowEmpty = false, ...props }: Props) {
+  const format = (text: string) => allowEmpty && !text.trim() ? "" : formatMoneyInput(text);
+  const [internal, setInternal] = useState(() => format(defaultValue));
+  const shown = value === undefined ? internal : format(value);
   return <input
     {...props}
     inputMode="numeric"
@@ -31,7 +33,7 @@ export function MoneyInput({ value, defaultValue = "0,00", onValueChange, onFocu
       onFocus?.(event);
     }}
     onChange={(event) => {
-      const formatted = formatMoneyInput(event.target.value);
+      const formatted = format(event.target.value);
       if (value === undefined) setInternal(formatted);
       onValueChange?.(formatted);
     }}
