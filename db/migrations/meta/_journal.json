@@ -92,6 +92,13 @@
       "when": 1792975414236,
       "tag": "0012_fixed_silhouette",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793026800000,
+      "tag": "0013_professional_finance",
+      "breakpoints": true
     }
   ]
 }
