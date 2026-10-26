@@ -1,5 +1,5 @@
-import { classifyCustomer } from "../domain/forecast";
 import { buildFinancialSnapshot } from "../domain/finance";
+import { deriveDashboardPriorities } from "../domain/dashboard-priorities";
 import {
   describeFinancialPeriod,
   filterFinancialServices,
@@ -9,7 +9,7 @@ import { getOwnerContext } from "./owner-context";
 import { getVehicle, listVehicles, listVehiclesPage } from "./vehicles";
 import { listCollaboratorPayables, listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
 import { listInventoryMovements } from "./inventory";
-import { countWorkOrdersByStatus, getWorkOrder, listWorkOrders, listWorkOrdersPage } from "./work-orders";
+import { countWorkOrdersByStatus, getWorkOrder, listWorkOrdersPage } from "./work-orders";
 import { ensureDefaultFinancialAccount, ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialSettings, listCashSessions, listFinancialAccounts, listFinancialEntriesPage, listFinancialReportEntries, listFinancialSettlements, listSuppliers, listWorkOrderPayments } from "./finance";
 import type { RawFinancialFilters } from "../domain/financial-filters";
 import { getWhatsAppAutomationStatus } from "./whatsapp";
@@ -22,50 +22,48 @@ export async function getDashboardData() {
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  const [customers, services, inventory, orders, ledger] = await Promise.all([
-    context.repository.listCustomers(context.workshopId),
-    context.repository.listServices(context.workshopId),
+  const [services, inventory, orders, orderCounts, ledger, overdueReceivables, returns] = await Promise.all([
+    context.repository.listServices(context.workshopId, 100),
     context.repository.listInventory(context.workshopId),
-    listWorkOrders(context.workshopId),
+    listWorkOrdersPage(context.workshopId, { query: "", page: 1, pageSize: 8 }),
+    countWorkOrdersByStatus(context.workshopId),
     listFinancialReportEntries(context.workshopId, { from: monthStart, to: nextMonth, recognitionMode: "accrual" }),
+    listFinancialEntriesPage(context.workshopId, { direction: "income", due: "overdue", pageSize: 12 }),
+    listMaintenanceReturns(context.workshopId, "1", now),
   ]);
-  const retention = customers.map((customer) => ({
-    ...customer,
-    classification: classifyCustomer({
-      nextDueAt: customer.nextDueAt ?? null,
-      lastServiceAt: customer.lastServiceAt ?? null,
-      inactivityDays: context.workshop.inactivityDays,
-    }),
-  }));
   const currentMonthServices = filterFinancialServices(services, {
     period: "current_month",
     query: "",
     from: "",
     to: "",
   });
+  const lowStockItems = inventory.filter((item) => item.active && item.currentQuantity - (item.reservedQuantity ?? 0) <= item.minimumQuantity);
+  const priorities = deriveDashboardPriorities({
+    overdueReceivables: overdueReceivables.items,
+    readyOrders: orderCounts.ready,
+    lowStockItems: lowStockItems.length,
+    dueReturns: returns.total,
+  });
   return {
     ...context,
-    customers,
     services: currentMonthServices,
-    inventory,
-    retention,
+    recentOrders: orders.items,
+    orderCounts,
+    lowStockItems: lowStockItems.slice(0, 5),
+    returns: returns.items.slice(0, 5),
+    priorities,
     metrics: {
       revenueCents: currentMonthServices.reduce(
         (total, service) => total + service.amountCents,
         0,
       ),
       serviceCount: currentMonthServices.length,
-      customerCount: customers.length,
-      opportunities: retention.filter(
-        (customer) => customer.classification !== "current",
-      ).length,
-      lowStock: inventory.filter(
-        (item) => item.active && item.currentQuantity - (item.reservedQuantity ?? 0) <= item.minimumQuantity,
-      ).length,
-      openOrders: orders.filter((order) => !["delivered", "completed", "cancelled"].includes(order.status)).length,
-      readyOrders: orders.filter((order) => order.status === "ready").length,
+      opportunities: returns.total,
+      lowStock: lowStockItems.length,
+      openOrders: orderCounts.active,
+      readyOrders: orderCounts.ready,
       receiptsCents: ledger.filter((entry) => entry.direction === "income" && entry.status === "settled").reduce((sum, entry) => sum + entry.netAmountCents, 0),
-      expectedReceivablesCents: ledger.filter((entry) => entry.direction === "income" && entry.status === "expected").reduce((sum, entry) => sum + entry.netAmountCents, 0),
+      overdueReceivablesCents: overdueReceivables.items.filter((entry) => entry.status === "expected" || entry.status === "partial").reduce((sum, entry) => sum + entry.grossAmountCents, 0),
     },
   };
 }
