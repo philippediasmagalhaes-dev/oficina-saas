@@ -2,6 +2,9 @@
 
 Endereço oficial: https://oficina-saas.contato-ad4.workers.dev
 
+Commit de código publicado: `1d16a47`.
+Versão Cloudflare: `bd3a6e93-85e3-4732-9583-5a262bc6f0c9`.
+
 ## Alterações entregues
 
 | Solicitação | Implementação |
@@ -33,6 +36,7 @@ A comissão considera a mão de obra depois do desconto e a participação atrib
 - 235 testes passaram; 1 teste de integração depende de TEST_DATABASE_URL e permaneceu desativado.
 - TypeScript e build Cloudflare passaram. Auditoria das dependências de produção:0 vulnerabilidades.
 - Smoke público:22/22; novas rotas de notificação e geração de acesso mecânico exigem login; link mecânico inválido mostra acesso expirado.
+- Verificação após o último deploy: 22/22 no smoke e 5/5 verificações adicionais, incluindo os endpoints de seleção de clientes/veículos.
 - Migrações0010–0012 aplicadas em transação no projeto Neon `oficina`, branch `production`, com registro no journal Drizzle.
 - Base preservada:496 clientes e1253 OS antes/depois das migrações.
 - Consulta real de retenção:522 registros agrupados,14 trocas de óleo,10 candidatos no dia da validação; nenhum WhatsApp enviado no teste.
