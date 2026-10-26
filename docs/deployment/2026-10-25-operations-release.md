@@ -41,7 +41,7 @@ A comissão considera a mão de obra depois do desconto e a participação atrib
 - Base preservada:496 clientes e1253 OS antes/depois das migrações.
 - Consulta real de retenção:522 registros agrupados,14 trocas de óleo,10 candidatos no dia da validação; nenhum WhatsApp enviado no teste.
 - A revisão independente encontrou problemas de persistência do formulário mecânico e de priorização/agendamento dos retornos; corrigidos com testes e validação SQL.
-- A navegação autenticada e o consumo de CPU das listas publicadas ainda precisam ser conferidos com a sessão do proprietário; a aba disponível estava na tela de login.
+- Validação autenticada após o deploy: dashboard, clientes (incluindo página 2), veículos, OS, financeiro, colaboradores, retenção, estoque, catálogo, notificações e configurações carregaram sem Error 1101/1102. Detalhe e impressão A4 da OS também carregaram. Busca de cliente e carregamento dos veículos vinculados funcionaram no formulário de nova OS. Nenhuma alteração foi salva, consulta paga realizada ou mensagem enviada; console sem erros ao final. Este teste confirma as navegações verificadas, sem medir CPU ou representar teste de carga.
 - Os formulários de cadastro e edição também usam busca de clientes sob demanda (20 resultados) e carregam apenas os veículos do cliente selecionado; a base inteira não é enviada ao navegador.
 
 ## Configuração ainda necessária
@@ -51,4 +51,5 @@ A comissão considera a mão de obra depois do desconto e a participação atrib
 3. Para mensagens automáticas, configurar a Meta WhatsApp Cloud API e templates: WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_WORKSHOP_ID, WHATSAPP_REMINDER_TEMPLATE_NAME, WHATSAPP_READY_TEMPLATE_NAME e CRON_SECRET. Webhook exige também os segredos de verificação/assinatura. Incluir as mesmas bindings no arquivo Cloudflare ao ativar para preservá-las em próximos deploys. Os links manuais funcionam sem essa integração.
 4. O agendador trabalha com até24 candidatos por execução, com cursor persistido; o cron roda entre9h e17h de São Paulo. A integração desconfigurada não envia mensagens.
 5. A importação é pelo XML da NF-e. Leitura de nota por fotografia/PDF é uma extensão futura.
+
 
