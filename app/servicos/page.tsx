@@ -18,7 +18,7 @@ export default async function ServicesPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">CATÁLOGO</p>
-          <h1>Serviços padronizados, orçamentos mais rápidos.</h1>
+          <h1>Catálogo de serviços</h1>
           <p>
             Defina preço e retorno sugerido para reutilizar em todas as ordens.
           </p>

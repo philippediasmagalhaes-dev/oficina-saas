@@ -39,7 +39,7 @@ export default async function CollaboratorsPage({
       <div className="page-heading">
         <div>
           <p className="eyebrow">COLABORADORES</p>
-          <h1>Remuneração clara, sem login adicional.</h1>
+          <h1>Colaboradores e comissões</h1>
           <p>Configure cada profissional e acompanhe o que deve ser pago no mês.</p>
         </div>
         <a className="primary-button" href="#novo">Adicionar colaborador</a>

@@ -33,7 +33,7 @@ export default async function WorkOrdersPage({
       <div className="page-heading">
         <div>
           <p className="eyebrow">ORDENS DE SERVIÇO</p>
-          <h1>Da entrada à entrega, sem perder o contexto.</h1>
+          <h1>Ordens de serviço</h1>
           <p>Acompanhe diagnóstico, aprovação, execução e finalização.</p>
         </div>
         <a className="primary-button" href="/ordens?nova=1#nova">

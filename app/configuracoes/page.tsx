@@ -15,7 +15,7 @@ export default async function SettingsPage() {
   const data = await getOwnerContext();
   const [financial, whatsapp, categories] = await Promise.all([getFinancialSettings(data.workshopId), getWhatsAppAutomationStatus(data.workshopId), listFinancialCategories(data.workshopId)]);
   return <AppShell workshopName={data.workshop.name} current="/configuracoes">
-    <div className="page-heading"><div><p className="eyebrow">CONFIGURAÇÕES</p><h1>Seu ambiente de trabalho.</h1><p>Informações da oficina e regras usadas nas previsões.</p></div></div>
+    <div className="page-heading"><div><p className="eyebrow">CONFIGURAÇÕES</p><h1>Configurações da oficina</h1><p>Dados da empresa, regras financeiras e integrações do sistema.</p></div></div>
     <section className="surface"><div className="section-title"><div><span>Identidade da oficina</span><h2>Dados usados na ordem impressa</h2></div></div><form action={updateWorkshopSettingsAction} className="form-grid">
       <label>Nome fantasia<input name="name" required defaultValue={data.workshop.name} /></label><label>Razão social<input name="legalName" defaultValue={data.workshop.legalName ?? ""} /></label>
       <label>CNPJ/CPF<input name="document" defaultValue={data.workshop.document ?? ""} /></label><label>Telefone<input name="phone" defaultValue={data.workshop.phone ?? ""} /></label>

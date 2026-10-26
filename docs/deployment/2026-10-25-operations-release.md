@@ -2,8 +2,7 @@
 
 Endereço oficial: https://oficina-saas.contato-ad4.workers.dev
 
-Commit de código publicado: `1d16a47`.
-Versão Cloudflare: `bd3a6e93-85e3-4732-9583-5a262bc6f0c9`.
+Versão Cloudflare: `fd4ce29b-ec43-418a-81cf-6dc42e070685`.
 
 ## Alterações entregues
 
@@ -26,6 +25,10 @@ Versão Cloudflare: `bd3a6e93-85e3-4732-9583-5a262bc6f0c9`.
 | Mapa de avarias | Desenho com cinco vistas, marcações e observações; reprodução na OS impressa. |
 | Notificação de aprovação | Aviso no app, atualização por minuto e página com aprovações recentes. |
 | Página do mecânico | Link de8horas por OS, sem conta de funcionário nem preços; diagnóstico, km, execução, vistoria, fotos e conclusão. |
+| Navegação profissional | Menu lateral por áreas de trabalho, cabeçalhos operacionais padronizados e componentes mais compactos para reduzir a aparência de protótipo. |
+| Financeiro operacional | Visão geral separada de contas a receber, contas a pagar, caixa diário e relatórios, com filtros próprios por período. |
+| Contas e baixas | Contas financeiras, fornecedores, parcelas, recebimentos/pagamentos parciais, taxas e estornos com histórico. |
+| Compras e estoque | Registro da compra gera conta a pagar e vincula fornecedor; o recebimento da mercadoria atualiza o estoque. |
 
 ## Como calcular a remuneração
 
@@ -33,15 +36,15 @@ A comissão considera a mão de obra depois do desconto e a participação atrib
 
 ## Verificações e limites
 
-- 235 testes passaram; 1 teste de integração depende de TEST_DATABASE_URL e permaneceu desativado.
+- 259 testes passaram; 1 teste de integração depende de TEST_DATABASE_URL e permaneceu desativado.
 - TypeScript e build Cloudflare passaram. Auditoria das dependências de produção:0 vulnerabilidades.
-- Smoke público:22/22; novas rotas de notificação e geração de acesso mecânico exigem login; link mecânico inválido mostra acesso expirado.
-- Verificação após o último deploy: 22/22 no smoke e 5/5 verificações adicionais, incluindo os endpoints de seleção de clientes/veículos.
-- Migrações0010–0012 aplicadas em transação no projeto Neon `oficina`, branch `production`, com registro no journal Drizzle.
-- Base preservada:496 clientes e1253 OS antes/depois das migrações.
+- Smoke público: 26/26, incluindo as quatro novas áreas financeiras protegidas.
+- Migrações 0010–0013 aplicadas no Neon, com registro no journal Drizzle.
+- Base preservada após a migração 0013: 496 clientes, 1.253 OS, 1 oficina e 6 lançamentos financeiros.
+- Estruturas confirmadas em produção: contas financeiras, fornecedores, baixas financeiras, caixa diário e status parcial.
 - Consulta real de retenção:522 registros agrupados,14 trocas de óleo,10 candidatos no dia da validação; nenhum WhatsApp enviado no teste.
 - A revisão independente encontrou problemas de persistência do formulário mecânico e de priorização/agendamento dos retornos; corrigidos com testes e validação SQL.
-- Validação autenticada após o deploy: dashboard, clientes (incluindo página 2), veículos, OS, financeiro, colaboradores, retenção, estoque, catálogo, notificações e configurações carregaram sem Error 1101/1102. Detalhe e impressão A4 da OS também carregaram. Busca de cliente e carregamento dos veículos vinculados funcionaram no formulário de nova OS. Nenhuma alteração foi salva, consulta paga realizada ou mensagem enviada; console sem erros ao final. Este teste confirma as navegações verificadas, sem medir CPU ou representar teste de carga.
+- Na versão operacional anterior, dashboard, clientes (incluindo página 2), veículos, OS, financeiro, colaboradores, retenção, estoque, catálogo, notificações e configurações foram validados com sessão autenticada, sem Error 1101/1102. A sessão de validação expirou antes desta publicação; nesta versão, os fluxos internos foram cobertos pela suíte automatizada e as 26 rotas públicas/protegidas pelo smoke, restando apenas uma nova conferência visual autenticada pelo proprietário.
 - Os formulários de cadastro e edição também usam busca de clientes sob demanda (20 resultados) e carregam apenas os veículos do cliente selecionado; a base inteira não é enviada ao navegador.
 
 ## Configuração ainda necessária

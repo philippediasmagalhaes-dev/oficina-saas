@@ -27,7 +27,7 @@ export default async function CustomersPage({
       <div className="page-heading">
         <div>
           <p className="eyebrow">CLIENTES</p>
-          <h1>Uma base que trabalha por você.</h1>
+          <h1>Clientes</h1>
           <p>Cadastre contatos, consentimento e encontre cada cliente rapidamente.</p>
         </div>
         <a className="primary-button" href="#novo">

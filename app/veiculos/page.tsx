@@ -29,7 +29,7 @@ export default async function VehiclesPage({
       <div className="page-heading">
         <div>
           <p className="eyebrow">VEÍCULOS</p>
-          <h1>Cada veículo com sua própria história.</h1>
+          <h1>Veículos</h1>
           <p>Consulte proprietário, quilometragem, serviços e próximas manutenções.</p>
         </div>
         <a className="primary-button" href="/veiculos?nova=1#novo">

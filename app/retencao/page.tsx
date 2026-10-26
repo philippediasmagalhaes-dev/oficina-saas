@@ -15,7 +15,7 @@ export default async function RetentionPage({ searchParams }: { searchParams: Pr
   const data = await getRetentionOpportunities(page);
   const now = new Date();
   return <AppShell workshopName={data.workshop.name} current="/retencao">
-    <div className="page-heading"><div><p className="eyebrow">RETENÇÃO</p><h1>O serviço certo, no momento certo.</h1><p>Retornos por veículo e serviço. A troca de óleo considera seis meses ou a previsão de quilometragem, o que chegar primeiro.</p></div></div>
+    <div className="page-heading"><div><p className="eyebrow">RETENÇÃO</p><h1>Retenção de clientes</h1><p>Retornos por veículo e serviço. A troca de óleo considera seis meses ou a previsão de quilometragem, o que chegar primeiro.</p></div></div>
     <section className="surface"><div className="section-title"><div><span>{data.returns.total} retornos acompanhados</span><h2>Próximas manutenções</h2></div><span>{data.automation.configured ? "WhatsApp automático configurado" : "WhatsApp assistido"}</span></div>
       {data.returns.items.length ? <div className="opportunity-grid">{data.returns.items.map((item) => {
         const overdue = item.dueAt < now;
