@@ -2241,3 +2241,68 @@ td { padding: 0.68rem 0.65rem; font-size: 0.8rem; }
   .priority-row { grid-template-columns: 2rem minmax(0, 1fr); }
   .priority-row > b { grid-column: 2; }
 }
+
+.finance-nav {
+  display: flex;
+  gap: 0.25rem;
+  margin: -0.35rem 0 0.85rem;
+  padding: 0.25rem;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.72rem;
+  background: rgba(247, 247, 248, 0.62);
+}
+.finance-nav a { flex: 0 0 auto; padding: 0.48rem 0.72rem; border-radius: 0.52rem; color: var(--muted); text-decoration: none; font-size: 0.72rem; font-weight: 700; }
+.finance-nav a.active { background: #1b1b1e; color: white; box-shadow: 0 4px 12px rgba(0,0,0,.14); }
+.finance-overview-metrics { grid-template-columns: 1.25fr repeat(3, minmax(0, 1fr)); }
+.finance-entry-table { overflow: visible; }
+.finance-entry-table td { vertical-align: middle; }
+.finance-entry-table td:first-child { min-width: 14rem; }
+.finance-entry-table td:last-child { width: 1%; }
+.status-expected { color: #855b10; background: #fff6db; border-color: #e9d498; }
+.status-partial { color: #295f98; background: #eaf3fc; border-color: #bfd7ee; }
+.status-settled { color: #226c49; background: #e7f5ed; border-color: #b8dcc8; }
+.status-cancelled { color: #77777c; background: #ededee; }
+.settlement-panel { position: relative; }
+.settlement-panel > summary { padding: 0.4rem 0.55rem; border: 1px solid var(--line-strong); border-radius: 0.5rem; cursor: pointer; color: var(--yellow-soft); font-size: 0.68rem; font-weight: 740; list-style: none; white-space: nowrap; }
+.settlement-panel > summary::-webkit-details-marker { display: none; }
+.settlement-panel[open] { z-index: 4; }
+.settlement-panel[open] > summary { background: #1b1b1e; color: white; }
+.settlement-panel > div, .settlement-panel > form { min-width: 18rem; }
+.settlement-history { display: grid; gap: 0.35rem; margin-top: 0.45rem; padding: 0.6rem; border: 1px solid var(--line); border-radius: 0.65rem 0.65rem 0 0; background: white; box-shadow: 0 12px 32px rgba(0,0,0,.12); }
+.settlement-history:empty { display: none; }
+.settlement-history > div { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.settlement-history span { display: grid; }
+.settlement-history small { color: var(--muted); font-size: 0.62rem; }
+.settlement-history .reversed { opacity: .55; text-decoration: line-through; }
+.settlement-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; padding: 0.6rem; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 0.65rem 0.65rem; background: white; box-shadow: 0 12px 32px rgba(0,0,0,.12); }
+.settlement-form label { display: grid; gap: 0.25rem; color: var(--muted); font-size: 0.62rem; }
+.settlement-form button { align-self: end; }
+.financial-entry-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.65rem; }
+.financial-entry-form label { display: grid; gap: 0.3rem; color: #333338; font-size: 0.7rem; font-weight: 650; }
+.finance-entry-panel { max-width: 70rem; }
+.finance-operations-filter { display: grid; grid-template-columns: minmax(14rem, 1.5fr) repeat(2, minmax(9rem, .7fr)) auto; align-items: end; gap: 0.55rem; }
+.finance-operations-filter label { display: grid; gap: 0.3rem; color: #333338; font-size: 0.68rem; font-weight: 650; }
+.cash-session-list { display: grid; gap: 0.6rem; }
+.cash-session-card { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; padding: 0.75rem; border: 1px solid var(--line); border-radius: 0.7rem; background: rgba(255,255,255,.52); }
+.cash-session-card > span, .cash-session-card label { display: grid; gap: 0.25rem; }
+.cash-session-card label { color: var(--muted); font-size: 0.65rem; }
+
+@media (max-width: 1100px) {
+  .finance-overview-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .finance-overview-metrics .metric-card.featured { grid-column: auto; }
+  .financial-entry-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .finance-operations-filter { grid-template-columns: 1fr 1fr; }
+  .finance-operations-filter label:first-child { grid-column: 1 / -1; }
+  .finance-entry-table { overflow-x: auto; }
+  .settlement-panel > div, .settlement-panel > form { min-width: 15rem; }
+}
+
+@media (max-width: 600px) {
+  .finance-overview-metrics { grid-template-columns: 1fr 1fr; }
+  .financial-entry-form, .finance-operations-filter, .cash-session-card { grid-template-columns: 1fr; }
+  .financial-entry-form .span-2, .finance-operations-filter label:first-child { grid-column: auto; }
+}

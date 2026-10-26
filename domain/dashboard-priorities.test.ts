@@ -14,7 +14,7 @@ describe("dashboard priorities", () => {
       dueReturns: 4,
     });
     expect(priorities.map((item) => item.kind)).toEqual(["overdue", "ready", "stock", "returns"]);
-    expect(priorities[0]).toMatchObject({ count: 2, amountCents: 20_000, href: "/financeiro/contas-a-receber?due=overdue" });
+    expect(priorities[0]).toMatchObject({ count: 2, amountCents: 20_000, href: "/financeiro/receber?due=overdue" });
   });
 
   it("omits empty alerts", () => {

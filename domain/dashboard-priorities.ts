@@ -24,7 +24,7 @@ export function deriveDashboardPriorities(input: {
       description: "Valores que já passaram da data prevista.",
       count: openReceivables.length,
       amountCents: openReceivables.reduce((total, entry) => total + entry.grossAmountCents, 0),
-      href: "/financeiro/contas-a-receber?due=overdue",
+      href: "/financeiro/receber?due=overdue",
       tone: "danger",
     } : null,
     input.readyOrders ? {
