@@ -20,7 +20,7 @@ export default async function Home() {
             Veja receita registrada, retornos e o que precisa da sua atenção.
           </p>
         </div>
-        <a className="primary-button" href="/ordens#nova">
+        <a className="primary-button" href="/ordens?nova=1#nova">
           Abrir ordem de serviço
         </a>
       </div>
@@ -111,7 +111,7 @@ export default async function Home() {
             title="Nenhum serviço neste mês"
             description="Os atendimentos do mês atual aparecerão aqui assim que forem registrados."
             action="Abrir ordem de serviço"
-            href="/ordens#nova"
+            href="/ordens?nova=1#nova"
           />
         )}
       </section>

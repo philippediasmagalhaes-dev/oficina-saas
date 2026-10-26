@@ -35,10 +35,12 @@ export async function saveFinancialSettings(input: { workshopId: string; default
 }
 
 export async function savePaymentFeeRule(input: { workshopId: string; paymentMethod: string; installmentCount: number; percentageBasisPoints: number; fixedFeeCents: number }) {
-  const database = getDatabase();
-  await database.update(paymentFeeRules).set({ active: false, effectiveUntil: new Date(), updatedAt: new Date() }).where(and(eq(paymentFeeRules.workshopId, input.workshopId), eq(paymentFeeRules.paymentMethod, input.paymentMethod), eq(paymentFeeRules.installmentCount, input.installmentCount), eq(paymentFeeRules.active, true)));
-  const [row] = await database.insert(paymentFeeRules).values(input).returning();
-  return row;
+  return runDatabaseTransaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${input.workshopId}:${input.paymentMethod}:${input.installmentCount}`}))`);
+    await tx.update(paymentFeeRules).set({ active: false, effectiveUntil: new Date(), updatedAt: new Date() }).where(and(eq(paymentFeeRules.workshopId, input.workshopId), eq(paymentFeeRules.paymentMethod, input.paymentMethod), eq(paymentFeeRules.installmentCount, input.installmentCount), eq(paymentFeeRules.active, true)));
+    const [row] = await tx.insert(paymentFeeRules).values(input).returning();
+    return row;
+  });
 }
 
 export async function deactivatePaymentFeeRule(workshopId: string, ruleId: string) {

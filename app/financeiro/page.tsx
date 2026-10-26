@@ -8,6 +8,7 @@ import { ConfigurationPending } from "../configurar/page";
 import { createManualFinancialEntryAction, setFinancialEntrySettlementAction } from "../actions";
 import { FinancialCategoryManager } from "../../components/financial-category-manager";
 import { MoneyInput } from "../../components/money-input";
+import { ManualFinancialEntryForm } from "../../components/manual-financial-entry-form";
 
 type SearchParams = {
   period?: string;
@@ -130,17 +131,7 @@ export default async function FinancialPage({
 
       <div className="split-grid">
         <section className="surface"><div className="section-title"><div><span>Contas a receber e pagar</span><h2>Livro financeiro</h2></div></div>{data.entries.length ? <div className="finance-list">{data.entries.slice(0, 30).map((entry) => <div key={entry.id}><span><strong>{entry.description}</strong><small>{categoryLabels.get(entry.category) ?? entry.category.replaceAll("_", " ")} · {entry.status === "settled" ? "realizado" : "previsto"} · {entry.competenceDate.toLocaleDateString("pt-BR")}</small></span><b className={entry.direction === "income" ? "ok" : "warning"}>{entry.direction === "income" ? "+" : "−"}{formatCents(entry.netAmountCents)}</b>{entry.status !== "cancelled" && entry.category !== "tax_reserve" ? <form action={setFinancialEntrySettlementAction}><input type="hidden" name="financialEntryId" value={entry.id} /><input type="hidden" name="decision" value={entry.status === "settled" ? "reopen" : "settle"} /><button className="text-button" type="submit">{entry.status === "settled" ? "Estornar baixa" : "Dar baixa"}</button></form> : null}</div>)}</div> : <EmptyState title="Sem lançamentos" description="Finalize uma OS ou registre uma conta manual." />}</section>
-        <section className="surface"><div className="section-title"><div><span>Entrada manual</span><h2>Receita ou despesa</h2></div></div><form action={createManualFinancialEntryAction} className="form-grid compact-form">
-          <label>Tipo<select name="direction" defaultValue="expense"><option value="expense">Despesa</option><option value="income">Receita</option><option value="reserve">Reserva</option></select></label>
-          <label>Categoria<select name="category" defaultValue="operational" required>{data.categories.filter((category) => category.active).map((category) => <option value={category.key} key={category.id}>{category.name}</option>)}</select></label>
-          <label className="span-2">Descrição<input name="description" required placeholder="Ex.: aluguel, fornecedor, receita avulsa" /></label>
-          <label>Valor<MoneyInput name="amount" required defaultValue="0,00" /></label>
-          <label>Competência<input name="competenceDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
-          <label>Vencimento<input name="dueDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
-          <label className="checkbox-label"><input name="settled" type="checkbox" /> Já realizado</label>
-          <label className="checkbox-label"><input name="recurringMonthly" type="checkbox" /> Recorrente mensal</label>
-          <button className="secondary-button span-2" type="submit">Adicionar lançamento</button>
-        </form></section>
+        <section className="surface"><div className="section-title"><div><span>Entrada manual</span><h2>Receita ou despesa</h2></div></div><ManualFinancialEntryForm categories={data.categories} /></section>
       </div>
 
       <FinancialCategoryManager categories={data.categories} />

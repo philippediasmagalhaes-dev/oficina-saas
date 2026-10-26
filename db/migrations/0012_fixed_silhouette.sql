@@ -1,0 +1,1 @@
+ALTER TABLE "service_records" ADD COLUMN "mechanic_notes" text;

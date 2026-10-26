@@ -1,24 +1,36 @@
-import { recordContactAction } from "../actions";
 import { AppShell } from "../../components/app-shell";
 import { EmptyState } from "../../components/empty-state";
+import { PaginationNav } from "../../components/pagination-nav";
+import { WhatsAppLink } from "../../components/whatsapp-link";
 import { readServerConfig } from "../../db/config";
-import { buildWhatsAppDraft } from "../../domain/outreach";
+import { maintenanceDraft } from "../../domain/maintenance";
 import { getRetentionOpportunities } from "../../server/queries";
 import { ConfigurationPending } from "../configurar/page";
+import { confirmBaseWhatsAppConsentAction } from "../actions";
 
-const labels = { upcoming: ["Retorno próximo", "O retorno previsto está nos próximos 30 dias."], overdue: ["Retorno atrasado", "A data prevista já passou."], inactive: ["Cliente inativo", "Não há retorno futuro e o último serviço passou do limite."] } as const;
-
-export default async function RetentionPage() {
+export default async function RetentionPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const config = readServerConfig(process.env);
   if (!config.configured) return <ConfigurationPending missing={config.missing} />;
-  const data = await getRetentionOpportunities();
+  const { page } = await searchParams;
+  const data = await getRetentionOpportunities(page);
+  const now = new Date();
   return <AppShell workshopName={data.workshop.name} current="/retencao">
-    <div className="page-heading"><div><p className="eyebrow">RETENÇÃO</p><h1>Volte a falar com quem já confia em você.</h1><p>O sistema prioriza retornos previstos, atrasados e clientes inativos.</p></div></div>
-    <section className="metric-grid compact-metrics"><article className="metric-card"><span>Automação</span><strong>{data.automation.configured ? "Ativa" : "Manual"}</strong><small>{data.automation.configured ? "Meta WhatsApp configurado" : "links wa.me continuam disponíveis"}</small></article><article className="metric-card"><span>Na fila</span><strong>{data.automation.counts.pending}</strong><small>lembretes programados</small></article><article className="metric-card"><span>Enviados</span><strong>{data.automation.counts.sent}</strong><small>últimos registros</small></article><article className="metric-card"><span>Falhas</span><strong>{data.automation.counts.failed}</strong><small>revisar credenciais se persistir</small></article></section>
-    <section className="surface"><div className="section-title"><div><span>{data.opportunities.length} oportunidades</span><h2>Campanha assistida</h2></div></div>{data.opportunities.length ? <div className="opportunity-grid">{data.opportunities.map((customer) => {
-      const [title, description] = labels[customer.classification as keyof typeof labels];
-      const draft = buildWhatsAppDraft({ phone: customer.phone ?? null, consent: customer.whatsappConsent ?? false, customer: customer.name, workshop: data.workshop.name, reason: title.toLowerCase() });
-      return <article className="opportunity-card" key={customer.id}><div><span className={`status ${customer.classification}`}>{title}</span><h3>{customer.name}</h3><p>{description}</p><small>{customer.lastServiceAt ? `Último serviço: ${customer.lastServiceAt.toLocaleDateString("pt-BR")}` : "Sem serviço registrado"}</small></div>{draft ? <form action={recordContactAction}><input type="hidden" name="customerId" value={customer.id} /><input type="hidden" name="reason" value={title} /><button className="primary-button" type="submit">Abrir WhatsApp</button></form> : <span className="disabled-note">Adicione telefone e consentimento no cadastro</span>}</article>;
-    })}</div> : <EmptyState title="Nenhuma campanha necessária" description="Quando um retorno se aproximar ou um cliente ficar inativo, ele aparecerá aqui." />}</section>
+    <div className="page-heading"><div><p className="eyebrow">RETENÇÃO</p><h1>O serviço certo, no momento certo.</h1><p>Retornos por veículo e serviço. A troca de óleo considera seis meses ou a previsão de quilometragem, o que chegar primeiro.</p></div></div>
+    <section className="surface"><div className="section-title"><div><span>{data.returns.total} retornos acompanhados</span><h2>Próximas manutenções</h2></div><span>{data.automation.configured ? "WhatsApp automático configurado" : "WhatsApp assistido"}</span></div>
+      {data.returns.items.length ? <div className="opportunity-grid">{data.returns.items.map((item) => {
+        const overdue = item.dueAt < now;
+        const draft = maintenanceDraft({ phone: item.phone, consent: item.consent, customer: item.customerName, workshop: data.workshop.name, serviceName: item.serviceName, vehicle: item.vehicleLabel, lastOdometer: item.odometer, targetOdometer: item.targetOdometer, dueAt: item.dueAt });
+        return <article className="opportunity-card" key={item.id}>
+          <div><span className={`status ${overdue ? "overdue" : "upcoming"}`}>{overdue ? "Retorno atrasado" : "Retorno previsto"}</span><h3>{item.customerName}</h3><strong>{item.serviceName}</strong><p>{item.vehicleLabel}</p>
+            <small>Último: {item.completedAt.toLocaleDateString("pt-BR", { timeZone: "UTC" })}{item.odometer !== null ? ` · ${item.odometer.toLocaleString("pt-BR")} km` : ""}</small>
+            <p>Retorno: {item.dueAt.toLocaleDateString("pt-BR", { timeZone: "UTC" })}{item.targetOdometer ? ` ou ${item.targetOdometer.toLocaleString("pt-BR")} km` : ""}</p>
+            <small>{item.source === "learned" ? "Antecipado pelo histórico de uso deste veículo." : "Prazo sugerido pelo serviço."} Quilometragem atual a confirmar com o cliente.</small>
+          </div>
+          {draft ? <WhatsAppLink href={draft.url}>Abrir WhatsApp</WhatsAppLink> : <a className="table-link" href={`/clientes/${item.customerId}/editar`}>Revisar telefone e autorização</a>}
+        </article>;
+      })}</div> : <EmptyState title="Nenhum histórico de manutenção" description="Os retornos aparecem após a conclusão de serviços." />}
+      <PaginationNav pathname="/retencao" query="" {...data.returns} />
+    </section>
+    <section className="surface"><details><summary>Registrar autorização prévia da base de clientes</summary><p className="field-hint">Use quando os clientes já autorizaram a oficina a entrar em contato. A data e sua declaração ficam registradas. Clientes que pediram para sair continuam sem autorização.</p><form action={confirmBaseWhatsAppConsentAction}><label className="check-row"><input type="checkbox" name="confirmed" required /> Confirmo que a oficina já possui autorização prévia dos clientes desta base.</label><button className="secondary-button" type="submit">Registrar consentimento da base</button></form></details></section>
   </AppShell>;
 }

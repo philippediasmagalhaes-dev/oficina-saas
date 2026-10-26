@@ -71,6 +71,7 @@ export type ServiceCatalogSummary = {
   name: string;
   defaultPriceCents: number;
   defaultReturnIntervalDays?: number | null;
+  defaultReturnIntervalKm?: number | null;
   active: boolean;
 };
 export type ServiceSummary = {
@@ -179,7 +180,7 @@ export interface CrmRepository {
     input: { query: string; page: number; pageSize: number },
   ): Promise<import("../domain/pagination").PagedResult<CustomerSummary>>;
   listVehicles(workshopId: string): Promise<VehicleSummary[]>;
-  listServices(workshopId: string): Promise<ServiceSummary[]>;
+  listServices(workshopId: string, limit?: number): Promise<ServiceSummary[]>;
   getServiceOrder(
     workshopId: string,
     serviceId: string,

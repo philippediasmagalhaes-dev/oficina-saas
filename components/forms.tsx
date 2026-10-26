@@ -51,6 +51,7 @@ export function ServiceCatalogForm() {
     <label className="span-2">Nome do serviço<input name="name" required minLength={2} placeholder="Ex.: Troca de óleo" /></label>
     <label>Preço padrão (R$)<MoneyInput name="defaultPrice" required defaultValue="0,00" /></label>
     <label>Retorno sugerido em dias<input name="defaultReturnIntervalDays" type="number" min="1" placeholder="180" /></label>
+    <label>Retorno sugerido em km<input name="defaultReturnIntervalKm" type="number" min="1" placeholder="5000" /></label>
     <button className="primary-button" type="submit">Cadastrar serviço</button>
   </form>;
 }

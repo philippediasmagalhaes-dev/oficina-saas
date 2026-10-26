@@ -84,6 +84,7 @@ export const serviceCatalogSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do serviço"),
   defaultPrice: z.string().trim().min(1),
   defaultReturnIntervalDays: optionalInteger,
+  defaultReturnIntervalKm: optionalInteger,
 });
 
 export const inventoryItemSchema = z.object({

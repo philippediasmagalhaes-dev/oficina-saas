@@ -73,6 +73,7 @@ export type WorkOrderDetails = WorkOrderSummary & {
   customerPhone: string | null;
   customerWhatsappConsent: boolean;
   diagnosis: string | null;
+  mechanicNotes: string | null;
   notes: string | null;
   odometer: number | null;
   completedAt: Date | null;
@@ -303,6 +304,7 @@ export async function getWorkOrder(workshopId: string, serviceRecordId: string):
     quoteStatus: serviceRecords.quoteStatus,
     amountCents: serviceRecords.amountCents,
     diagnosis: serviceRecords.diagnosis,
+    mechanicNotes: serviceRecords.mechanicNotes,
     notes: serviceRecords.notes,
     odometer: serviceRecords.odometer,
     completedAt: serviceRecords.completedAt,

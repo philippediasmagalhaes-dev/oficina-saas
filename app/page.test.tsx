@@ -32,7 +32,7 @@ describe("application shell", () => {
     });
     const hrefs = collectNativeAnchorHrefs(tree);
 
-    expect(hrefs).toHaveLength(21);
+    expect(hrefs).toHaveLength(23);
     for (const href of [
       "/",
       "/clientes",
@@ -43,6 +43,7 @@ describe("application shell", () => {
       "/financeiro",
       "/retencao",
       "/estoque",
+      "/notificacoes",
       "/configuracoes",
     ]) {
       expect(hrefs).toContain(href);

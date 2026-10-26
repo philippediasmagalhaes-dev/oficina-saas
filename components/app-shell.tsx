@@ -1,5 +1,6 @@
 import { SignOutButton } from "./sign-out-button";
 import { NumericFieldBehavior } from "./numeric-field-behavior";
+import { ApprovalNotifications } from "./approval-notifications";
 
 const navigation = [
   ["Visão geral", "/", "⌂"],
@@ -11,6 +12,7 @@ const navigation = [
   ["Financeiro", "/financeiro", "↟"],
   ["Retenção", "/retencao", "↗"],
   ["Estoque", "/estoque", "▦"],
+  ["Notificações", "/notificacoes", "◉"],
   ["Configurações", "/configuracoes", "⚙"],
 ] as const;
 
@@ -18,6 +20,7 @@ export function AppShell({ workshopName, current = "/", children }: { workshopNa
   return (
     <div className="shell">
       <NumericFieldBehavior />
+      <ApprovalNotifications workshopName={workshopName} />
       <aside className="side-panel">
         <a href="/" className="logo-link"><img src="/logo.jpg" alt={`Logo ${workshopName}`} /><span>{workshopName}</span></a>
         <div className="workshop-chip"><span>Oficina ativa</span><strong>{workshopName}</strong></div>

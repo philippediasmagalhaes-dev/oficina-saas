@@ -19,6 +19,7 @@ export function isPublicRoute(path: string) {
     path.startsWith("/api/cron/") ||
     path.startsWith("/api/webhooks/") ||
     path.startsWith("/orcamento/") ||
+    path.startsWith("/mecanico/") ||
     path.startsWith("/icons/") ||
     path === "/manifest.webmanifest" ||
     path === "/sw.js"

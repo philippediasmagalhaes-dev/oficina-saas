@@ -17,6 +17,7 @@ export const DEFAULT_FINANCIAL_CATEGORIES = [
   { key: "marketing", name: "Divulgação", direction: "expense", protected: false },
   { key: "other_income", name: "Outras receitas", direction: "income", protected: false },
   { key: "operational", name: "Outras despesas operacionais", direction: "expense", protected: false },
+  { key: "other_reserve", name: "Outras reservas", direction: "reserve", protected: false },
 ] as const satisfies ReadonlyArray<{
   key: string;
   name: string;

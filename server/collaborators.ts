@@ -241,7 +241,13 @@ export async function createCollaborator(input: { workshopId: string; name: stri
 }
 
 export async function setCollaboratorServiceRate(input: { workshopId: string; collaboratorId: string; serviceCatalogId: string; fixedPerServiceCents: number | null; commissionBasisPoints: number | null }) {
-  const [row] = await getDatabase().insert(collaboratorServiceRates).values(input).onConflictDoUpdate({
+  const database = getDatabase();
+  const [[collaborator], [service]] = await Promise.all([
+    database.select({ id: collaborators.id }).from(collaborators).where(and(eq(collaborators.workshopId, input.workshopId), eq(collaborators.id, input.collaboratorId))).limit(1),
+    database.select({ id: serviceCatalogItems.id }).from(serviceCatalogItems).where(and(eq(serviceCatalogItems.workshopId, input.workshopId), eq(serviceCatalogItems.id, input.serviceCatalogId))).limit(1),
+  ]);
+  if (!collaborator || !service) throw new Error("Colaborador ou serviço não encontrado nesta oficina.");
+  const [row] = await database.insert(collaboratorServiceRates).values(input).onConflictDoUpdate({
     target: [collaboratorServiceRates.workshopId, collaboratorServiceRates.collaboratorId, collaboratorServiceRates.serviceCatalogId],
     set: { fixedPerServiceCents: input.fixedPerServiceCents, commissionBasisPoints: input.commissionBasisPoints, updatedAt: new Date() },
   }).returning();

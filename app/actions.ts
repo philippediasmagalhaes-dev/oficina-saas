@@ -14,7 +14,10 @@ import { updateVehicle } from "../server/vehicles";
 import { saveInspection } from "../server/inspections";
 import { assignWorkOrderItem, createCollaborator, deactivateCollaborator, deleteCollaboratorServiceRate, removeWorkOrderAssignment, setCollaboratorServiceRate, updateCollaborator } from "../server/collaborators";
 import { createManualFinancialEntry, deactivatePaymentFeeRule, saveFinancialSettings, savePaymentFeeRule, setFinancialEntrySettlement } from "../server/finance";
-import { createFinancialCategory, deactivateFinancialCategory, updateFinancialCategory } from "../server/financial-categories";
+import { createFinancialCategory, deactivateFinancialCategory, listFinancialCategories, updateFinancialCategory } from "../server/financial-categories";
+import { seedAutomotiveCatalog, updateCatalogMaintenance } from "../server/automotive-catalog";
+import { confirmExistingWhatsAppConsent } from "../server/retention";
+import { importReviewedInvoice, type InvoiceReview } from "../server/nfe-intake";
 import { enqueueVehicleReadyMessage, normalizeReadyRecipient } from "../server/whatsapp";
 import {
   addQuoteItem,
@@ -69,6 +72,13 @@ function formObject(formData: FormData) {
 function parse<T>(result: { success: true; data: T } | { success: false }): T {
   if (!result.success) throw new Error("Revise os campos informados.");
   return result.data;
+}
+
+export async function importInvoiceAction(xml: string, review: InvoiceReview[]) {
+  const { workshopId } = await getOwnerContext();
+  const result = await importReviewedInvoice(workshopId, xml, review);
+  revalidatePath("/estoque"); revalidatePath("/");
+  return result;
 }
 
 export async function createWorkshopAction(formData: FormData) {
@@ -426,6 +436,8 @@ export async function deactivateFinancialCategoryAction(formData: FormData) {
 export async function createManualFinancialEntryAction(formData: FormData) {
   const { workshopId } = await getOwnerContext();
   const input = parse(manualFinancialEntrySchema.safeParse(formObject(formData)));
+  const categories = await listFinancialCategories(workshopId);
+  if (!categories.some((category) => category.key === input.category && category.active && !category.protected && category.direction === input.direction)) throw new Error("Escolha uma categoria ativa correspondente ao tipo de lançamento.");
   await createManualFinancialEntry({ workshopId, direction: input.direction, category: input.category, description: input.description, amountCents: parseCurrencyToCents(input.amount), competenceDate: input.competenceDate, dueDate: input.dueDate, settled: input.settled, recurrenceKey: input.recurringMonthly ? `monthly:${crypto.randomUUID()}` : null });
   revalidatePath("/financeiro");
 }
@@ -478,9 +490,26 @@ export async function createServiceCatalogAction(formData: FormData) {
     name: input.name,
     defaultPriceCents: parseCurrencyToCents(input.defaultPrice),
     defaultReturnIntervalDays: input.defaultReturnIntervalDays,
+    defaultReturnIntervalKm: input.defaultReturnIntervalKm,
   });
   revalidatePath("/servicos");
   revalidatePath("/financeiro");
+}
+
+export async function seedAutomotiveCatalogAction() {
+  const { workshopId } = await getOwnerContext();
+  await seedAutomotiveCatalog(workshopId);
+  revalidatePath("/servicos");
+}
+
+export async function updateCatalogMaintenanceAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(serviceCatalogSchema.safeParse(formObject(formData)));
+  const id = String(formData.get("id") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Serviço inválido.");
+  await updateCatalogMaintenance({ workshopId, id, days: input.defaultReturnIntervalDays, km: input.defaultReturnIntervalKm, priceCents: parseCurrencyToCents(input.defaultPrice) });
+  revalidatePath("/servicos");
+  revalidatePath("/retencao");
 }
 
 export async function createInventoryItemAction(formData: FormData) {
@@ -534,6 +563,13 @@ export async function recordContactAction(formData: FormData) {
     message: draft.message,
   });
   redirect(draft.url);
+}
+
+export async function confirmBaseWhatsAppConsentAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  await confirmExistingWhatsAppConsent(workshopId, formData.get("confirmed") === "on");
+  revalidatePath("/clientes");
+  revalidatePath("/retencao");
 }
 
 export async function notifyServiceReadyAction(formData: FormData) {

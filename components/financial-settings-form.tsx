@@ -35,7 +35,7 @@ export function FinancialSettingsForm({
 }) {
   return (
     <div className="split-grid settings-financial-grid">
-      <section className="surface">
+      <section className="surface" id="taxas">
         <div className="section-title"><div><span>Impostos e relatórios</span><h2>Padrões financeiros</h2></div></div>
         <form action={saveFinancialSettingsAction} className="form-grid compact-form">
           <label>Reserva de imposto (%)<input name="defaultTaxPercent" type="number" min="0" max="100" step="0.01" defaultValue={settings.defaultTaxBasisPoints / 100} onFocus={(event) => event.currentTarget.select()} /></label>

@@ -244,7 +244,7 @@ export function createDrizzleRepository(
         .where(eq(vehicles.workshopId, workshopId))
         .orderBy(vehicles.plate);
     },
-    async listServices(workshopId) {
+    async listServices(workshopId, limit) {
       const rows = await database
         .select({
           id: serviceRecords.id,
@@ -280,7 +280,8 @@ export function createDrizzleRepository(
           inArray(serviceRecords.status, ["completed", "delivered"]),
           isNotNull(serviceRecords.completedAt),
         ))
-        .orderBy(desc(serviceRecords.completedAt));
+        .orderBy(desc(serviceRecords.completedAt))
+        .limit(limit ?? 2147483647);
       return rows.map((row) => ({ ...row, completedAt: row.completedAt! }));
     },
     async getServiceOrder(workshopId, serviceId) {

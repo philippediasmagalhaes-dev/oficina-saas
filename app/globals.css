@@ -1929,6 +1929,19 @@ textarea:focus {
 .financial-category-list span,
 .financial-category-list small { color: var(--muted); font-size: 0.68rem; }
 .category-create-form { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.nfe-review-list { display: grid; gap: 0.75rem; margin-block: 1rem; }
+.nfe-review-list > div { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; padding: 0.7rem; border: 1px solid var(--line); border-radius: 0.7rem; }
+.nfe-review-list label { display: grid; gap: 0.2rem; font-size: 0.75rem; }
+.nfe-review-list small { color: var(--muted); }
+.mechanic-workspace { max-width: 980px; padding: 1.5rem; margin: auto; }
+.mechanic-workspace h1 { font-size: 1.6rem; }
+.mechanic-workspace h2 { font-size: 1.1rem; }
+.mechanic-access-controls { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+.mechanic-access-controls small { color: var(--muted); font-size: 0.7rem; }
+.illustrated-damage-map { position: relative; height: auto; aspect-ratio: 2; padding: 0; overflow: hidden; }
+.damage-vehicle-svg { width: 100%; height: 100%; pointer-events: none; color: #3b3b40; display: block; }
+.damage-note { display: grid; gap: 0.2rem; margin-top: 0.45rem; font-size: 0.72rem; }
+.approval-notice { position: fixed; right: 1rem; bottom: 1rem; z-index: 100; display: grid; gap: 0.45rem; max-width: 22rem; padding: 1rem; border: 1px solid var(--line); border-radius: 1rem; box-shadow: 0 8px 35px #0002; background: var(--panel); font-size: 0.8rem; }
 .ledger-metrics { margin-top: 1rem; }
 .order-heading-actions { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
 .metric-card { min-height: 8.5rem; padding: 1rem; }
@@ -1990,6 +2003,8 @@ textarea:focus {
   .fee-rule-edit,
   .financial-category-list > div > form:first-child { grid-template-columns: 1fr; }
   .financial-category-list > div { align-items: flex-end; }
+  .nfe-review-list > div { grid-template-columns: 1fr; }
+  .approval-notice { bottom: 5rem; left: 1rem; right: 1rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

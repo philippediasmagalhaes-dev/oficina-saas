@@ -3,6 +3,7 @@ import { getDatabase } from "../db/client";
 import { customers, messageDeliveries, messageOutbox, serviceRecords, workshops } from "../db/schema";
 import { buildReminderCandidate, type ReminderCandidate } from "../domain/reminders";
 import { normalizeBrazilianPhone } from "../domain/outreach";
+import { listMaintenanceReturns } from "./retention";
 
 export interface ReminderQueueStore { enqueue(candidate: ReminderCandidate): Promise<boolean> }
 
@@ -58,14 +59,38 @@ export async function scheduleMaintenanceReminders(now = new Date()) {
   const workshopId = getConfiguredWhatsAppWorkshopId(process.env);
   if (!process.env.WHATSAPP_REMINDER_TEMPLATE_NAME || !workshopId) return 0;
   const database = getDatabase();
-  const [rows, previous] = await Promise.all([
-    database.select({ workshopId: serviceRecords.workshopId, workshopName: workshops.name, customerId: serviceRecords.customerId, customerName: customers.name, phone: customers.phone, whatsappConsent: customers.whatsappConsent, whatsappOptOutAt: customers.whatsappOptOutAt, serviceRecordId: serviceRecords.id, nextDueAt: serviceRecords.nextDueAt }).from(serviceRecords).innerJoin(customers, and(eq(customers.id, serviceRecords.customerId), eq(customers.workshopId, serviceRecords.workshopId))).innerJoin(workshops, eq(workshops.id, serviceRecords.workshopId)).where(and(eq(serviceRecords.workshopId, workshopId), inArray(serviceRecords.status, ["completed", "delivered"]), eq(customers.whatsappConsent, true))),
+  const [[workshop], previous] = await Promise.all([
+    database.select({ name: workshops.name }).from(workshops).where(eq(workshops.id, workshopId)).limit(1),
     database.select({ serviceRecordId: messageOutbox.serviceRecordId, sentAt: messageOutbox.sentAt, createdAt: messageOutbox.createdAt }).from(messageOutbox).where(and(eq(messageOutbox.workshopId, workshopId), inArray(messageOutbox.status, ["sent", "delivered", "read"]))).orderBy(desc(messageOutbox.createdAt)),
   ]);
   const latest = new Map<string, Date>();
   for (const row of previous) if (row.serviceRecordId && !latest.has(row.serviceRecordId)) latest.set(row.serviceRecordId, row.sentAt ?? row.createdAt);
-  const candidates = rows.flatMap((row) => row.nextDueAt ? [buildReminderCandidate({ ...row, nextDueAt: row.nextDueAt, lastReminderAt: latest.get(row.serviceRecordId) ?? null }, now)].filter((candidate): candidate is ReminderCandidate => candidate !== null) : []);
-  return queueReminderCandidates(createDrizzleReminderQueueStore(), candidates);
+  if (!workshop) return 0;
+  let inserted = 0;
+  let page = 1;
+  let pageCount = 1;
+  do {
+    const batch = await listMaintenanceReturns(workshopId, String(page));
+    pageCount = batch.pageCount;
+    const candidates = batch.items.flatMap((row) => {
+      const candidate = buildReminderCandidate({
+        workshopId, workshopName: workshop.name, customerId: row.customerId,
+        customerName: row.customerName, phone: row.phone, whatsappConsent: row.consent,
+        whatsappOptOutAt: null, serviceRecordId: row.serviceRecordId,
+        nextDueAt: row.dueAt, lastReminderAt: latest.get(row.serviceRecordId) ?? null,
+      }, now);
+      if (!candidate) return [];
+      candidate.idempotencyKey += `:${encodeURIComponent(row.serviceName).slice(0, 200)}`;
+      const km = row.targetOdometer ? ` ou ${row.targetOdometer.toLocaleString("pt-BR")} km` : "";
+      candidate.payload.dueDate = `${row.serviceName}: ${row.dueAt.toLocaleDateString("pt-BR", { timeZone: "UTC" })}${km}`;
+      candidate.payload.serviceName = row.serviceName;
+      candidate.payload.lastOdometer = row.odometer;
+      return [candidate];
+    });
+    inserted += await queueReminderCandidates(createDrizzleReminderQueueStore(), candidates);
+    page += 1;
+  } while (page <= pageCount);
+  return inserted;
 }
 
 export async function processWhatsAppOutbox(now = new Date()) {
