@@ -1,35 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { DamageMarkInput } from "../domain/inspection";
 
 const views = { top: "Superior", left: "Lateral esquerda", right: "Lateral direita", front: "Dianteira", rear: "Traseira" } as const;
 const types = { scratch: "Risco", dent: "Amassado", broken: "Quebrado", paint: "Pintura", other: "Outro" } as const;
 
+// Crops reference the original, unmodified five-view inspection image.
+const diagramCrops: Record<string, string> = {
+  top: "8 0 230 117",
+  front: "246 8 121 106",
+  rear: "368 8 119 106",
+  left: "8 119 231 99",
+  right: "247 119 240 99",
+};
+
 export function VehicleDiagram({ view }: { view: string }) {
-  return <svg viewBox="0 0 600 300" aria-hidden="true" className="damage-vehicle-svg" fill="none" stroke="currentColor" strokeWidth="3">
-    {view === "top" ? <g>
-      <path d="M170 70Q180 36 230 32H370Q420 36 430 70L446 223Q446 262 407 268H193Q154 262 154 223Z" fill="#e3e3e5" />
-      <path d="M201 83Q208 63 238 62H362Q392 63 399 83L410 205Q411 232 386 237H214Q189 232 190 205Z" />
-      <path d="M206 105L394 105L381 143H219Z" fill="#b4c2cb" /><path d="M219 154H381L397 206H203Z" fill="#b4c2cb" />
-      <path d="M195 117L174 128M405 117L426 128M166 87H151V132H166M434 87H449V132H434M160 194H148V237H160M440 194H452V237H440" />
-      <path d="M221 143V154M379 143V154M169 72H431M165 246H435" />
-      <text x="300" y="23" textAnchor="middle" stroke="none" fill="currentColor" fontSize="15">FRENTE</text>
-    </g> : view === "left" || view === "right" ? <g transform={view === "right" ? "translate(600 0) scale(-1 1)" : undefined}>
-      <path d="M64 177L94 146L183 136L238 84Q251 75 280 75H365L431 130L512 148Q537 155 543 184V218H499Q491 176 452 176Q415 176 403 218H211Q201 176 163 176Q124 176 115 218H61Z" fill="#e3e3e5" />
-      <path d="M211 131L248 91H291V131ZM305 91H359L404 131H305Z" fill="#b4c2cb" />
-      <circle cx="163" cy="219" r="35" fill="#b8b8bd" /><circle cx="163" cy="219" r="20" /><circle cx="452" cy="219" r="35" fill="#b8b8bd" /><circle cx="452" cy="219" r="20" />
-      <path d="M299 138V207M410 138L399 207M318 152H338M230 153H249M71 178H119M510 166H537" />
-    </g> : <g>
-      <path d="M153 144L184 73Q191 54 221 54H379Q409 54 416 73L447 144L465 173V235H135V173Z" fill="#e3e3e5" />
-      <path d="M196 78H404L426 137H174Z" fill="#b4c2cb" />
-      <rect x="148" y="235" width="46" height="28" rx="6" fill="#b8b8bd" /><rect x="406" y="235" width="46" height="28" rx="6" fill="#b8b8bd" />
-      <path d="M149 164H222V190H148ZM378 164H451V190H378ZM245 170H355V210H245Z" fill={view === "rear" ? "#d8a1a8" : "#b4c2cb"} />
-      <path d="M141 219H459M166 123H139V143H157M434 123H461V143H443" />
-    </g>}
+  const clipId = useId();
+  const crop = diagramCrops[view] ?? diagramCrops.top;
+  const [x, y, width, height] = crop.split(" ").map(Number);
+  return <svg viewBox={crop} aria-hidden="true" className="damage-vehicle-svg" preserveAspectRatio="xMidYMid meet">
+    <defs><clipPath id={clipId}><rect x={x} y={y} width={width} height={height} /></clipPath></defs>
+    <image href="/vehicle-inspection-reference.png" width="487" height="218" clipPath={`url(#${clipId})`} />
   </svg>;
 }
-
 export function DamageMap({ initialMarks = [] }: { initialMarks?: DamageMarkInput[] }) {
   const [marks, setMarks] = useState(initialMarks);
   const [view, setView] = useState("top");
