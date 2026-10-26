@@ -25,6 +25,7 @@ describe("endereço oficial do piloto", () => {
 
 describe("rotas públicas do PWA", () => {
   it.each([
+    "/vehicle-inspection-reference.png",
     "/manifest.webmanifest",
     "/sw.js",
     "/icons/icon-192.png",
