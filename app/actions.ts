@@ -13,7 +13,8 @@ import { getOwnerContext, getOwnerUser } from "../server/owner-context";
 import { updateVehicle } from "../server/vehicles";
 import { saveInspection } from "../server/inspections";
 import { assignWorkOrderItem, createCollaborator, deactivateCollaborator, deleteCollaboratorServiceRate, removeWorkOrderAssignment, setCollaboratorServiceRate, updateCollaborator } from "../server/collaborators";
-import { createManualFinancialEntry, saveFinancialSettings, savePaymentFeeRule, setFinancialEntrySettlement } from "../server/finance";
+import { createManualFinancialEntry, deactivatePaymentFeeRule, saveFinancialSettings, savePaymentFeeRule, setFinancialEntrySettlement } from "../server/finance";
+import { createFinancialCategory, deactivateFinancialCategory, updateFinancialCategory } from "../server/financial-categories";
 import { enqueueVehicleReadyMessage, normalizeReadyRecipient } from "../server/whatsapp";
 import {
   addQuoteItem,
@@ -40,8 +41,12 @@ import {
   diagnosisSchema,
   finalizationSchema,
   financialSettingsSchema,
+  financialCategorySchema,
+  financialCategoryUpdateSchema,
+  financialCategoryIdSchema,
   manualFinancialEntrySchema,
   paymentFeeRuleSchema,
+  paymentFeeRuleIdSchema,
   inventoryAdjustmentSchema,
   inventoryItemSchema,
   photoSchema,
@@ -387,6 +392,35 @@ export async function savePaymentFeeRuleAction(formData: FormData) {
   const input = parse(paymentFeeRuleSchema.safeParse(formObject(formData)));
   await savePaymentFeeRule({ workshopId, paymentMethod: input.paymentMethod, installmentCount: input.installmentCount, percentageBasisPoints: Math.round(input.percentage * 100), fixedFeeCents: parseCurrencyToCents(input.fixedFee) });
   revalidatePath("/configuracoes");
+}
+
+export async function deactivatePaymentFeeRuleAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(paymentFeeRuleIdSchema.safeParse(formObject(formData)));
+  await deactivatePaymentFeeRule(workshopId, input.ruleId);
+  revalidatePath("/configuracoes");
+  revalidatePath("/financeiro");
+}
+
+export async function createFinancialCategoryAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialCategorySchema.safeParse(formObject(formData)));
+  await createFinancialCategory({ workshopId, ...input });
+  revalidatePath("/financeiro");
+}
+
+export async function updateFinancialCategoryAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialCategoryUpdateSchema.safeParse(formObject(formData)));
+  await updateFinancialCategory({ workshopId, ...input });
+  revalidatePath("/financeiro");
+}
+
+export async function deactivateFinancialCategoryAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialCategoryIdSchema.safeParse(formObject(formData)));
+  await deactivateFinancialCategory(workshopId, input.categoryId);
+  revalidatePath("/financeiro");
 }
 
 export async function createManualFinancialEntryAction(formData: FormData) {

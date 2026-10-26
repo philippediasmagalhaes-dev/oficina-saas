@@ -1919,6 +1919,16 @@ textarea:focus {
 .form-warning, .warning { color: #a51d2d; }
 .settings-rule-list { display: grid; gap: 0.55rem; margin-top: 1rem; }
 .settings-rule-list > div { justify-content: space-between; align-items: center; padding-top: 0.55rem; border-top: 1px solid var(--line); }
+.editable-fee-rules > div { display: flex; gap: 0.45rem; }
+.fee-rule-edit { display: grid; grid-template-columns: minmax(8rem, 1fr) 5rem 7rem auto; align-items: end; gap: 0.45rem; flex: 1; }
+.fee-rule-edit label { display: grid; gap: 0.2rem; color: var(--muted); font-size: 0.62rem; }
+.financial-category-list { display: grid; margin-top: 0.8rem; }
+.financial-category-list > div { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0; border-bottom: 1px solid var(--line); }
+.financial-category-list > div.inactive { opacity: 0.56; }
+.financial-category-list > div > form:first-child { display: grid; grid-template-columns: minmax(12rem, 1fr) 10rem auto; align-items: center; gap: 0.55rem; flex: 1; }
+.financial-category-list span,
+.financial-category-list small { color: var(--muted); font-size: 0.68rem; }
+.category-create-form { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 .ledger-metrics { margin-top: 1rem; }
 .order-heading-actions { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
 .metric-card { min-height: 8.5rem; padding: 1rem; }
@@ -1977,6 +1987,9 @@ textarea:focus {
   .specific-rate-row { align-items: flex-end; }
   .specific-rate-row .inline-form { grid-template-columns: 1fr; }
   .commission-report > div { align-items: flex-start; }
+  .fee-rule-edit,
+  .financial-category-list > div > form:first-child { grid-template-columns: 1fr; }
+  .financial-category-list > div { align-items: flex-end; }
 }
 
 @media (prefers-reduced-motion: reduce) {

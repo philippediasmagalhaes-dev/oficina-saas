@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { recordServiceAction } from "../app/actions";
 import { deriveNextDueDateValue } from "../domain/forecast";
+import { MoneyInput } from "./money-input";
 import type {
   CustomerSummary,
   InventorySummary,
@@ -113,12 +114,11 @@ export function ServiceForm({
       </label>
       <label>
         Valor cobrado (R$)
-        <input
+        <MoneyInput
           name="amount"
           required
-          inputMode="decimal"
           value={amount}
-          onChange={(event) => setAmount(event.target.value)}
+          onValueChange={setAmount}
           placeholder="350,00"
         />
       </label>

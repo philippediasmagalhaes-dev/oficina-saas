@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closeFinancialOrder, monthlyOccurrenceDate, type FinancialCloseStore } from "./finance";
+import { closeFinancialOrder, monthlyOccurrenceDate, selectConfiguredPaymentFeeRule, type FinancialCloseStore } from "./finance";
 
 describe("financial close orchestration", () => {
   it("is idempotent and writes a ledger once", async () => {
@@ -14,6 +14,18 @@ describe("financial close orchestration", () => {
     expect(first.netTotalCents).toBe(9_500);
     expect(second).toEqual(first);
     expect(writes).toBe(1);
+  });
+});
+
+describe("installment fee selection", () => {
+  it("selects the active rule for the exact credit-card installment count", () => {
+    const rules = [
+      { id: "one", paymentMethod: "credit_card", installmentCount: 1, active: true, effectiveFrom: new Date("2026-01-01") },
+      { id: "six-old", paymentMethod: "credit_card", installmentCount: 6, active: false, effectiveFrom: new Date("2026-01-01") },
+      { id: "six", paymentMethod: "credit_card", installmentCount: 6, active: true, effectiveFrom: new Date("2026-02-01") },
+    ];
+    expect(selectConfiguredPaymentFeeRule(rules, "credit_card", 6)?.id).toBe("six");
+    expect(selectConfiguredPaymentFeeRule(rules, "credit_card", 2)).toBeNull();
   });
 });
 

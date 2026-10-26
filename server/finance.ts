@@ -18,6 +18,17 @@ export async function closeFinancialOrder(store: FinancialCloseStore, workshopId
 
 export type PaymentDraft = { paymentMethod: string; amountCents: number; installmentCount: number; paid: boolean; expectedAt: Date; manualFeeCents: number | null };
 
+export function selectConfiguredPaymentFeeRule<T extends {
+  paymentMethod: string;
+  installmentCount: number;
+  active: boolean;
+  effectiveFrom: Date;
+}>(rules: T[], method: string, installments: number): T | null {
+  return rules
+    .filter((rule) => rule.active && rule.paymentMethod === method && rule.installmentCount === installments)
+    .sort((left, right) => right.effectiveFrom.getTime() - left.effectiveFrom.getTime())[0] ?? null;
+}
+
 export async function saveFinancialSettings(input: { workshopId: string; defaultTaxBasisPoints: number; defaultRecognitionMode: "cash" | "accrual" }) {
   const [row] = await getDatabase().insert(workshopFinancialSettings).values(input).onConflictDoUpdate({ target: workshopFinancialSettings.workshopId, set: { defaultTaxBasisPoints: input.defaultTaxBasisPoints, defaultRecognitionMode: input.defaultRecognitionMode, updatedAt: new Date() } }).returning();
   return row;
@@ -30,6 +41,11 @@ export async function savePaymentFeeRule(input: { workshopId: string; paymentMet
   return row;
 }
 
+export async function deactivatePaymentFeeRule(workshopId: string, ruleId: string) {
+  const rows = await getDatabase().update(paymentFeeRules).set({ active: false, effectiveUntil: new Date(), updatedAt: new Date() }).where(and(eq(paymentFeeRules.workshopId, workshopId), eq(paymentFeeRules.id, ruleId), eq(paymentFeeRules.active, true))).returning({ id: paymentFeeRules.id });
+  if (!rows.length) throw new Error("Regra de taxa não encontrada.");
+}
+
 export async function getFinancialSettings(workshopId: string) {
   const database = getDatabase();
   const [[settings], feeRules] = await Promise.all([
@@ -40,8 +56,8 @@ export async function getFinancialSettings(workshopId: string) {
 }
 
 async function activeFeeRule(tx: DatabaseTransaction, workshopId: string, method: string, installments: number) {
-  const [rule] = await tx.select().from(paymentFeeRules).where(and(eq(paymentFeeRules.workshopId, workshopId), eq(paymentFeeRules.paymentMethod, method), eq(paymentFeeRules.installmentCount, installments), eq(paymentFeeRules.active, true))).orderBy(desc(paymentFeeRules.effectiveFrom)).limit(1);
-  return rule;
+  const rules = await tx.select().from(paymentFeeRules).where(and(eq(paymentFeeRules.workshopId, workshopId), eq(paymentFeeRules.paymentMethod, method), eq(paymentFeeRules.active, true))).orderBy(desc(paymentFeeRules.effectiveFrom));
+  return selectConfiguredPaymentFeeRule(rules, method, installments);
 }
 
 function distributeDiscount(items: Array<{ id: string; grossCents: number }>, totalDiscount: number) {

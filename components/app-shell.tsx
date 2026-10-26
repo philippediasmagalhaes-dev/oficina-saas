@@ -1,4 +1,5 @@
 import { SignOutButton } from "./sign-out-button";
+import { NumericFieldBehavior } from "./numeric-field-behavior";
 
 const navigation = [
   ["Visão geral", "/", "⌂"],
@@ -16,6 +17,7 @@ const navigation = [
 export function AppShell({ workshopName, current = "/", children }: { workshopName: string; current?: string; children: React.ReactNode }) {
   return (
     <div className="shell">
+      <NumericFieldBehavior />
       <aside className="side-panel">
         <a href="/" className="logo-link"><img src="/logo.jpg" alt={`Logo ${workshopName}`} /><span>{workshopName}</span></a>
         <div className="workshop-chip"><span>Oficina ativa</span><strong>{workshopName}</strong></div>

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { formatCents } from "../domain/money";
+import { MoneyInput } from "./money-input";
 
 type PaymentRow = { key: number; paymentMethod: string; amount: string; installmentCount: string; paid: boolean; expectedAt: string; manualFee: string };
 
@@ -32,13 +33,14 @@ export function PaymentForm({ totalCents }: { totalCents: number }) {
     <div className="payment-summary"><strong>Pagamentos</strong><span className={paidCents === totalCents ? "ok" : "warning"}>{formatCents(paidCents)} de {formatCents(totalCents)}</span></div>
     {rows.map((row) => <div className="payment-row" key={row.key}>
       <label>Forma<select value={row.paymentMethod} onChange={(event) => update(row.key, { paymentMethod: event.target.value })}><option value="pix">PIX</option><option value="cash">Dinheiro</option><option value="debit_card">Débito</option><option value="credit_card">Crédito</option><option value="transfer">Transferência</option><option value="other">Outro</option></select></label>
-      <label>Valor<input value={row.amount} inputMode="decimal" onChange={(event) => update(row.key, { amount: event.target.value })} /></label>
+      <label>Valor<MoneyInput value={row.amount} onValueChange={(amount) => update(row.key, { amount })} /></label>
       <label>Parcelas<input type="number" min="1" max="24" value={row.installmentCount} onChange={(event) => update(row.key, { installmentCount: event.target.value })} /></label>
       <label>Vencimento<input type="date" value={row.expectedAt} onChange={(event) => update(row.key, { expectedAt: event.target.value })} /></label>
-      <label>Taxa manual<input value={row.manualFee} inputMode="decimal" placeholder="usar regra" onChange={(event) => update(row.key, { manualFee: event.target.value })} /></label>
-      <label className="payment-paid"><input type="checkbox" checked={row.paid} onChange={(event) => update(row.key, { paid: event.target.checked })} /> Recebido</label>
+      <label>Taxa manual<input value={row.manualFee} inputMode="decimal" placeholder="usar regra configurada" onFocus={(event) => event.currentTarget.select()} onChange={(event) => update(row.key, { manualFee: event.target.value })} /></label>
+      <label className="payment-paid"><input type="checkbox" checked={row.paid} onChange={(event) => update(row.key, { paid: event.target.checked })} /> Pagamento recebido</label>
       {rows.length > 1 ? <button className="text-button" type="button" onClick={() => setRows((current) => current.filter((item) => item.key !== row.key))}>Remover</button> : null}
     </div>)}
+    <small className="field-hint">Marque “Pagamento recebido” apenas quando o valor já entrou no caixa. Desmarcado, ele fica em contas a receber.</small>
     <button className="secondary-button" type="button" onClick={add}>Dividir pagamento</button>
     {paidCents !== totalCents ? <small className="form-warning">A soma deve fechar exatamente em {formatCents(totalCents)}.</small> : null}
   </div>;

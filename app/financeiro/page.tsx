@@ -6,6 +6,8 @@ import { parseFinancialPeriod } from "../../domain/service-filters";
 import { getFinancialDashboard } from "../../server/queries";
 import { ConfigurationPending } from "../configurar/page";
 import { createManualFinancialEntryAction, setFinancialEntrySettlementAction } from "../actions";
+import { FinancialCategoryManager } from "../../components/financial-category-manager";
+import { MoneyInput } from "../../components/money-input";
 
 type SearchParams = {
   period?: string;
@@ -40,6 +42,7 @@ export default async function FinancialPage({
     collaboratorId: params.collaborator ?? "",
   };
   const data = await getFinancialDashboard(filters);
+  const categoryLabels = new Map(data.categories.map((category) => [category.key, category.name]));
   const exportQuery = new URLSearchParams();
   exportQuery.set("period", filters.period);
   if (filters.from) exportQuery.set("from", filters.from);
@@ -65,7 +68,7 @@ export default async function FinancialPage({
             de serviço.
           </p>
         </div>
-        <a className="primary-button" href="/ordens#nova">
+        <a className="primary-button" href="/ordens?nova=1#nova">
           Abrir OS
         </a>
         <a className="secondary-button" href={`/api/financeiro/business-fin?${exportQuery.toString()}`}>Exportar Business Fin</a>
@@ -101,7 +104,7 @@ export default async function FinancialPage({
           </label>
           <label>Visão<select name="recognition" defaultValue={filters.recognitionMode}><option value="cash">Caixa</option><option value="accrual">Competência</option></select></label>
           <label>Status<select name="status" defaultValue={filters.status}><option value="">Todos</option><option value="settled">Realizado</option><option value="expected">Previsto</option><option value="cancelled">Cancelado</option></select></label>
-          <label>Categoria<select name="category" defaultValue={filters.category}><option value="">Todas</option><option value="service_income">Receita de serviço</option><option value="labor_compensation">Comissão</option><option value="fixed_payroll">Pagamento mensal</option><option value="tax_reserve">Reserva de imposto</option><option value="operational">Operacional</option></select></label>
+          <label>Categoria<select name="category" defaultValue={filters.category}><option value="">Todas</option>{data.categories.map((category) => <option value={category.key} key={category.id}>{category.name}{category.active ? "" : " (inativa)"}</option>)}</select></label>
           <label>Pagamento<select name="payment" defaultValue={filters.paymentMethod}><option value="">Todos</option><option value="pix">PIX</option><option value="cash">Dinheiro</option><option value="debit_card">Débito</option><option value="credit_card">Crédito</option><option value="transfer">Transferência</option></select></label>
           <label>Colaborador<select name="collaborator" defaultValue={filters.collaboratorId}><option value="">Todos</option>{data.collaborators.map((collaborator) => <option key={collaborator.id} value={collaborator.id}>{collaborator.name}</option>)}</select></label>
           <div className="filter-actions">
@@ -126,12 +129,12 @@ export default async function FinancialPage({
       </section>
 
       <div className="split-grid">
-        <section className="surface"><div className="section-title"><div><span>Contas a receber e pagar</span><h2>Livro financeiro</h2></div></div>{data.entries.length ? <div className="finance-list">{data.entries.slice(0, 30).map((entry) => <div key={entry.id}><span><strong>{entry.description}</strong><small>{entry.category.replaceAll("_", " ")} · {entry.status === "settled" ? "realizado" : "previsto"} · {entry.competenceDate.toLocaleDateString("pt-BR")}</small></span><b className={entry.direction === "income" ? "ok" : "warning"}>{entry.direction === "income" ? "+" : "−"}{formatCents(entry.netAmountCents)}</b>{entry.status !== "cancelled" && entry.category !== "tax_reserve" ? <form action={setFinancialEntrySettlementAction}><input type="hidden" name="financialEntryId" value={entry.id} /><input type="hidden" name="decision" value={entry.status === "settled" ? "reopen" : "settle"} /><button className="text-button" type="submit">{entry.status === "settled" ? "Estornar baixa" : "Dar baixa"}</button></form> : null}</div>)}</div> : <EmptyState title="Sem lançamentos" description="Finalize uma OS ou registre uma conta manual." />}</section>
+        <section className="surface"><div className="section-title"><div><span>Contas a receber e pagar</span><h2>Livro financeiro</h2></div></div>{data.entries.length ? <div className="finance-list">{data.entries.slice(0, 30).map((entry) => <div key={entry.id}><span><strong>{entry.description}</strong><small>{categoryLabels.get(entry.category) ?? entry.category.replaceAll("_", " ")} · {entry.status === "settled" ? "realizado" : "previsto"} · {entry.competenceDate.toLocaleDateString("pt-BR")}</small></span><b className={entry.direction === "income" ? "ok" : "warning"}>{entry.direction === "income" ? "+" : "−"}{formatCents(entry.netAmountCents)}</b>{entry.status !== "cancelled" && entry.category !== "tax_reserve" ? <form action={setFinancialEntrySettlementAction}><input type="hidden" name="financialEntryId" value={entry.id} /><input type="hidden" name="decision" value={entry.status === "settled" ? "reopen" : "settle"} /><button className="text-button" type="submit">{entry.status === "settled" ? "Estornar baixa" : "Dar baixa"}</button></form> : null}</div>)}</div> : <EmptyState title="Sem lançamentos" description="Finalize uma OS ou registre uma conta manual." />}</section>
         <section className="surface"><div className="section-title"><div><span>Entrada manual</span><h2>Receita ou despesa</h2></div></div><form action={createManualFinancialEntryAction} className="form-grid compact-form">
           <label>Tipo<select name="direction" defaultValue="expense"><option value="expense">Despesa</option><option value="income">Receita</option><option value="reserve">Reserva</option></select></label>
-          <label>Categoria<input name="category" defaultValue="operational" required /></label>
+          <label>Categoria<select name="category" defaultValue="operational" required>{data.categories.filter((category) => category.active).map((category) => <option value={category.key} key={category.id}>{category.name}</option>)}</select></label>
           <label className="span-2">Descrição<input name="description" required placeholder="Ex.: aluguel, fornecedor, receita avulsa" /></label>
-          <label>Valor<input name="amount" inputMode="decimal" required placeholder="0,00" /></label>
+          <label>Valor<MoneyInput name="amount" required defaultValue="0,00" /></label>
           <label>Competência<input name="competenceDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
           <label>Vencimento<input name="dueDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
           <label className="checkbox-label"><input name="settled" type="checkbox" /> Já realizado</label>
@@ -139,6 +142,8 @@ export default async function FinancialPage({
           <button className="secondary-button span-2" type="submit">Adicionar lançamento</button>
         </form></section>
       </div>
+
+      <FinancialCategoryManager categories={data.categories} />
 
       <div className="filter-result">
         <span>

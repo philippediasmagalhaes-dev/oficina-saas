@@ -160,6 +160,18 @@ export const financialSettingsSchema = z.object({
   defaultRecognitionMode: z.enum(["cash", "accrual"]),
 });
 
+export const financialCategorySchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  direction: z.enum(["income", "expense", "reserve"]),
+});
+
+export const financialCategoryUpdateSchema = financialCategorySchema.extend({
+  categoryId: z.string().uuid(),
+});
+
+export const financialCategoryIdSchema = z.object({ categoryId: z.string().uuid() });
+export const paymentFeeRuleIdSchema = z.object({ ruleId: z.string().uuid() });
+
 export const paymentFeeRuleSchema = z.object({
   paymentMethod: z.enum(["pix", "cash", "debit_card", "credit_card", "transfer", "other"]),
   installmentCount: z.coerce.number().int().min(1).max(24),

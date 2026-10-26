@@ -12,6 +12,7 @@ import { listInventoryMovements } from "./inventory";
 import { countWorkOrdersByStatus, getWorkOrder, listWorkOrders, listWorkOrdersPage } from "./work-orders";
 import { ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialSettings, listFinancialReportEntries, listWorkOrderPayments } from "./finance";
 import { getWhatsAppAutomationStatus } from "./whatsapp";
+import { listFinancialCategories } from "./financial-categories";
 
 export async function getDashboardData() {
   const context = await getOwnerContext();
@@ -136,11 +137,12 @@ export async function getFinancialDashboard(filters: FinancialFilters & { status
   const context = await getOwnerContext();
   await ensureMonthlyCollaboratorPayables(context.workshopId);
   await ensureMonthlyFinancialOccurrences(context.workshopId);
-  const [allServices, allEntries, financialSettings, collaborators] = await Promise.all([
+  const [allServices, allEntries, financialSettings, collaborators, categories] = await Promise.all([
     context.repository.listServices(context.workshopId),
     listFinancialReportEntries(context.workshopId, { status: filters.status, category: filters.category, recognitionMode: filters.recognitionMode, paymentMethod: filters.paymentMethod, collaboratorId: filters.collaboratorId }),
     getFinancialSettings(context.workshopId),
     listCollaborators(context.workshopId),
+    listFinancialCategories(context.workshopId),
   ]);
   const services = filterFinancialServices(allServices, filters);
   const reportEntries = allEntries.flatMap((entry) => {
@@ -160,6 +162,7 @@ export async function getFinancialDashboard(filters: FinancialFilters & { status
     entries,
     financialSettings: financialSettings.settings,
     collaborators,
+    categories,
     ledger: { incomeCents, expenseCents, reserveCents, balanceCents: incomeCents - expenseCents - reserveCents },
   };
 }

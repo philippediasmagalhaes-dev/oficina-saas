@@ -71,6 +71,13 @@
       "when": 1792871492829,
       "tag": "0009_chilly_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792944901168,
+      "tag": "0010_nifty_falcon",
+      "breakpoints": true
     }
   ]
 }

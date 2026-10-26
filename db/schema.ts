@@ -608,6 +608,20 @@ export const workOrderPayments = pgTable("work_order_payments", {
   check("work_order_payment_installments_positive", sql`${table.installmentCount} > 0`),
 ]);
 
+export const financialCategories = pgTable("financial_categories", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
+  key: text("key").notNull(),
+  name: text("name").notNull(),
+  direction: financialDirection("direction").notNull(),
+  protected: boolean("protected").default(false).notNull(),
+  active: boolean("active").default(true).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("financial_categories_workshop_key_unique").on(table.workshopId, table.key),
+  index("financial_categories_workshop_name_idx").on(table.workshopId, table.name),
+]);
+
 export const financialEntries = pgTable("financial_entries", {
   id: uuid("id").defaultRandom().primaryKey(),
   workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
@@ -700,7 +714,7 @@ export const schema = {
   workshopIntegrations, messageTemplates, vehicleInspections,
   inspectionDamageMarks, workOrderStatusEvents, workOrderApprovals,
   collaborators, collaboratorServiceRates, workOrderItemAssignments,
-  workOrderPayments, financialEntries, financialAttachments, financialEntryEvents, messageOutbox,
+  workOrderPayments, financialCategories, financialEntries, financialAttachments, financialEntryEvents, messageOutbox,
   messageDeliveries, businessFinExports,
 };
 
@@ -715,5 +729,6 @@ export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type Collaborator = typeof collaborators.$inferSelect;
 export type WorkOrderPayment = typeof workOrderPayments.$inferSelect;
 export type FinancialEntry = typeof financialEntries.$inferSelect;
+export type FinancialCategory = typeof financialCategories.$inferSelect;
 export type LegacyImportRun = typeof legacyImportRuns.$inferSelect;
 export type LegacyImportMapping = typeof legacyImportMappings.$inferSelect;
