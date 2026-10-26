@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyFinancialSettlement,
   buildInstallmentEntryDrafts,
+  calculateCashClosing,
   closeFinancialOrder,
   monthlyOccurrenceDate,
   reverseFinancialSettlement,
@@ -64,6 +65,16 @@ describe("financial installments", () => {
     ]);
     expect(first.reduce((total, item) => total + item.amountCents, 0)).toBe(10_000);
     expect(first[1].dueDate.toISOString()).toBe("2026-02-28T00:00:00.000Z");
+  });
+});
+
+describe("cash closing", () => {
+  it("calculates the expected balance and declared difference", () => {
+    expect(calculateCashClosing(10_000, [5_000, -2_000, 1_500], 14_000)).toEqual({
+      calculatedClosingCents: 14_500,
+      declaredClosingCents: 14_000,
+      differenceCents: -500,
+    });
   });
 });
 

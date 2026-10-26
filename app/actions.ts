@@ -80,10 +80,12 @@ function parse<T>(result: { success: true; data: T } | { success: false }): T {
   return result.data;
 }
 
-export async function importInvoiceAction(xml: string, review: InvoiceReview[]) {
+export async function importInvoiceAction(xml: string, review: InvoiceReview[], options: { createPayable?: boolean; dueDate?: string } = {}) {
   const { workshopId } = await getOwnerContext();
-  const result = await importReviewedInvoice(workshopId, xml, review);
-  revalidatePath("/estoque"); revalidatePath("/");
+  const dueDate = options.createPayable ? new Date(`${options.dueDate ?? ""}T00:00:00.000Z`) : undefined;
+  if (options.createPayable && (!dueDate || Number.isNaN(dueDate.getTime()))) throw new Error("Informe o vencimento da conta a pagar.");
+  const result = await importReviewedInvoice(workshopId, xml, review, { createPayable: Boolean(options.createPayable), dueDate });
+  revalidatePath("/estoque"); revalidatePath("/financeiro"); revalidatePath("/financeiro/pagar"); revalidatePath("/");
   return result;
 }
 

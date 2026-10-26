@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { runDatabaseTransaction } from "../db/client";
-import { inventoryItems, inventoryMovements } from "../db/schema";
+import { financialEntries, inventoryItems, inventoryMovements, suppliers } from "../db/schema";
 import { parseNfe } from "../domain/nfe";
 
 export type InvoiceReview = { line: number; inventoryItemId: string | null; quantity: number; include: boolean };
@@ -21,14 +21,26 @@ export function validateInvoiceReview(xml: string, review: InvoiceReview[]) {
   return { ...invoice, items };
 }
 
-export async function importReviewedInvoice(workshopId: string, xml: string, review: InvoiceReview[]) {
+export function buildInvoiceFinancialDraft(invoice: ReturnType<typeof validateInvoiceReview>, dueDate: Date) {
+  if (Number.isNaN(dueDate.getTime())) throw new Error("Informe um vencimento válido para a conta.");
+  return {
+    externalId: `nfe:${invoice.key}:payable`,
+    supplierName: invoice.supplier,
+    supplierDocument: invoice.supplierDocument || null,
+    description: `Compra NF-e ${invoice.number} · ${invoice.supplier}`,
+    documentNumber: invoice.number,
+    amountCents: invoice.items.reduce((total, item) => total + item.totalCents, 0),
+    dueDate,
+  };
+}
+
+export async function importReviewedInvoice(workshopId: string, xml: string, review: InvoiceReview[], options: { createPayable?: boolean; dueDate?: Date } = {}) {
   const invoice = validateInvoiceReview(xml, review);
   return runDatabaseTransaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${workshopId + invoice.key}))`);
     const prefix = `nfe:${invoice.key}:`;
     const [previous] = await tx.select({ id: inventoryMovements.id }).from(inventoryMovements).where(and(eq(inventoryMovements.workshopId, workshopId), sql`${inventoryMovements.operationKey} like ${prefix + "%"}`)).limit(1);
-    if (previous) return { duplicate: true, imported: 0 };
-    for (const item of invoice.items) {
+    if (!previous) for (const item of invoice.items) {
       let itemId = item.inventoryItemId;
       if (!itemId) {
         const sku = `NF:${invoice.supplierDocument}:${item.code}`;
@@ -39,6 +51,21 @@ export async function importReviewedInvoice(workshopId: string, xml: string, rev
       if (!updated) throw new Error("Produto de destino não encontrado nesta oficina.");
       await tx.insert(inventoryMovements).values({ workshopId, inventoryItemId: itemId, type: "entry", quantityDelta: item.quantity, operationKey: `${prefix}${item.line}`, note: `NF-e ${invoice.number} · ${invoice.supplier} · ${invoice.key}` });
     }
-    return { duplicate: false, imported: invoice.items.length };
+    let payableCreated = false;
+    if (options.createPayable) {
+      const draft = buildInvoiceFinancialDraft(invoice, options.dueDate ?? new Date());
+      let supplierId: string;
+      if (draft.supplierDocument) {
+        const [supplier] = await tx.insert(suppliers).values({ workshopId, name: draft.supplierName, document: draft.supplierDocument }).onConflictDoUpdate({ target: [suppliers.workshopId, suppliers.document], targetWhere: sql`${suppliers.document} is not null`, set: { name: draft.supplierName, active: true, updatedAt: new Date() } }).returning({ id: suppliers.id });
+        supplierId = supplier.id;
+      } else {
+        const [existing] = await tx.select({ id: suppliers.id }).from(suppliers).where(and(eq(suppliers.workshopId, workshopId), eq(suppliers.name, draft.supplierName))).limit(1);
+        if (existing) supplierId = existing.id;
+        else [{ id: supplierId }] = await tx.insert(suppliers).values({ workshopId, name: draft.supplierName }).returning({ id: suppliers.id });
+      }
+      const created = await tx.insert(financialEntries).values({ workshopId, supplierId, externalId: draft.externalId, direction: "expense", category: "parts_purchase", description: draft.description, grossAmountCents: draft.amountCents, netAmountCents: draft.amountCents, competenceDate: new Date(), dueDate: draft.dueDate, status: "expected", documentNumber: draft.documentNumber, notes: `Gerada automaticamente pela importação da NF-e ${invoice.key}` }).onConflictDoNothing().returning({ id: financialEntries.id });
+      payableCreated = created.length > 0;
+    }
+    return { duplicate: Boolean(previous), imported: previous ? 0 : invoice.items.length, payableCreated };
   });
 }

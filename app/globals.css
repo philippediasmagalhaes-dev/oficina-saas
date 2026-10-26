@@ -1933,6 +1933,9 @@ textarea:focus {
 .nfe-review-list > div { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; padding: 0.7rem; border: 1px solid var(--line); border-radius: 0.7rem; }
 .nfe-review-list label { display: grid; gap: 0.2rem; font-size: 0.75rem; }
 .nfe-review-list small { color: var(--muted); }
+.nfe-financial-review { display: grid; grid-template-columns: 1fr minmax(11rem, .45fr); align-items: end; gap: 0.7rem; margin: 0.85rem 0; padding: 0.8rem; border: 1px solid var(--line); border-radius: 0.72rem; background: rgba(255,255,255,.52); }
+.nfe-financial-review > label:not(.check-row) { display: grid; gap: 0.25rem; color: var(--muted); font-size: 0.68rem; }
+.nfe-financial-review > small { grid-column: 1 / -1; color: var(--muted); font-size: 0.65rem; }
 .mechanic-workspace { max-width: 980px; padding: 1.5rem; margin: auto; }
 .customer-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
 .customer-picker label { display: grid; gap: 0.35rem; font-size: 0.75rem; }
@@ -2006,6 +2009,8 @@ textarea:focus {
   .financial-category-list > div > form:first-child { grid-template-columns: 1fr; }
   .financial-category-list > div { align-items: flex-end; }
   .nfe-review-list > div { grid-template-columns: 1fr; }
+  .nfe-financial-review { grid-template-columns: 1fr; }
+  .nfe-financial-review > small { grid-column: auto; }
   .customer-picker { grid-template-columns: 1fr; }
   .approval-notice { bottom: 5rem; left: 1rem; right: 1rem; }
 }

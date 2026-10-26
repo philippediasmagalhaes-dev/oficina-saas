@@ -13,6 +13,8 @@ export function NfeImportForm({ inventory }: { inventory: { id: string; name: st
   const [review, setReview] = useState<InvoiceReview[]>([]);
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
+  const [createPayable, setCreatePayable] = useState(true);
+  const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 10));
   const router = useRouter();
   function update(line: number, values: Partial<InvoiceReview>) { setReview((rows) => rows.map((row) => row.line === line ? { ...row, ...values } : row)); }
   return <section className="surface"><div className="section-title"><div><span>Entrada por nota fiscal</span><h2>Importar NF-e (XML)</h2></div></div>
@@ -23,13 +25,13 @@ export function NfeImportForm({ inventory }: { inventory: { id: string; name: st
       try { if (file.size > 250000) throw new Error("Use um XML de até 250 KB."); const text = await file.text(); const parsed = parseNfe(text); setXml(text); setInvoice(parsed); setReview(parsed.items.map((item) => ({ line: item.line, inventoryItemId: null, include: true, quantity: item.quantity }))); }
       catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível ler a nota."); }
     }} />
-    {invoice ? <form onSubmit={async (event) => { event.preventDefault(); setPending(true); try { const result = await importInvoiceAction(xml, review); setMessage(result.duplicate ? "Esta nota já foi importada. Nenhum saldo foi alterado." : `${result.imported} produtos entraram no estoque.`); setInvoice(null); setXml(""); router.refresh(); } catch(error) { setMessage(error instanceof Error ? error.message : "Erro ao importar nota."); } finally { setPending(false); } }}>
+    {invoice ? <form onSubmit={async (event) => { event.preventDefault(); setPending(true); try { const result = await importInvoiceAction(xml, review, { createPayable, dueDate }); const stockMessage = result.duplicate ? "Esta nota já constava no estoque." : `${result.imported} produtos entraram no estoque.`; const payableMessage = createPayable ? (result.payableCreated ? " Conta a pagar criada." : " A conta a pagar já existia.") : ""; setMessage(stockMessage + payableMessage); setInvoice(null); setXml(""); router.refresh(); } catch(error) { setMessage(error instanceof Error ? error.message : "Erro ao importar nota."); } finally { setPending(false); } }}>
       <p><strong>NF {invoice.number} · {invoice.supplier}</strong></p><div className="nfe-review-list">{invoice.items.map((item) => {
         const row = review.find((value) => value.line === item.line)!;
         return <div key={item.line}><label className="check-row"><input type="checkbox" checked={row.include} onChange={(event) => update(item.line, { include: event.target.checked })} />{item.name}</label><small>{item.quantity} {item.unit} na nota · {formatCents(item.totalCents)}</small>
           <label>Destino<select value={row.inventoryItemId ?? ""} onChange={(event) => update(item.line, { inventoryItemId: event.target.value || null })}><option value="">Criar produto desta nota</option>{inventory.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
           <label>Unidades para o estoque<input type="number" min="1" step="1" required={row.include} disabled={!row.include} value={row.quantity} onChange={(event) => update(item.line, { quantity: Number(event.target.value) })} /></label></div>;
-      })}</div><button className="primary-button" type="submit" disabled={pending}>{pending ? "Importando…" : "Confirmar entrada no estoque"}</button></form> : null}
+      })}</div><div className="nfe-financial-review"><label className="check-row"><input type="checkbox" checked={createPayable} onChange={(event) => setCreatePayable(event.target.checked)} />Gerar conta a pagar para esta NF-e</label>{createPayable ? <label>Vencimento<input type="date" value={dueDate} required onChange={(event) => setDueDate(event.target.value)} /></label> : null}<small>O fornecedor é cadastrado automaticamente pelo CNPJ. Reimportar o XML não duplica estoque nem conta.</small></div><button className="primary-button" type="submit" disabled={pending}>{pending ? "Importando…" : "Confirmar entrada e financeiro"}</button></form> : null}
     {message ? <p role="status">{message}</p> : null}
   </section>;
 }

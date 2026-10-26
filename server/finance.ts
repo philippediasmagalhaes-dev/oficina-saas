@@ -279,6 +279,13 @@ export function buildInstallmentEntryDrafts(input: {
   }));
 }
 
+export function calculateCashClosing(openingBalanceCents: number, movementsCents: number[], declaredClosingCents: number) {
+  const values = [openingBalanceCents, declaredClosingCents, ...movementsCents];
+  if (!values.every(Number.isSafeInteger)) throw new Error("Valores do fechamento de caixa são inválidos.");
+  const calculatedClosingCents = movementsCents.reduce((total, movement) => total + movement, openingBalanceCents);
+  return { calculatedClosingCents, declaredClosingCents, differenceCents: declaredClosingCents - calculatedClosingCents };
+}
+
 export async function createManualFinancialEntry(input: {
   workshopId: string;
   direction: "income" | "expense" | "reserve";
@@ -379,7 +386,7 @@ export async function closeCashSession(input: { workshopId: string; cashSessionI
     const [session] = await tx.select().from(cashSessions).where(and(eq(cashSessions.workshopId, input.workshopId), eq(cashSessions.id, input.cashSessionId), sql`${cashSessions.closedAt} is null`)).limit(1);
     if (!session) throw new Error("Caixa aberto não encontrado.");
     const [{ movementCents }] = await tx.select({ movementCents: sql<number>`coalesce(sum(case when ${financialEntries.direction} = 'income' then ${financialSettlements.amountCents} else -${financialSettlements.amountCents} end), 0)::integer` }).from(financialSettlements).innerJoin(financialEntries, and(eq(financialEntries.id, financialSettlements.financialEntryId), eq(financialEntries.workshopId, input.workshopId))).where(and(eq(financialSettlements.workshopId, input.workshopId), eq(financialSettlements.financialAccountId, session.financialAccountId), gte(financialSettlements.settledAt, session.openedAt), sql`${financialSettlements.reversedAt} is null`));
-    const calculatedClosingCents = session.openingBalanceCents + Number(movementCents);
+    const { calculatedClosingCents } = calculateCashClosing(session.openingBalanceCents, [Number(movementCents)], input.declaredClosingCents);
     const [row] = await tx.update(cashSessions).set({ closedAt: input.closedAt ?? new Date(), calculatedClosingCents, declaredClosingCents: input.declaredClosingCents, note: input.note ?? null, updatedAt: new Date() }).where(and(eq(cashSessions.workshopId, input.workshopId), eq(cashSessions.id, input.cashSessionId))).returning();
     return row;
   });
