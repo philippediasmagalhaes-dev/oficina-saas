@@ -1,4 +1,5 @@
 import { formatCents } from "../domain/money";
+import { calculateOperationalBalance } from "../domain/financial-ledger";
 import { FinancialSettlementForm } from "./financial-settlement-form";
 
 type Entry = {
@@ -16,8 +17,7 @@ export function FinancialEntryTable({ entries, settlements, accounts }: { entrie
     <thead><tr><th>Título</th><th>Vencimento</th><th>Status</th><th>Total</th><th>Pago</th><th>Saldo</th><th></th></tr></thead>
     <tbody>{entries.map((entry) => {
       const entrySettlements = settlements.filter((settlement) => settlement.financialEntryId === entry.id);
-      const paidCents = entrySettlements.filter((settlement) => !settlement.reversedAt).reduce((sum, settlement) => sum + settlement.amountCents, 0);
-      const balanceCents = Math.max(entry.grossAmountCents - paidCents, 0);
+      const { settledCents: paidCents, balanceCents } = calculateOperationalBalance(entry.grossAmountCents, entry.status, entrySettlements);
       return <tr key={entry.id}>
         <td><strong>{entry.description}</strong><small>{entry.documentNumber ?? entry.category.replaceAll("_", " ")}{entry.installmentCount > 1 ? ` · ${entry.installmentNumber}/${entry.installmentCount}` : ""}</small></td>
         <td>{entry.dueDate.toLocaleDateString("pt-BR", { timeZone: "UTC" })}</td>

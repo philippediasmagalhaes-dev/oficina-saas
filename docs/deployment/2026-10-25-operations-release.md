@@ -2,7 +2,7 @@
 
 Endereço oficial: https://oficina-saas.contato-ad4.workers.dev
 
-Versão Cloudflare: `fd4ce29b-ec43-418a-81cf-6dc42e070685`.
+Versão Cloudflare: `e944614b-3608-42f5-806f-feb1dcd4972f`.
 
 ## Alterações entregues
 
@@ -29,6 +29,9 @@ Versão Cloudflare: `fd4ce29b-ec43-418a-81cf-6dc42e070685`.
 | Financeiro operacional | Visão geral separada de contas a receber, contas a pagar, caixa diário e relatórios, com filtros próprios por período. |
 | Contas e baixas | Contas financeiras, fornecedores, parcelas, recebimentos/pagamentos parciais, taxas e estornos com histórico. |
 | Compras e estoque | Registro da compra gera conta a pagar e vincula fornecedor; o recebimento da mercadoria atualiza o estoque. |
+| Integridade financeira | Títulos antigos quitados não aceitam nova baixa; referências são limitadas à oficina; parcelas da OS geram títulos separados e centavos exatos. |
+| Caixa por movimentação | Baixas parciais entram na data real, taxas são descontadas do saldo e estornos preservam o histórico. |
+| NF-e financeira | A conta a pagar usa o total financeiro da nota, mesmo quando algum item não entra no estoque. |
 
 ## Como calcular a remuneração
 
@@ -36,12 +39,13 @@ A comissão considera a mão de obra depois do desconto e a participação atrib
 
 ## Verificações e limites
 
-- 259 testes passaram; 1 teste de integração depende de TEST_DATABASE_URL e permaneceu desativado.
+- 271 testes passaram; 1 teste de integração depende de TEST_DATABASE_URL e permaneceu desativado.
 - TypeScript e build Cloudflare passaram. Auditoria das dependências de produção:0 vulnerabilidades.
 - Smoke público: 26/26, incluindo as quatro novas áreas financeiras protegidas.
-- Migrações 0010–0013 aplicadas no Neon, com registro no journal Drizzle.
+- Migrações 0010–0014 aplicadas no Neon, com registro no journal Drizzle.
 - Base preservada após a migração 0013: 496 clientes, 1.253 OS, 1 oficina e 6 lançamentos financeiros.
 - Estruturas confirmadas em produção: contas financeiras, fornecedores, baixas financeiras, caixa diário e status parcial.
+- Proteções confirmadas em produção: apenas um caixa aberto por conta e exportação Business Fin individual por baixa.
 - Consulta real de retenção:522 registros agrupados,14 trocas de óleo,10 candidatos no dia da validação; nenhum WhatsApp enviado no teste.
 - A revisão independente encontrou problemas de persistência do formulário mecânico e de priorização/agendamento dos retornos; corrigidos com testes e validação SQL.
 - Na versão operacional anterior, dashboard, clientes (incluindo página 2), veículos, OS, financeiro, colaboradores, retenção, estoque, catálogo, notificações e configurações foram validados com sessão autenticada, sem Error 1101/1102. A sessão de validação expirou antes desta publicação; nesta versão, os fluxos internos foram cobertos pela suíte automatizada e as 26 rotas públicas/protegidas pelo smoke, restando apenas uma nova conferência visual autenticada pelo proprietário.

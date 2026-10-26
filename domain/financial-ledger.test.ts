@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateEntryBalance,
+  calculateOperationalBalance,
   deriveEntryStatus,
   splitInstallments,
 } from "./financial-ledger";
@@ -13,6 +14,13 @@ describe("operational financial ledger", () => {
         { amountCents: 2_000, reversedAt: new Date("2026-10-25T12:00:00Z") },
       ]),
     ).toEqual({ settledCents: 4_000, balanceCents: 6_000 });
+  });
+
+  it("keeps legacy settled entries fully paid when they have no settlement rows", () => {
+    expect(calculateOperationalBalance(10_000, "settled", [])).toEqual({
+      settledCents: 10_000,
+      balanceCents: 0,
+    });
   });
 
   it("derives expected, partial, settled and cancelled states from real balances", () => {
@@ -41,5 +49,6 @@ describe("operational financial ledger", () => {
   it("rejects zero values and invalid installment counts", () => {
     expect(() => splitInstallments(0, 2, new Date())).toThrow("valor");
     expect(() => splitInstallments(100, 0, new Date())).toThrow("parcelas");
+    expect(() => splitInstallments(1, 3, new Date())).toThrow("centavo");
   });
 });

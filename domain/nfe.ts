@@ -1,7 +1,7 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 
 export type NfeItem = { line: number; code: string; name: string; unit: string; quantity: number; totalCents: number };
-export type NfeDocument = { key: string; number: string; supplier: string; supplierDocument: string; items: NfeItem[] };
+export type NfeDocument = { key: string; number: string; supplier: string; supplierDocument: string; totalCents: number; items: NfeItem[] };
 
 export function parseNfe(xml: string): NfeDocument {
   if (xml.length > 250000) throw new Error("Use um XML de até 250 KB.");
@@ -25,5 +25,9 @@ export function parseNfe(xml: string): NfeDocument {
     return { line, code: String(product.cProd).slice(0, 80), name: String(product.xProd).slice(0, 200), unit: String(product.uCom ?? "un").slice(0, 10), quantity, totalCents };
   });
   if (new Set(items.map((item: NfeItem) => item.line)).size !== items.length) throw new Error("Linhas duplicadas na nota.");
-  return { key, number: String(info.ide?.nNF ?? ""), supplier: String(info.emit?.xNome ?? "Fornecedor"), supplierDocument: String(info.emit?.CNPJ ?? info.emit?.CPF ?? ""), items };
+  const declaredTotalCents = Math.round(Number(info.total?.ICMSTot?.vNF) * 100);
+  const totalCents = Number.isSafeInteger(declaredTotalCents) && declaredTotalCents > 0
+    ? declaredTotalCents
+    : items.reduce((sum: number, item: NfeItem) => sum + item.totalCents, 0);
+  return { key, number: String(info.ide?.nNF ?? ""), supplier: String(info.emit?.xNome ?? "Fornecedor"), supplierDocument: String(info.emit?.CNPJ ?? info.emit?.CPF ?? ""), totalCents, items };
 }

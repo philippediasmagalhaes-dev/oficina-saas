@@ -18,6 +18,7 @@ export function FinancialSettlementForm({ financialEntryId, balanceCents, accoun
     {balanceCents > 0 ? <form action={settleFinancialEntryAction} className="settlement-form">
       <input type="hidden" name="financialEntryId" value={financialEntryId} />
       <label>Valor<MoneyInput name="amount" defaultValue={money(balanceCents)} required /></label>
+      <label>Taxa<MoneyInput name="feeAmount" defaultValue="0,00" /></label>
       <label>Conta<select name="financialAccountId" defaultValue={accounts[0]?.id ?? ""}><option value="">Não informada</option>{accounts.map((account) => <option value={account.id} key={account.id}>{account.name}</option>)}</select></label>
       <label>Forma<select name="paymentMethod" defaultValue="pix"><option value="pix">PIX</option><option value="cash">Dinheiro</option><option value="debit_card">Débito</option><option value="credit_card">Crédito</option><option value="transfer">Transferência</option><option value="other">Outro</option></select></label>
       <button className="primary-button" type="submit">Registrar baixa</button>

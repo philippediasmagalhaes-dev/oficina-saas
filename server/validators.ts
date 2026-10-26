@@ -199,6 +199,7 @@ export const manualFinancialEntrySchema = z.object({
 export const financialSettlementSchema = z.object({
   financialEntryId: z.string().uuid(),
   amount: z.string().trim().min(1),
+  feeAmount: z.string().trim().optional().default("0"),
   financialAccountId: z.union([z.literal(""), z.string().uuid()]).optional().transform((value) => value || null),
   paymentMethod: optionalText,
   note: optionalText,

@@ -9,6 +9,10 @@ async function main() {
 
 main().catch(async (error) => {
   console.error(error instanceof Error ? error.message : error);
+  if (error && typeof error === "object" && "cause" in error) {
+    const cause = (error as { cause?: { message?: string; code?: string } }).cause;
+    if (cause) console.error([cause.code, cause.message].filter(Boolean).join(": "));
+  }
   await closeDatabase();
   process.exitCode = 1;
 });

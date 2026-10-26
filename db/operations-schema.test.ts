@@ -72,6 +72,7 @@ describe("real workshop operations schema", () => {
         "notes",
       ]),
     );
+    expect(columnNames(schema.businessFinExports)).toContain("settlement_id");
   });
 
   it("ships the professional finance migration as an additive change", () => {
@@ -89,6 +90,15 @@ describe("real workshop operations schema", () => {
     expect(sql).toContain('CREATE TABLE "cash_sessions"');
     expect(sql).not.toMatch(/DROP\s+(TABLE|COLUMN)/i);
     expect(sql).not.toMatch(/TRUNCATE|DELETE\s+FROM/i);
+  });
+
+  it("prevents concurrent open cash sessions with an additive index migration", () => {
+    const migrationPath = resolve(import.meta.dirname, "migrations/0014_cash_session_integrity.sql");
+    expect(existsSync(migrationPath)).toBe(true);
+    const sql = existsSync(migrationPath) ? readFileSync(migrationPath, "utf8") : "";
+    expect(sql).toContain("cash_sessions_one_open_per_account");
+    expect(sql).toMatch(/WHERE .*closed_at.*IS NULL/i);
+    expect(sql).not.toMatch(/DROP\s+(TABLE|COLUMN)|TRUNCATE|DELETE\s+FROM/i);
   });
 
   it("ships an additive migration without deleting existing workshop data", () => {

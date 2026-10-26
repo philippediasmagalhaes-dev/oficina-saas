@@ -727,6 +727,7 @@ export const cashSessions = pgTable("cash_sessions", {
   ...timestamps,
 }, (table) => [
   index("cash_sessions_account_opened_idx").on(table.workshopId, table.financialAccountId, table.openedAt),
+  uniqueIndex("cash_sessions_one_open_per_account").on(table.workshopId, table.financialAccountId).where(sql`${table.closedAt} is null`),
 ]);
 
 export const financialAttachments = pgTable("financial_attachments", {
@@ -785,9 +786,13 @@ export const businessFinExports = pgTable("business_fin_exports", {
   id: uuid("id").defaultRandom().primaryKey(),
   workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
   financialEntryId: uuid("financial_entry_id").notNull().references(() => financialEntries.id, { onDelete: "cascade" }),
+  settlementId: uuid("settlement_id").references(() => financialSettlements.id, { onDelete: "cascade" }),
   externalId: text("external_id").notNull(),
   exportedAt: timestamp("exported_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [uniqueIndex("business_fin_exports_entry_unique").on(table.workshopId, table.financialEntryId)]);
+}, (table) => [
+  uniqueIndex("business_fin_exports_entry_unique").on(table.workshopId, table.financialEntryId).where(sql`${table.settlementId} is null`),
+  uniqueIndex("business_fin_exports_settlement_unique").on(table.workshopId, table.settlementId).where(sql`${table.settlementId} is not null`),
+]);
 
 export const schema = {
   user, session, account, verification, workshops, customers, vehicles,

@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   applyFinancialSettlement,
+  assertOwnedFinancialReferences,
   buildInstallmentEntryDrafts,
+  buildWorkOrderInstallmentDrafts,
+  buildCashRecognitionRows,
+  calculateAccountBalance,
   calculateCashClosing,
+  calculateSettlementMovement,
   closeFinancialOrder,
   monthlyOccurrenceDate,
   reverseFinancialSettlement,
   selectConfiguredPaymentFeeRule,
+  shouldSynchronizeWorkOrderPayment,
+  validateRecurrenceInstallments,
   type FinancialCloseStore,
   type FinancialSettlementStore,
 } from "./finance";
@@ -66,6 +73,19 @@ describe("financial installments", () => {
     expect(first.reduce((total, item) => total + item.amountCents, 0)).toBe(10_000);
     expect(first[1].dueDate.toISOString()).toBe("2026-02-28T00:00:00.000Z");
   });
+
+  it("creates cent-exact work-order titles with monthly due dates and distributed fees", () => {
+    const drafts = buildWorkOrderInstallmentDrafts({
+      amountCents: 10_000,
+      feeAmountCents: 101,
+      installmentCount: 3,
+      firstDueDate: new Date("2026-01-31T00:00:00Z"),
+      groupId: "00000000-0000-4000-8000-000000000001",
+    });
+    expect(drafts.map((item) => item.amountCents)).toEqual([3_334, 3_333, 3_333]);
+    expect(drafts.reduce((sum, item) => sum + item.feeAmountCents, 0)).toBe(101);
+    expect(drafts[1].dueDate.toISOString()).toBe("2026-02-28T00:00:00.000Z");
+  });
 });
 
 describe("cash closing", () => {
@@ -75,6 +95,44 @@ describe("cash closing", () => {
       declaredClosingCents: 14_000,
       differenceCents: -500,
     });
+  });
+
+  it("uses the net receipt after card fees", () => {
+    expect(calculateSettlementMovement("income", 10_000, 300)).toBe(9_700);
+    expect(calculateSettlementMovement("expense", 10_000, 300)).toBe(-10_300);
+  });
+});
+
+describe("recurring installments", () => {
+  it("rejects recurrence combined with installments until a full schedule is supported", () => {
+    expect(() => validateRecurrenceInstallments("rent", 3)).toThrow("recorrente");
+    expect(() => validateRecurrenceInstallments("rent", 1)).not.toThrow();
+  });
+});
+
+describe("financial ownership", () => {
+  it("rejects supplier, account, or customer references from another workshop", () => {
+    expect(() => assertOwnedFinancialReferences({ supplierRequested: true, supplierOwned: false, accountRequested: false, accountOwned: false, customerRequested: false, customerOwned: false })).toThrow("Fornecedor");
+    expect(() => assertOwnedFinancialReferences({ supplierRequested: false, supplierOwned: false, accountRequested: true, accountOwned: false, customerRequested: false, customerOwned: false })).toThrow("Conta financeira");
+    expect(() => assertOwnedFinancialReferences({ supplierRequested: false, supplierOwned: false, accountRequested: false, accountOwned: false, customerRequested: true, customerOwned: false })).toThrow("Cliente");
+  });
+});
+
+describe("cash recognition", () => {
+  it("recognizes partial settlements in their own month and preserves legacy paid titles", () => {
+    const rows = buildCashRecognitionRows([
+      { id: "partial", direction: "income", status: "partial", grossAmountCents: 10_000, netAmountCents: 10_000, settledAt: null },
+      { id: "legacy", direction: "income", status: "settled", grossAmountCents: 5_000, netAmountCents: 4_800, settledAt: new Date("2026-10-20T00:00:00Z") },
+    ], [{ financialEntryId: "partial", amountCents: 4_000, feeAmountCents: 100, settledAt: new Date("2026-10-10T00:00:00Z"), reversedAt: null }]);
+    expect(rows.map((row) => row.netAmountCents)).toEqual([3_900, 4_800]);
+    expect(calculateAccountBalance(1_000, rows.map((row) => ({ direction: row.direction, amountCents: row.grossAmountCents, feeAmountCents: row.feeAmountCents })))).toBe(9_700);
+  });
+});
+
+describe("work-order payment synchronization", () => {
+  it("only lets service income titles control the customer payment", () => {
+    expect(shouldSynchronizeWorkOrderPayment("income", "service_income")).toBe(true);
+    expect(shouldSynchronizeWorkOrderPayment("reserve", "tax_reserve")).toBe(false);
   });
 });
 
@@ -100,10 +158,21 @@ function settlementStore(workshopId = "workshop-a") {
       status = nextStatus;
     },
   };
-  return { store, settlements, getStatus: () => status };
+  return { store, settlements, getStatus: () => status, setStatus: (next: typeof status) => { status = next; } };
 }
 
 describe("financial settlements", () => {
+  it("does not allow a second settlement for a legacy paid title", async () => {
+    const state = settlementStore();
+    state.setStatus("settled");
+    await expect(applyFinancialSettlement(state.store, {
+      workshopId: "workshop-a",
+      financialEntryId: "entry",
+      amountCents: 1,
+      settledAt: new Date(),
+    })).rejects.toThrow("já está liquidado");
+  });
+
   it("moves an entry through partial settlement and full payment", async () => {
     const state = settlementStore();
     const partial = await applyFinancialSettlement(state.store, {
@@ -155,5 +224,16 @@ describe("financial settlements", () => {
       amountCents: 1,
       settledAt: new Date(),
     })).rejects.toThrow("não encontrado");
+  });
+
+  it("rejects a fee greater than the settlement amount", async () => {
+    const state = settlementStore();
+    await expect(applyFinancialSettlement(state.store, {
+      workshopId: "workshop-a",
+      financialEntryId: "entry",
+      amountCents: 1_000,
+      feeAmountCents: 1_001,
+      settledAt: new Date(),
+    })).rejects.toThrow("taxa");
   });
 });

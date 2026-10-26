@@ -30,6 +30,19 @@ export function calculateEntryBalance(
   return { settledCents, balanceCents };
 }
 
+export function calculateOperationalBalance(
+  grossAmountCents: number,
+  status: OperationalFinancialStatus,
+  settlements: SettlementAmount[],
+) {
+  if (status === "settled" && settlements.length === 0) {
+    if (!positiveInteger(grossAmountCents))
+      throw new Error("O valor do lançamento deve ser positivo.");
+    return { settledCents: grossAmountCents, balanceCents: 0 };
+  }
+  return calculateEntryBalance(grossAmountCents, settlements);
+}
+
 export function deriveEntryStatus(
   grossAmountCents: number,
   balanceCents: number,
@@ -70,6 +83,8 @@ export function splitInstallments(
     throw new Error("O valor parcelado deve ser positivo.");
   if (!positiveInteger(installmentCount))
     throw new Error("A quantidade de parcelas deve ser positiva.");
+  if (installmentCount > totalCents)
+    throw new Error("Cada parcela deve ter pelo menos um centavo.");
   const baseAmount = Math.floor(totalCents / installmentCount);
   const remainder = totalCents % installmentCount;
   return Array.from({ length: installmentCount }, (_, index) => ({

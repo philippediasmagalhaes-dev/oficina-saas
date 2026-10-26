@@ -41,4 +41,12 @@ describe("financial entry table", () => {
     expect(html).toContain("Registrar baixa");
     expect(html).toContain("Estornar");
   });
+
+  it("shows a legacy settled title as fully paid without offering another settlement", () => {
+    const html = renderToStaticMarkup(<FinancialEntryTable entries={[{ ...entry, status: "settled" }]} settlements={[]} accounts={[]} />);
+    const normalized = html.replaceAll("&nbsp;", " ").replaceAll("\u00a0", " ");
+    expect(normalized).toContain("R$ 100,00");
+    expect(normalized).toContain("R$ 0,00");
+    expect(html).not.toContain("Registrar baixa");
+  });
 });

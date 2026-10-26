@@ -6,7 +6,7 @@ const xml = `<nfeProc><NFe><infNFe Id="NFe${key}"><ide><nNF>123</nNF></ide><emit
 
 describe("NF-e stock intake", () => {
   it("reads product totals and quantities without losing identifiers", () => {
-    expect(parseNfe(xml)).toEqual({ key, number: "123", supplier: "Fornecedor & Cia", supplierDocument: "12345678000199", items: [{ line: 1, code: "OLEO", name: "Óleo 5W30", unit: "UN", quantity: 12, totalCents: 60000 }] });
+    expect(parseNfe(xml)).toEqual({ key, number: "123", supplier: "Fornecedor & Cia", supplierDocument: "12345678000199", totalCents: 60000, items: [{ line: 1, code: "OLEO", name: "Óleo 5W30", unit: "UN", quantity: 12, totalCents: 60000 }] });
   });
   it("rejects malformed XML and external entity declarations", () => {
     expect(() => parseNfe("<broken>")).toThrow();

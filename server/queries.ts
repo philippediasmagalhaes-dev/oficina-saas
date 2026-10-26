@@ -10,7 +10,7 @@ import { getVehicle, listVehicles, listVehiclesPage } from "./vehicles";
 import { listCollaboratorPayables, listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
 import { listInventoryMovements } from "./inventory";
 import { countWorkOrdersByStatus, getWorkOrder, listWorkOrdersPage } from "./work-orders";
-import { ensureDefaultFinancialAccount, ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialSettings, listCashSessions, listFinancialAccounts, listFinancialEntriesPage, listFinancialReportEntries, listFinancialSettlements, listSuppliers, listWorkOrderPayments } from "./finance";
+import { ensureDefaultFinancialAccount, ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialOverviewTotals, getFinancialSettings, getOutstandingFinancialTotal, listCashSessions, listFinancialAccounts, listFinancialEntriesPage, listFinancialReportEntries, listFinancialSettlements, listSuppliers, listWorkOrderPayments } from "./finance";
 import type { RawFinancialFilters } from "../domain/financial-filters";
 import { getWhatsAppAutomationStatus } from "./whatsapp";
 import { listFinancialCategories } from "./financial-categories";
@@ -23,7 +23,7 @@ export async function getDashboardData() {
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   const [services, inventory, orders, orderCounts, ledger, overdueReceivables, returns] = await Promise.all([
-    context.repository.listServices(context.workshopId, 100),
+    context.repository.listServices(context.workshopId),
     context.repository.listInventory(context.workshopId),
     listWorkOrdersPage(context.workshopId, { query: "", page: 1, pageSize: 8 }),
     countWorkOrdersByStatus(context.workshopId),
@@ -63,7 +63,7 @@ export async function getDashboardData() {
       openOrders: orderCounts.active,
       readyOrders: orderCounts.ready,
       receiptsCents: ledger.filter((entry) => entry.direction === "income" && entry.status === "settled").reduce((sum, entry) => sum + entry.netAmountCents, 0),
-      overdueReceivablesCents: overdueReceivables.items.filter((entry) => entry.status === "expected" || entry.status === "partial").reduce((sum, entry) => sum + entry.grossAmountCents, 0),
+      overdueReceivablesCents: await getOutstandingFinancialTotal(context.workshopId, "income", now),
     },
   };
 }
@@ -164,15 +164,16 @@ export async function getFinancialWorkspace(filters: RawFinancialFilters = {}) {
   await ensureDefaultFinancialAccount(context.workshopId);
   await ensureMonthlyCollaboratorPayables(context.workshopId);
   await ensureMonthlyFinancialOccurrences(context.workshopId);
-  const [entries, accounts, suppliers, categories, cashSessions] = await Promise.all([
+  const [entries, accounts, suppliers, categories, cashSessions, overview] = await Promise.all([
     listFinancialEntriesPage(context.workshopId, filters),
     listFinancialAccounts(context.workshopId),
     listSuppliers(context.workshopId),
     listFinancialCategories(context.workshopId),
     listCashSessions(context.workshopId),
+    getFinancialOverviewTotals(context.workshopId),
   ]);
   const settlements = await listFinancialSettlements(context.workshopId, entries.items.map((entry) => entry.id));
-  return { ...context, entries, accounts, suppliers, categories, cashSessions, settlements };
+  return { ...context, entries, accounts, suppliers, categories, cashSessions, settlements, overview };
 }
 
 export async function getWorkOrdersData(input: { query: string; page: number; pageSize: number; includeFormOptions?: boolean; selectedVehicleId?: string }) {

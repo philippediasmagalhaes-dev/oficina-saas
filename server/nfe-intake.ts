@@ -29,7 +29,7 @@ export function buildInvoiceFinancialDraft(invoice: ReturnType<typeof validateIn
     supplierDocument: invoice.supplierDocument || null,
     description: `Compra NF-e ${invoice.number} · ${invoice.supplier}`,
     documentNumber: invoice.number,
-    amountCents: invoice.items.reduce((total, item) => total + item.totalCents, 0),
+    amountCents: invoice.totalCents,
     dueDate,
   };
 }

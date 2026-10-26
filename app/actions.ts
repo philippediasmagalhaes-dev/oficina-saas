@@ -184,13 +184,17 @@ export async function setFinancialEntrySettlementAction(formData: FormData) {
   if (!/^[0-9a-f-]{36}$/i.test(financialEntryId) || !["settle", "reopen"].includes(decision)) throw new Error("Baixa financeira inválida.");
   await setFinancialEntrySettlement(workshopId, financialEntryId, decision === "settle");
   revalidatePath("/financeiro");
+  revalidatePath("/financeiro/receber");
+  revalidatePath("/financeiro/pagar");
+  revalidatePath("/financeiro/caixa");
+  revalidatePath("/financeiro/relatorios");
   revalidatePath("/");
 }
 
 export async function settleFinancialEntryAction(formData: FormData) {
   const { workshopId } = await getOwnerContext();
   const input = parse(financialSettlementSchema.safeParse(formObject(formData)));
-  await settleFinancialEntry({ workshopId, financialEntryId: input.financialEntryId, amountCents: parseCurrencyToCents(input.amount), financialAccountId: input.financialAccountId, paymentMethod: input.paymentMethod, note: input.note });
+  await settleFinancialEntry({ workshopId, financialEntryId: input.financialEntryId, amountCents: parseCurrencyToCents(input.amount), feeAmountCents: parseCurrencyToCents(input.feeAmount), financialAccountId: input.financialAccountId, paymentMethod: input.paymentMethod, note: input.note });
   revalidatePath("/financeiro");
   revalidatePath("/");
 }
