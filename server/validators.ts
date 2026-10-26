@@ -189,6 +189,51 @@ export const manualFinancialEntrySchema = z.object({
   dueDate: z.coerce.date(),
   settled: z.coerce.boolean().default(false),
   recurringMonthly: z.coerce.boolean().default(false),
+  installmentCount: z.coerce.number().int().min(1).max(48).default(1),
+  supplierId: z.union([z.literal(""), z.string().uuid()]).optional().transform((value) => value || null),
+  financialAccountId: z.union([z.literal(""), z.string().uuid()]).optional().transform((value) => value || null),
+  documentNumber: optionalText,
+  notes: optionalText,
+});
+
+export const financialSettlementSchema = z.object({
+  financialEntryId: z.string().uuid(),
+  amount: z.string().trim().min(1),
+  financialAccountId: z.union([z.literal(""), z.string().uuid()]).optional().transform((value) => value || null),
+  paymentMethod: optionalText,
+  note: optionalText,
+});
+
+export const financialSettlementReversalSchema = z.object({
+  financialEntryId: z.string().uuid(),
+  settlementId: z.string().uuid(),
+  note: optionalText,
+});
+
+export const financialAccountSchema = z.object({
+  name: z.string().trim().min(2),
+  type: z.enum(["cash", "bank", "digital_wallet", "card_clearing"]),
+  openingBalance: z.string().trim().default("0"),
+});
+
+export const supplierSchema = z.object({
+  supplierId: z.union([z.literal(""), z.string().uuid()]).optional().transform((value) => value || null),
+  name: z.string().trim().min(2),
+  document: optionalText,
+  phone: optionalText,
+  email: z.union([z.literal(""), z.string().email()]).optional().transform((value) => value || null),
+  notes: optionalText,
+});
+
+export const cashSessionOpenSchema = z.object({
+  financialAccountId: z.string().uuid(),
+  openingBalance: z.string().trim().default("0"),
+});
+
+export const cashSessionCloseSchema = z.object({
+  cashSessionId: z.string().uuid(),
+  declaredClosing: z.string().trim().min(1),
+  note: optionalText,
 });
 
 export const photoSchema = z.object({

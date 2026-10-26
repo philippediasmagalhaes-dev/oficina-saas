@@ -10,7 +10,8 @@ import { getVehicle, listVehicles, listVehiclesPage } from "./vehicles";
 import { listCollaboratorPayables, listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
 import { listInventoryMovements } from "./inventory";
 import { countWorkOrdersByStatus, getWorkOrder, listWorkOrders, listWorkOrdersPage } from "./work-orders";
-import { ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialSettings, listFinancialReportEntries, listWorkOrderPayments } from "./finance";
+import { ensureDefaultFinancialAccount, ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialSettings, listCashSessions, listFinancialAccounts, listFinancialEntriesPage, listFinancialReportEntries, listFinancialSettlements, listSuppliers, listWorkOrderPayments } from "./finance";
+import type { RawFinancialFilters } from "../domain/financial-filters";
 import { getWhatsAppAutomationStatus } from "./whatsapp";
 import { listFinancialCategories } from "./financial-categories";
 import { listMaintenanceReturns } from "./retention";
@@ -158,6 +159,22 @@ export async function getFinancialDashboard(filters: FinancialFilters & { status
     categories,
     ledger: { incomeCents, expenseCents, reserveCents, balanceCents: incomeCents - expenseCents - reserveCents },
   };
+}
+
+export async function getFinancialWorkspace(filters: RawFinancialFilters = {}) {
+  const context = await getOwnerContext();
+  await ensureDefaultFinancialAccount(context.workshopId);
+  await ensureMonthlyCollaboratorPayables(context.workshopId);
+  await ensureMonthlyFinancialOccurrences(context.workshopId);
+  const [entries, accounts, suppliers, categories, cashSessions] = await Promise.all([
+    listFinancialEntriesPage(context.workshopId, filters),
+    listFinancialAccounts(context.workshopId),
+    listSuppliers(context.workshopId),
+    listFinancialCategories(context.workshopId),
+    listCashSessions(context.workshopId),
+  ]);
+  const settlements = await listFinancialSettlements(context.workshopId, entries.items.map((entry) => entry.id));
+  return { ...context, entries, accounts, suppliers, categories, cashSessions, settlements };
 }
 
 export async function getWorkOrdersData(input: { query: string; page: number; pageSize: number; includeFormOptions?: boolean; selectedVehicleId?: string }) {

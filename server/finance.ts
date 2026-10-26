@@ -1,9 +1,11 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, lt, ne, notExists, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, lt, ne, notExists, or, sql } from "drizzle-orm";
 import { getDatabase, runDatabaseTransaction, type DatabaseTransaction } from "../db/client";
-import { businessFinExports, collaboratorServiceRates, collaborators, financialAttachments, financialEntries, financialEntryEvents, paymentFeeRules, serviceRecords, workOrderItemAssignments, workOrderItems, workOrderPayments, workshopFinancialSettings } from "../db/schema";
+import { businessFinExports, cashSessions, collaboratorServiceRates, collaborators, financialAccounts, financialAttachments, financialEntries, financialEntryEvents, financialSettlements, paymentFeeRules, serviceRecords, suppliers, workOrderItemAssignments, workOrderItems, workOrderPayments, workshopFinancialSettings } from "../db/schema";
 import { calculateFinancialClosing, type FinancialClosing, type FinancialClosingInput } from "../domain/financial-closing";
 import { hasMonthlyCompensation, validateParticipationTotal } from "../domain/commissions";
 import { allocateCentsProportionally } from "../domain/money";
+import { calculateEntryBalance, deriveEntryStatus, splitInstallments, type OperationalFinancialStatus } from "../domain/financial-ledger";
+import { normalizeFinancialFilters, type RawFinancialFilters } from "../domain/financial-filters";
 
 export interface FinancialCloseStore {
   load(workshopId: string, serviceRecordId: string): Promise<{ state: "closed"; result: FinancialClosing } | { state: "open"; input: FinancialClosingInput }>;
@@ -14,6 +16,100 @@ export async function closeFinancialOrder(store: FinancialCloseStore, workshopId
   const state = await store.load(workshopId, serviceRecordId);
   if (state.state === "closed") return state.result;
   return store.persist(workshopId, serviceRecordId, calculateFinancialClosing(state.input));
+}
+
+export type FinancialSettlementEntry = {
+  id: string;
+  workshopId: string;
+  grossAmountCents: number;
+  status: OperationalFinancialStatus;
+};
+
+export type FinancialSettlementRow = {
+  id: string;
+  amountCents: number;
+  reversedAt: Date | null;
+};
+
+export interface FinancialSettlementStore {
+  loadEntry(workshopId: string, financialEntryId: string): Promise<FinancialSettlementEntry | null>;
+  listSettlements(workshopId: string, financialEntryId: string): Promise<FinancialSettlementRow[]>;
+  createSettlement(input: {
+    workshopId: string;
+    financialEntryId: string;
+    amountCents: number;
+    settledAt: Date;
+    financialAccountId?: string | null;
+    paymentMethod?: string | null;
+    note?: string | null;
+    feeAmountCents?: number;
+  }): Promise<FinancialSettlementRow>;
+  reverseSettlement(workshopId: string, settlementId: string, reversedAt: Date, note?: string | null): Promise<void>;
+  updateEntryStatus(
+    workshopId: string,
+    financialEntryId: string,
+    status: OperationalFinancialStatus,
+    occurredAt: Date,
+  ): Promise<void>;
+}
+
+export async function applyFinancialSettlement(
+  store: FinancialSettlementStore,
+  input: {
+    workshopId: string;
+    financialEntryId: string;
+    amountCents: number;
+    settledAt: Date;
+    financialAccountId?: string | null;
+    paymentMethod?: string | null;
+    note?: string | null;
+    feeAmountCents?: number;
+  },
+) {
+  const entry = await store.loadEntry(input.workshopId, input.financialEntryId);
+  if (!entry || entry.status === "cancelled") throw new Error("Lançamento financeiro não encontrado.");
+  const existing = await store.listSettlements(input.workshopId, input.financialEntryId);
+  const before = calculateEntryBalance(entry.grossAmountCents, existing);
+  if (!Number.isInteger(input.amountCents) || input.amountCents <= 0)
+    throw new Error("O valor da baixa deve ser positivo.");
+  if (input.amountCents > before.balanceCents)
+    throw new Error("A baixa não pode superar o saldo do lançamento.");
+  const settlement = await store.createSettlement(input);
+  const balanceCents = before.balanceCents - input.amountCents;
+  const status = deriveEntryStatus(entry.grossAmountCents, balanceCents, false);
+  await store.updateEntryStatus(input.workshopId, input.financialEntryId, status, input.settledAt);
+  return {
+    settlementId: settlement.id,
+    status,
+    settledCents: entry.grossAmountCents - balanceCents,
+    balanceCents,
+  };
+}
+
+export async function reverseFinancialSettlement(
+  store: FinancialSettlementStore,
+  input: {
+    workshopId: string;
+    financialEntryId: string;
+    settlementId: string;
+    reversedAt: Date;
+    note?: string | null;
+  },
+) {
+  const entry = await store.loadEntry(input.workshopId, input.financialEntryId);
+  if (!entry || entry.status === "cancelled") throw new Error("Lançamento financeiro não encontrado.");
+  const settlements = await store.listSettlements(input.workshopId, input.financialEntryId);
+  const settlement = settlements.find((row) => row.id === input.settlementId);
+  if (!settlement) throw new Error("Baixa financeira não encontrada.");
+  if (settlement.reversedAt) throw new Error("Esta baixa já foi estornada.");
+  await store.reverseSettlement(input.workshopId, input.settlementId, input.reversedAt, input.note);
+  const recalculated = calculateEntryBalance(
+    entry.grossAmountCents,
+    settlements.map((row) => row.id === input.settlementId ? { ...row, reversedAt: input.reversedAt } : row),
+  );
+  const status = deriveEntryStatus(entry.grossAmountCents, recalculated.balanceCents, false);
+  await store.updateEntryStatus(input.workshopId, input.financialEntryId, status, input.reversedAt);
+  return { status, ...recalculated };
 }
 
 export type PaymentDraft = { paymentMethod: string; amountCents: number; installmentCount: number; paid: boolean; expectedAt: Date; manualFeeCents: number | null };
@@ -123,20 +219,179 @@ export async function closeWorkOrderFinancials(input: { workshopId: string; serv
 
 export type FinancialEntryFilters = { from?: Date; to?: Date; status?: string; category?: string; recognitionMode?: "cash" | "accrual"; paymentMethod?: string; collaboratorId?: string };
 
+const operationalStatuses = ["expected", "partial", "settled", "cancelled"] as const;
+
+function financialStatusValue(value?: string) {
+  return operationalStatuses.includes(value as (typeof operationalStatuses)[number])
+    ? value as (typeof operationalStatuses)[number]
+    : undefined;
+}
+
 export async function listFinancialEntries(workshopId: string, filters: FinancialEntryFilters = {}) {
   const recognitionColumn = filters.recognitionMode === "cash" ? financialEntries.settledAt : financialEntries.competenceDate;
-  return getDatabase().select().from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), filters.from ? gte(recognitionColumn, filters.from) : undefined, filters.to ? lt(recognitionColumn, filters.to) : undefined, filters.status ? eq(financialEntries.status, filters.status as "expected" | "settled" | "cancelled") : undefined, filters.category ? eq(financialEntries.category, filters.category) : undefined)).orderBy(desc(financialEntries.competenceDate));
+  const status = financialStatusValue(filters.status);
+  return getDatabase().select().from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), filters.from ? gte(recognitionColumn, filters.from) : undefined, filters.to ? lt(recognitionColumn, filters.to) : undefined, status ? eq(financialEntries.status, status) : undefined, filters.category ? eq(financialEntries.category, filters.category) : undefined)).orderBy(desc(financialEntries.competenceDate));
+}
+
+export async function listFinancialEntriesPage(workshopId: string, rawFilters: RawFinancialFilters = {}) {
+  const filters = normalizeFinancialFilters(rawFilters);
+  const pattern = filters.search ? `%${filters.search}%` : undefined;
+  const where = and(
+    eq(financialEntries.workshopId, workshopId),
+    filters.direction ? eq(financialEntries.direction, filters.direction) : undefined,
+    filters.status ? eq(financialEntries.status, filters.status) : undefined,
+    filters.category ? eq(financialEntries.category, filters.category) : undefined,
+    filters.dueFrom ? gte(financialEntries.dueDate, filters.dueFrom) : undefined,
+    filters.dueTo ? lt(financialEntries.dueDate, filters.dueTo) : undefined,
+    pattern ? or(ilike(financialEntries.description, pattern), ilike(financialEntries.documentNumber, pattern)) : undefined,
+  );
+  const database = getDatabase();
+  const [items, [{ total }]] = await Promise.all([
+    database.select().from(financialEntries).where(where).orderBy(asc(financialEntries.dueDate), desc(financialEntries.createdAt)).limit(filters.pageSize).offset(filters.offset),
+    database.select({ total: count() }).from(financialEntries).where(where),
+  ]);
+  return {
+    items,
+    total: Number(total),
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(Number(total) / filters.pageSize)),
+  };
 }
 
 export async function listFinancialReportEntries(workshopId: string, filters: FinancialEntryFilters = {}) {
   const recognitionColumn = filters.recognitionMode === "cash" ? financialEntries.settledAt : financialEntries.competenceDate;
-  return getDatabase().select({ id: financialEntries.id, externalId: financialEntries.externalId, direction: financialEntries.direction, category: financialEntries.category, description: financialEntries.description, grossAmountCents: financialEntries.grossAmountCents, feeAmountCents: financialEntries.feeAmountCents, netAmountCents: financialEntries.netAmountCents, competenceDate: financialEntries.competenceDate, dueDate: financialEntries.dueDate, settledAt: financialEntries.settledAt, status: financialEntries.status, paymentId: financialEntries.paymentId, paymentMethod: workOrderPayments.paymentMethod, collaboratorId: financialEntries.collaboratorId, collaboratorName: collaborators.name, serviceRecordId: financialEntries.serviceRecordId }).from(financialEntries).leftJoin(workOrderPayments, and(eq(workOrderPayments.id, financialEntries.paymentId), eq(workOrderPayments.workshopId, workshopId))).leftJoin(collaborators, and(eq(collaborators.id, financialEntries.collaboratorId), eq(collaborators.workshopId, workshopId))).where(and(eq(financialEntries.workshopId, workshopId), filters.from ? gte(recognitionColumn, filters.from) : undefined, filters.to ? lt(recognitionColumn, filters.to) : undefined, filters.status ? eq(financialEntries.status, filters.status as "expected" | "settled" | "cancelled") : undefined, filters.category ? eq(financialEntries.category, filters.category) : undefined, filters.paymentMethod ? eq(workOrderPayments.paymentMethod, filters.paymentMethod) : undefined, filters.collaboratorId ? eq(financialEntries.collaboratorId, filters.collaboratorId) : undefined)).orderBy(desc(financialEntries.competenceDate));
+  const status = financialStatusValue(filters.status);
+  return getDatabase().select({ id: financialEntries.id, externalId: financialEntries.externalId, direction: financialEntries.direction, category: financialEntries.category, description: financialEntries.description, grossAmountCents: financialEntries.grossAmountCents, feeAmountCents: financialEntries.feeAmountCents, netAmountCents: financialEntries.netAmountCents, competenceDate: financialEntries.competenceDate, dueDate: financialEntries.dueDate, settledAt: financialEntries.settledAt, status: financialEntries.status, paymentId: financialEntries.paymentId, paymentMethod: workOrderPayments.paymentMethod, collaboratorId: financialEntries.collaboratorId, collaboratorName: collaborators.name, serviceRecordId: financialEntries.serviceRecordId }).from(financialEntries).leftJoin(workOrderPayments, and(eq(workOrderPayments.id, financialEntries.paymentId), eq(workOrderPayments.workshopId, workshopId))).leftJoin(collaborators, and(eq(collaborators.id, financialEntries.collaboratorId), eq(collaborators.workshopId, workshopId))).where(and(eq(financialEntries.workshopId, workshopId), filters.from ? gte(recognitionColumn, filters.from) : undefined, filters.to ? lt(recognitionColumn, filters.to) : undefined, status ? eq(financialEntries.status, status) : undefined, filters.category ? eq(financialEntries.category, filters.category) : undefined, filters.paymentMethod ? eq(workOrderPayments.paymentMethod, filters.paymentMethod) : undefined, filters.collaboratorId ? eq(financialEntries.collaboratorId, filters.collaboratorId) : undefined)).orderBy(desc(financialEntries.competenceDate));
 }
 
-export async function createManualFinancialEntry(input: { workshopId: string; direction: "income" | "expense" | "reserve"; category: string; description: string; amountCents: number; competenceDate: Date; dueDate: Date; settled: boolean; recurrenceKey?: string | null }) {
-  const externalId = `manual:${crypto.randomUUID()}`;
-  const [row] = await getDatabase().insert(financialEntries).values({ workshopId: input.workshopId, externalId, direction: input.direction, category: input.category, description: input.description, grossAmountCents: input.amountCents, netAmountCents: input.amountCents, competenceDate: input.competenceDate, dueDate: input.dueDate, settledAt: input.settled ? new Date() : null, status: input.settled ? "settled" : "expected", recurrenceKey: input.recurrenceKey ?? null }).returning();
+export function buildInstallmentEntryDrafts(input: {
+  totalCents: number;
+  installmentCount: number;
+  firstDueDate: Date;
+  groupId: string;
+  idempotencyKey: string;
+}) {
+  return splitInstallments(input.totalCents, input.installmentCount, input.firstDueDate).map((installment) => ({
+    ...installment,
+    installmentGroupId: input.groupId,
+    externalId: `manual:${input.idempotencyKey}:${installment.installmentNumber}`,
+  }));
+}
+
+export async function createManualFinancialEntry(input: {
+  workshopId: string;
+  direction: "income" | "expense" | "reserve";
+  category: string;
+  description: string;
+  amountCents: number;
+  competenceDate: Date;
+  dueDate: Date;
+  settled: boolean;
+  recurrenceKey?: string | null;
+  installmentCount?: number;
+  installmentGroupId?: string;
+  idempotencyKey?: string;
+  customerId?: string | null;
+  supplierId?: string | null;
+  financialAccountId?: string | null;
+  documentNumber?: string | null;
+  notes?: string | null;
+}) {
+  const installmentCount = input.installmentCount ?? 1;
+  const groupId = input.installmentGroupId ?? crypto.randomUUID();
+  const idempotencyKey = input.idempotencyKey ?? crypto.randomUUID();
+  const drafts = buildInstallmentEntryDrafts({ totalCents: input.amountCents, installmentCount, firstDueDate: input.dueDate, groupId, idempotencyKey });
+  const now = new Date();
+  return runDatabaseTransaction(async (tx) => {
+    const rows = await tx.insert(financialEntries).values(drafts.map((draft) => ({
+      workshopId: input.workshopId,
+      externalId: draft.externalId,
+      direction: input.direction,
+      category: input.category,
+      description: input.description,
+      grossAmountCents: draft.amountCents,
+      netAmountCents: draft.amountCents,
+      competenceDate: input.competenceDate,
+      dueDate: draft.dueDate,
+      settledAt: input.settled ? now : null,
+      status: input.settled ? "settled" as const : "expected" as const,
+      recurrenceKey: input.recurrenceKey ?? null,
+      installmentGroupId: draft.installmentGroupId,
+      installmentNumber: draft.installmentNumber,
+      installmentCount: draft.installmentCount,
+      customerId: input.customerId ?? null,
+      supplierId: input.supplierId ?? null,
+      financialAccountId: input.financialAccountId ?? null,
+      documentNumber: input.documentNumber ?? null,
+      notes: input.notes ?? null,
+    }))).onConflictDoNothing().returning();
+    if (input.settled && rows.length) {
+      await tx.insert(financialSettlements).values(rows.map((row) => ({ workshopId: input.workshopId, financialEntryId: row.id, financialAccountId: input.financialAccountId ?? null, amountCents: row.grossAmountCents, settledAt: now, note: "Lançamento criado como recebido/pago" })));
+    }
+    return installmentCount === 1 ? rows[0] : rows;
+  });
+}
+
+export async function ensureDefaultFinancialAccount(workshopId: string) {
+  const [account] = await getDatabase().insert(financialAccounts).values({ workshopId, name: "Caixa da oficina", type: "cash", systemDefault: true }).onConflictDoUpdate({ target: [financialAccounts.workshopId, financialAccounts.name], set: { active: true, systemDefault: true, updatedAt: new Date() } }).returning();
+  return account;
+}
+
+export async function listFinancialAccounts(workshopId: string) {
+  return getDatabase().select().from(financialAccounts).where(and(eq(financialAccounts.workshopId, workshopId), eq(financialAccounts.active, true))).orderBy(desc(financialAccounts.systemDefault), asc(financialAccounts.name));
+}
+
+export async function createFinancialAccount(input: { workshopId: string; name: string; type: string; openingBalanceCents?: number }) {
+  const [row] = await getDatabase().insert(financialAccounts).values({ workshopId: input.workshopId, name: input.name.trim(), type: input.type, openingBalanceCents: input.openingBalanceCents ?? 0 }).returning();
   return row;
+}
+
+export async function listSuppliers(workshopId: string, search?: string) {
+  const pattern = search?.trim() ? `%${search.trim()}%` : undefined;
+  return getDatabase().select().from(suppliers).where(and(eq(suppliers.workshopId, workshopId), eq(suppliers.active, true), pattern ? or(ilike(suppliers.name, pattern), ilike(suppliers.document, pattern)) : undefined)).orderBy(asc(suppliers.name));
+}
+
+export async function createSupplier(input: { workshopId: string; name: string; document?: string | null; phone?: string | null; email?: string | null; notes?: string | null }) {
+  const [row] = await getDatabase().insert(suppliers).values({ ...input, name: input.name.trim(), document: input.document?.trim() || null }).returning();
+  return row;
+}
+
+export async function updateSupplier(input: { workshopId: string; supplierId: string; name: string; document?: string | null; phone?: string | null; email?: string | null; notes?: string | null; active?: boolean }) {
+  const [row] = await getDatabase().update(suppliers).set({ name: input.name.trim(), document: input.document?.trim() || null, phone: input.phone ?? null, email: input.email ?? null, notes: input.notes ?? null, active: input.active ?? true, updatedAt: new Date() }).where(and(eq(suppliers.workshopId, input.workshopId), eq(suppliers.id, input.supplierId))).returning();
+  if (!row) throw new Error("Fornecedor não encontrado.");
+  return row;
+}
+
+export async function openCashSession(input: { workshopId: string; financialAccountId: string; openingBalanceCents: number; openedAt?: Date }) {
+  return runDatabaseTransaction(async (tx) => {
+    const [account] = await tx.select({ id: financialAccounts.id }).from(financialAccounts).where(and(eq(financialAccounts.workshopId, input.workshopId), eq(financialAccounts.id, input.financialAccountId), eq(financialAccounts.active, true))).limit(1);
+    if (!account) throw new Error("Conta financeira não encontrada.");
+    const [open] = await tx.select({ id: cashSessions.id }).from(cashSessions).where(and(eq(cashSessions.workshopId, input.workshopId), eq(cashSessions.financialAccountId, input.financialAccountId), sql`${cashSessions.closedAt} is null`)).limit(1);
+    if (open) throw new Error("Já existe um caixa aberto para esta conta.");
+    const [row] = await tx.insert(cashSessions).values({ ...input, openedAt: input.openedAt ?? new Date() }).returning();
+    return row;
+  });
+}
+
+export async function closeCashSession(input: { workshopId: string; cashSessionId: string; declaredClosingCents: number; note?: string | null; closedAt?: Date }) {
+  return runDatabaseTransaction(async (tx) => {
+    const [session] = await tx.select().from(cashSessions).where(and(eq(cashSessions.workshopId, input.workshopId), eq(cashSessions.id, input.cashSessionId), sql`${cashSessions.closedAt} is null`)).limit(1);
+    if (!session) throw new Error("Caixa aberto não encontrado.");
+    const [{ movementCents }] = await tx.select({ movementCents: sql<number>`coalesce(sum(case when ${financialEntries.direction} = 'income' then ${financialSettlements.amountCents} else -${financialSettlements.amountCents} end), 0)::integer` }).from(financialSettlements).innerJoin(financialEntries, and(eq(financialEntries.id, financialSettlements.financialEntryId), eq(financialEntries.workshopId, input.workshopId))).where(and(eq(financialSettlements.workshopId, input.workshopId), eq(financialSettlements.financialAccountId, session.financialAccountId), gte(financialSettlements.settledAt, session.openedAt), sql`${financialSettlements.reversedAt} is null`));
+    const calculatedClosingCents = session.openingBalanceCents + Number(movementCents);
+    const [row] = await tx.update(cashSessions).set({ closedAt: input.closedAt ?? new Date(), calculatedClosingCents, declaredClosingCents: input.declaredClosingCents, note: input.note ?? null, updatedAt: new Date() }).where(and(eq(cashSessions.workshopId, input.workshopId), eq(cashSessions.id, input.cashSessionId))).returning();
+    return row;
+  });
+}
+
+export async function listCashSessions(workshopId: string, limit = 30) {
+  return getDatabase().select().from(cashSessions).where(eq(cashSessions.workshopId, workshopId)).orderBy(desc(cashSessions.openedAt)).limit(Math.min(Math.max(limit, 1), 100));
+}
+
+export async function listFinancialSettlements(workshopId: string, financialEntryIds: string[]) {
+  if (!financialEntryIds.length) return [];
+  return getDatabase().select().from(financialSettlements).where(and(eq(financialSettlements.workshopId, workshopId), inArray(financialSettlements.financialEntryId, financialEntryIds))).orderBy(desc(financialSettlements.settledAt));
 }
 
 export async function ensureMonthlyCollaboratorPayables(workshopId: string, month = new Date()) {
@@ -151,20 +406,89 @@ export async function ensureMonthlyCollaboratorPayables(workshopId: string, mont
   }
 }
 
+function databaseFinancialSettlementStore(tx: DatabaseTransaction): FinancialSettlementStore {
+  return {
+    async loadEntry(workshopId, financialEntryId) {
+      const [entry] = await tx.select({ id: financialEntries.id, workshopId: financialEntries.workshopId, grossAmountCents: financialEntries.grossAmountCents, status: financialEntries.status }).from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), eq(financialEntries.id, financialEntryId))).limit(1);
+      return entry ?? null;
+    },
+    async listSettlements(workshopId, financialEntryId) {
+      return tx.select({ id: financialSettlements.id, amountCents: financialSettlements.amountCents, reversedAt: financialSettlements.reversedAt }).from(financialSettlements).where(and(eq(financialSettlements.workshopId, workshopId), eq(financialSettlements.financialEntryId, financialEntryId))).orderBy(asc(financialSettlements.settledAt));
+    },
+    async createSettlement(input) {
+      if (input.financialAccountId) {
+        const [account] = await tx.select({ id: financialAccounts.id }).from(financialAccounts).where(and(eq(financialAccounts.workshopId, input.workshopId), eq(financialAccounts.id, input.financialAccountId), eq(financialAccounts.active, true))).limit(1);
+        if (!account) throw new Error("Conta financeira não encontrada.");
+      }
+      const [row] = await tx.insert(financialSettlements).values({ workshopId: input.workshopId, financialEntryId: input.financialEntryId, amountCents: input.amountCents, feeAmountCents: input.feeAmountCents ?? 0, financialAccountId: input.financialAccountId ?? null, paymentMethod: input.paymentMethod ?? null, settledAt: input.settledAt, note: input.note ?? null }).returning({ id: financialSettlements.id, amountCents: financialSettlements.amountCents, reversedAt: financialSettlements.reversedAt });
+      return row;
+    },
+    async reverseSettlement(workshopId, settlementId, reversedAt, note) {
+      const rows = await tx.update(financialSettlements).set({ reversedAt, reversalNote: note ?? null, updatedAt: reversedAt }).where(and(eq(financialSettlements.workshopId, workshopId), eq(financialSettlements.id, settlementId), sql`${financialSettlements.reversedAt} is null`)).returning({ id: financialSettlements.id });
+      if (!rows.length) throw new Error("Baixa financeira não encontrada.");
+    },
+    async updateEntryStatus(workshopId, financialEntryId, status, occurredAt) {
+      const [current] = await tx.select({ status: financialEntries.status, paymentId: financialEntries.paymentId, serviceRecordId: financialEntries.serviceRecordId }).from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), eq(financialEntries.id, financialEntryId))).limit(1);
+      if (!current) throw new Error("Lançamento financeiro não encontrado.");
+      await tx.update(financialEntries).set({ status, settledAt: status === "settled" ? occurredAt : null, updatedAt: occurredAt }).where(and(eq(financialEntries.workshopId, workshopId), eq(financialEntries.id, financialEntryId)));
+      if (current.status !== status) await tx.insert(financialEntryEvents).values({ workshopId, financialEntryId, fromStatus: current.status, toStatus: status, occurredAt });
+      if (current.paymentId) {
+        const paid = status === "settled";
+        await tx.update(workOrderPayments).set({ status: paid ? "paid" : "expected", paidAt: paid ? occurredAt : null, updatedAt: occurredAt }).where(and(eq(workOrderPayments.workshopId, workshopId), eq(workOrderPayments.id, current.paymentId)));
+        const [taxEntry] = await tx.select({ id: financialEntries.id, status: financialEntries.status }).from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), eq(financialEntries.paymentId, current.paymentId), eq(financialEntries.category, "tax_reserve"))).limit(1);
+        if (taxEntry && taxEntry.status !== status) {
+          await tx.update(financialEntries).set({ status, settledAt: paid ? occurredAt : null, updatedAt: occurredAt }).where(and(eq(financialEntries.workshopId, workshopId), eq(financialEntries.id, taxEntry.id)));
+          await tx.insert(financialEntryEvents).values({ workshopId, financialEntryId: taxEntry.id, fromStatus: taxEntry.status, toStatus: status, occurredAt });
+        }
+        if (current.serviceRecordId) {
+          const [outstanding] = await tx.select({ id: workOrderPayments.id }).from(workOrderPayments).where(and(eq(workOrderPayments.workshopId, workshopId), eq(workOrderPayments.serviceRecordId, current.serviceRecordId), eq(workOrderPayments.status, "expected"))).limit(1);
+          await tx.update(serviceRecords).set({ paymentStatus: outstanding ? "pending" : "paid", updatedAt: occurredAt }).where(and(eq(serviceRecords.workshopId, workshopId), eq(serviceRecords.id, current.serviceRecordId)));
+        }
+      }
+    },
+  };
+}
+
+export async function settleFinancialEntry(input: { workshopId: string; financialEntryId: string; amountCents: number; settledAt?: Date; financialAccountId?: string | null; paymentMethod?: string | null; note?: string | null; feeAmountCents?: number }) {
+  return runDatabaseTransaction(async (tx) => {
+    await tx.execute(sql`select id from financial_entries where workshop_id = ${input.workshopId} and id = ${input.financialEntryId} for update`);
+    return applyFinancialSettlement(databaseFinancialSettlementStore(tx), { ...input, settledAt: input.settledAt ?? new Date() });
+  });
+}
+
+export async function reverseFinancialEntrySettlement(input: { workshopId: string; financialEntryId: string; settlementId: string; reversedAt?: Date; note?: string | null }) {
+  return runDatabaseTransaction(async (tx) => {
+    await tx.execute(sql`select id from financial_entries where workshop_id = ${input.workshopId} and id = ${input.financialEntryId} for update`);
+    return reverseFinancialSettlement(databaseFinancialSettlementStore(tx), { ...input, reversedAt: input.reversedAt ?? new Date() });
+  });
+}
+
 export async function setFinancialEntrySettlement(workshopId: string, financialEntryId: string, settle: boolean, now = new Date()) {
+  if (settle) {
+    return runDatabaseTransaction(async (tx) => {
+      await tx.execute(sql`select id from financial_entries where workshop_id = ${workshopId} and id = ${financialEntryId} for update`);
+      const store = databaseFinancialSettlementStore(tx);
+      const entry = await store.loadEntry(workshopId, financialEntryId);
+      if (!entry || entry.status === "cancelled") throw new Error("Lançamento financeiro não encontrado.");
+      const balance = calculateEntryBalance(entry.grossAmountCents, await store.listSettlements(workshopId, financialEntryId));
+      if (balance.balanceCents === 0) return entry;
+      return applyFinancialSettlement(store, { workshopId, financialEntryId, amountCents: balance.balanceCents, settledAt: now });
+    });
+  }
   return runDatabaseTransaction(async (tx) => {
     await tx.execute(sql`select id from financial_entries where workshop_id = ${workshopId} and id = ${financialEntryId} for update`);
     const [entry] = await tx.select().from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), eq(financialEntries.id, financialEntryId))).limit(1);
     if (!entry || entry.status === "cancelled") throw new Error("Lançamento financeiro não encontrado.");
-    const toStatus: "settled" | "expected" = settle ? "settled" : "expected";
+    const toStatus = "expected" as const;
     if (entry.status === toStatus) return entry;
-    const [updated] = await tx.update(financialEntries).set({ status: toStatus, settledAt: settle ? now : null, updatedAt: now }).where(and(eq(financialEntries.workshopId, workshopId), eq(financialEntries.id, financialEntryId))).returning();
+    await tx.update(financialSettlements).set({ reversedAt: now, reversalNote: "Reabertura manual", updatedAt: now }).where(and(eq(financialSettlements.workshopId, workshopId), eq(financialSettlements.financialEntryId, financialEntryId), sql`${financialSettlements.reversedAt} is null`));
+    const [updated] = await tx.update(financialEntries).set({ status: toStatus, settledAt: null, updatedAt: now }).where(and(eq(financialEntries.workshopId, workshopId), eq(financialEntries.id, financialEntryId))).returning();
     await tx.insert(financialEntryEvents).values({ workshopId, financialEntryId, fromStatus: entry.status, toStatus, occurredAt: now });
     if (entry.paymentId) {
-      await tx.update(workOrderPayments).set({ status: settle ? "paid" : "expected", paidAt: settle ? now : null, updatedAt: now }).where(and(eq(workOrderPayments.workshopId, workshopId), eq(workOrderPayments.id, entry.paymentId)));
+      await tx.update(workOrderPayments).set({ status: "expected", paidAt: null, updatedAt: now }).where(and(eq(workOrderPayments.workshopId, workshopId), eq(workOrderPayments.id, entry.paymentId)));
       const linkedTaxEntries = await tx.select({ id: financialEntries.id, status: financialEntries.status }).from(financialEntries).where(and(eq(financialEntries.workshopId, workshopId), eq(financialEntries.paymentId, entry.paymentId), eq(financialEntries.category, "tax_reserve"), ne(financialEntries.status, toStatus)));
       if (linkedTaxEntries.length) {
-        await tx.update(financialEntries).set({ status: toStatus, settledAt: settle ? now : null, updatedAt: now }).where(and(eq(financialEntries.workshopId, workshopId), inArray(financialEntries.id, linkedTaxEntries.map((tax) => tax.id))));
+        await tx.update(financialEntries).set({ status: toStatus, settledAt: null, updatedAt: now }).where(and(eq(financialEntries.workshopId, workshopId), inArray(financialEntries.id, linkedTaxEntries.map((tax) => tax.id))));
         await tx.insert(financialEntryEvents).values(linkedTaxEntries.map((tax) => ({ workshopId, financialEntryId: tax.id, fromStatus: tax.status, toStatus, occurredAt: now })));
       }
       if (entry.serviceRecordId) {

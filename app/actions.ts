@@ -13,7 +13,7 @@ import { getOwnerContext, getOwnerUser } from "../server/owner-context";
 import { updateVehicle } from "../server/vehicles";
 import { saveInspection } from "../server/inspections";
 import { assignWorkOrderItem, createCollaborator, deactivateCollaborator, deleteCollaboratorServiceRate, removeWorkOrderAssignment, setCollaboratorServiceRate, updateCollaborator } from "../server/collaborators";
-import { createManualFinancialEntry, deactivatePaymentFeeRule, saveFinancialSettings, savePaymentFeeRule, setFinancialEntrySettlement } from "../server/finance";
+import { closeCashSession, createFinancialAccount, createManualFinancialEntry, createSupplier, deactivatePaymentFeeRule, openCashSession, reverseFinancialEntrySettlement, saveFinancialSettings, savePaymentFeeRule, setFinancialEntrySettlement, settleFinancialEntry, updateSupplier } from "../server/finance";
 import { createFinancialCategory, deactivateFinancialCategory, listFinancialCategories, updateFinancialCategory } from "../server/financial-categories";
 import { seedAutomotiveCatalog, updateCatalogMaintenance } from "../server/automotive-catalog";
 import { confirmExistingWhatsAppConsent } from "../server/retention";
@@ -48,6 +48,12 @@ import {
   financialCategoryUpdateSchema,
   financialCategoryIdSchema,
   manualFinancialEntrySchema,
+  financialSettlementSchema,
+  financialSettlementReversalSchema,
+  financialAccountSchema,
+  supplierSchema,
+  cashSessionOpenSchema,
+  cashSessionCloseSchema,
   paymentFeeRuleSchema,
   paymentFeeRuleIdSchema,
   inventoryAdjustmentSchema,
@@ -175,6 +181,22 @@ export async function setFinancialEntrySettlementAction(formData: FormData) {
   const decision = String(formData.get("decision") ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(financialEntryId) || !["settle", "reopen"].includes(decision)) throw new Error("Baixa financeira inválida.");
   await setFinancialEntrySettlement(workshopId, financialEntryId, decision === "settle");
+  revalidatePath("/financeiro");
+  revalidatePath("/");
+}
+
+export async function settleFinancialEntryAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialSettlementSchema.safeParse(formObject(formData)));
+  await settleFinancialEntry({ workshopId, financialEntryId: input.financialEntryId, amountCents: parseCurrencyToCents(input.amount), financialAccountId: input.financialAccountId, paymentMethod: input.paymentMethod, note: input.note });
+  revalidatePath("/financeiro");
+  revalidatePath("/");
+}
+
+export async function reverseFinancialEntrySettlementAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialSettlementReversalSchema.safeParse(formObject(formData)));
+  await reverseFinancialEntrySettlement({ workshopId, ...input });
   revalidatePath("/financeiro");
   revalidatePath("/");
 }
@@ -438,7 +460,36 @@ export async function createManualFinancialEntryAction(formData: FormData) {
   const input = parse(manualFinancialEntrySchema.safeParse(formObject(formData)));
   const categories = await listFinancialCategories(workshopId);
   if (!categories.some((category) => category.key === input.category && category.active && !category.protected && category.direction === input.direction)) throw new Error("Escolha uma categoria ativa correspondente ao tipo de lançamento.");
-  await createManualFinancialEntry({ workshopId, direction: input.direction, category: input.category, description: input.description, amountCents: parseCurrencyToCents(input.amount), competenceDate: input.competenceDate, dueDate: input.dueDate, settled: input.settled, recurrenceKey: input.recurringMonthly ? `monthly:${crypto.randomUUID()}` : null });
+  await createManualFinancialEntry({ workshopId, direction: input.direction, category: input.category, description: input.description, amountCents: parseCurrencyToCents(input.amount), competenceDate: input.competenceDate, dueDate: input.dueDate, settled: input.settled, recurrenceKey: input.recurringMonthly ? `monthly:${crypto.randomUUID()}` : null, installmentCount: input.installmentCount, supplierId: input.supplierId, financialAccountId: input.financialAccountId, documentNumber: input.documentNumber, notes: input.notes });
+  revalidatePath("/financeiro");
+}
+
+export async function createFinancialAccountAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialAccountSchema.safeParse(formObject(formData)));
+  await createFinancialAccount({ workshopId, name: input.name, type: input.type, openingBalanceCents: parseCurrencyToCents(input.openingBalance) });
+  revalidatePath("/financeiro");
+}
+
+export async function saveSupplierAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(supplierSchema.safeParse(formObject(formData)));
+  if (input.supplierId) await updateSupplier({ workshopId, supplierId: input.supplierId, name: input.name, document: input.document, phone: input.phone, email: input.email, notes: input.notes });
+  else await createSupplier({ workshopId, name: input.name, document: input.document, phone: input.phone, email: input.email, notes: input.notes });
+  revalidatePath("/financeiro");
+}
+
+export async function openCashSessionAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(cashSessionOpenSchema.safeParse(formObject(formData)));
+  await openCashSession({ workshopId, financialAccountId: input.financialAccountId, openingBalanceCents: parseCurrencyToCents(input.openingBalance) });
+  revalidatePath("/financeiro");
+}
+
+export async function closeCashSessionAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(cashSessionCloseSchema.safeParse(formObject(formData)));
+  await closeCashSession({ workshopId, cashSessionId: input.cashSessionId, declaredClosingCents: parseCurrencyToCents(input.declaredClosing), note: input.note });
   revalidatePath("/financeiro");
 }
 

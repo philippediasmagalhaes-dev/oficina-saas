@@ -797,7 +797,7 @@ export const schema = {
   workshopIntegrations, messageTemplates, vehicleInspections,
   inspectionDamageMarks, workOrderStatusEvents, workOrderApprovals,
   collaborators, collaboratorServiceRates, workOrderItemAssignments,
-  workOrderPayments, financialCategories, financialEntries, financialAttachments, financialEntryEvents, messageOutbox,
+  workOrderPayments, financialCategories, financialAccounts, suppliers, financialEntries, financialSettlements, cashSessions, financialAttachments, financialEntryEvents, messageOutbox,
   messageDeliveries, businessFinExports,
 };
 
@@ -813,5 +813,9 @@ export type Collaborator = typeof collaborators.$inferSelect;
 export type WorkOrderPayment = typeof workOrderPayments.$inferSelect;
 export type FinancialEntry = typeof financialEntries.$inferSelect;
 export type FinancialCategory = typeof financialCategories.$inferSelect;
+export type FinancialAccount = typeof financialAccounts.$inferSelect;
+export type Supplier = typeof suppliers.$inferSelect;
+export type FinancialSettlement = typeof financialSettlements.$inferSelect;
+export type CashSession = typeof cashSessions.$inferSelect;
 export type LegacyImportRun = typeof legacyImportRuns.$inferSelect;
 export type LegacyImportMapping = typeof legacyImportMappings.$inferSelect;
