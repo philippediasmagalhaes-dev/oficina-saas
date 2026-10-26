@@ -13,17 +13,18 @@ import { ConfigurationPending } from "../configurar/page";
 export default async function WorkOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; nova?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; nova?: string; veiculo?: string }>;
 }) {
   const config = readServerConfig(process.env);
   if (!config.configured)
     return <ConfigurationPending missing={config.missing} />;
-  const { q = "", page, nova } = await searchParams;
-  const showForm = nova === "1";
+  const { q = "", page, nova, veiculo } = await searchParams;
+  const showForm = nova === "1" || Boolean(veiculo);
   const data = await getWorkOrdersData({
     query: q,
     ...normalizePageRequest({ page }),
     includeFormOptions: showForm,
+    selectedVehicleId: veiculo,
   });
   const orders = data.orders;
 
@@ -138,15 +139,8 @@ export default async function WorkOrdersPage({
               action="Ir para clientes"
               href="/clientes#novo"
             />
-          ) : !data.vehicles.length ? (
-            <EmptyState
-              title="Cadastre um veículo primeiro"
-              description="A OS precisa estar ligada ao histórico de um veículo."
-              action="Ir para veículos"
-              href="/veiculos?nova=1#novo"
-            />
           ) : (
-            <WorkOrderForm customers={data.customers} vehicles={data.vehicles} />
+            <WorkOrderForm customers={data.customers} vehicles={data.vehicles} initialCustomerId={data.selectedVehicle?.customerId} initialVehicleId={data.selectedVehicle?.id} />
           )}
         </section>
       ) : null}

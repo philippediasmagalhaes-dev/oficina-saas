@@ -160,15 +160,20 @@ export async function getFinancialDashboard(filters: FinancialFilters & { status
   };
 }
 
-export async function getWorkOrdersData(input: { query: string; page: number; pageSize: number; includeFormOptions?: boolean }) {
+export async function getWorkOrdersData(input: { query: string; page: number; pageSize: number; includeFormOptions?: boolean; selectedVehicleId?: string }) {
   const context = await getOwnerContext();
   const [orders, statusCounts, customers, vehicles] = await Promise.all([
     listWorkOrdersPage(context.workshopId, input),
     countWorkOrdersByStatus(context.workshopId),
-    input.includeFormOptions ? context.repository.listCustomers(context.workshopId) : Promise.resolve([]),
-    input.includeFormOptions ? context.repository.listVehicles(context.workshopId) : Promise.resolve([]),
+    input.includeFormOptions ? context.repository.listCustomersPage(context.workshopId, { query: "", page: 1, pageSize: 20 }).then((result) => result.items) : Promise.resolve([]),
+    Promise.resolve([]),
   ]);
-  return { ...context, orders, statusCounts, customers, vehicles };
+  const selectedVehicle = input.selectedVehicleId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.selectedVehicleId) ? await context.repository.findVehicle(context.workshopId, input.selectedVehicleId) : null;
+  if (selectedVehicle && !customers.some((customer) => customer.id === selectedVehicle.customerId)) {
+    const customer = await context.repository.findCustomer(context.workshopId, selectedVehicle.customerId);
+    if (customer) customers.push(customer);
+  }
+  return { ...context, orders, statusCounts, customers, vehicles, selectedVehicle };
 }
 
 export async function getWorkOrderData(serviceRecordId: string) {
@@ -205,7 +210,7 @@ export async function getVehiclesData(input: { query: string; page: number; page
   const context = await getOwnerContext();
   const [vehicles, customers] = await Promise.all([
     listVehiclesPage(context.workshopId, input),
-    input.includeFormOptions ? context.repository.listCustomers(context.workshopId) : Promise.resolve([]),
+    input.includeFormOptions ? context.repository.listCustomersPage(context.workshopId, { query: "", page: 1, pageSize: 20 }).then((result) => result.items) : Promise.resolve([]),
   ]);
   return { ...context, vehicles, customers };
 }
@@ -214,7 +219,11 @@ export async function getVehicleData(vehicleId: string) {
   const context = await getOwnerContext();
   const [vehicle, customers] = await Promise.all([
     getVehicle(context.workshopId, vehicleId),
-    context.repository.listCustomers(context.workshopId),
+    context.repository.listCustomersPage(context.workshopId, { query: "", page: 1, pageSize: 20 }).then((result) => result.items),
   ]);
+  if (vehicle && !customers.some((customer) => customer.id === vehicle.customerId)) {
+    const customer = await context.repository.findCustomer(context.workshopId, vehicle.customerId);
+    if (customer) customers.push(customer);
+  }
   return { ...context, vehicle, customers };
 }

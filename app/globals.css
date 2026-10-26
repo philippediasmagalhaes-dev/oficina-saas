@@ -1934,6 +1934,8 @@ textarea:focus {
 .nfe-review-list label { display: grid; gap: 0.2rem; font-size: 0.75rem; }
 .nfe-review-list small { color: var(--muted); }
 .mechanic-workspace { max-width: 980px; padding: 1.5rem; margin: auto; }
+.customer-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+.customer-picker label { display: grid; gap: 0.35rem; font-size: 0.75rem; }
 .mechanic-workspace h1 { font-size: 1.6rem; }
 .mechanic-workspace h2 { font-size: 1.1rem; }
 .mechanic-access-controls { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
@@ -2004,6 +2006,7 @@ textarea:focus {
   .financial-category-list > div > form:first-child { grid-template-columns: 1fr; }
   .financial-category-list > div { align-items: flex-end; }
   .nfe-review-list > div { grid-template-columns: 1fr; }
+  .customer-picker { grid-template-columns: 1fr; }
   .approval-notice { bottom: 5rem; left: 1rem; right: 1rem; }
 }
 

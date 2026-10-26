@@ -30,7 +30,7 @@ A comissão considera a mão de obra depois do desconto e a participação atrib
 
 ## Verificações e limites
 
--233 testes passaram;1 teste de integração depende de TEST_DATABASE_URL e permaneceu desativado.
+- 235 testes passaram; 1 teste de integração depende de TEST_DATABASE_URL e permaneceu desativado.
 - TypeScript e build Cloudflare passaram. Auditoria das dependências de produção:0 vulnerabilidades.
 - Smoke público:22/22; novas rotas de notificação e geração de acesso mecânico exigem login; link mecânico inválido mostra acesso expirado.
 - Migrações0010–0012 aplicadas em transação no projeto Neon `oficina`, branch `production`, com registro no journal Drizzle.
@@ -38,6 +38,7 @@ A comissão considera a mão de obra depois do desconto e a participação atrib
 - Consulta real de retenção:522 registros agrupados,14 trocas de óleo,10 candidatos no dia da validação; nenhum WhatsApp enviado no teste.
 - A revisão independente encontrou problemas de persistência do formulário mecânico e de priorização/agendamento dos retornos; corrigidos com testes e validação SQL.
 - A navegação autenticada e o consumo de CPU das listas publicadas ainda precisam ser conferidos com a sessão do proprietário; a aba disponível estava na tela de login.
+- Os formulários de cadastro e edição também usam busca de clientes sob demanda (20 resultados) e carregam apenas os veículos do cliente selecionado; a base inteira não é enviada ao navegador.
 
 ## Configuração ainda necessária
 
