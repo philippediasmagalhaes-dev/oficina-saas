@@ -7,6 +7,7 @@ import { EmptyState } from "../components/empty-state";
 import { getDashboardData } from "../server/queries";
 import { parseMonthPeriod } from "../domain/dates";
 import { DashboardMonthFilter } from "../components/dashboard-month-filter";
+import { DashboardServiceRevenue } from "../components/dashboard-service-revenue";
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
   const config = readServerConfig(process.env);
@@ -60,6 +61,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ m
           </div>
         </article>
       </section>
+
+      <DashboardServiceRevenue items={data.serviceRevenue} periodLabel={period.label} />
 
       <section className="surface compact-list-surface">
         <div className="section-title"><div><span>Atualizações recentes</span><h2>Últimas ordens movimentadas</h2></div><a href="/ordens">Todas as OS</a></div>

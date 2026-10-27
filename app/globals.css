@@ -2259,6 +2259,24 @@ td { padding: 0.68rem 0.65rem; font-size: 0.8rem; }
 .dashboard-mini-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.65rem; }
 .dashboard-mini-list b { flex: 0 0 auto; font-size: 0.7rem; }
 .dashboard-clear { margin: 0; padding: 0.8rem; border-radius: 0.68rem; background: rgba(31, 122, 78, 0.08); color: #226c49; font-size: 0.76rem; }
+.service-revenue-card { display: grid; gap: 0.25rem; }
+.service-revenue-heading { align-items: end; }
+.service-revenue-heading p { margin: 0.18rem 0 0; color: var(--muted); font-size: 0.68rem; }
+.service-revenue-total { display: grid; justify-items: end; gap: 0.12rem; }
+.service-revenue-total small { color: var(--muted); font-size: 0.62rem; }
+.service-revenue-total strong { font-size: 1rem; letter-spacing: -0.025em; }
+.service-revenue-list { display: grid; }
+.service-revenue-row { display: grid; grid-template-columns: 1.75rem minmax(0, 1fr) minmax(7.5rem, auto); align-items: center; gap: 0.7rem; padding: 0.65rem 0; border-bottom: 1px solid var(--line); }
+.service-revenue-row:last-child { border-bottom: 0; }
+.service-revenue-rank { display: grid; width: 1.55rem; height: 1.55rem; place-items: center; border-radius: 0.48rem; background: rgba(169, 23, 43, 0.09); color: var(--yellow-soft); font-size: 0.68rem; font-weight: 800; }
+.service-revenue-name { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.2rem 0.7rem; min-width: 0; }
+.service-revenue-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.76rem; }
+.service-revenue-name small { color: var(--muted); font-size: 0.64rem; }
+.service-revenue-track { grid-column: 1 / -1; height: 0.24rem; overflow: hidden; border-radius: 999px; background: rgba(27, 27, 30, 0.08); }
+.service-revenue-track i { display: block; width: var(--service-revenue-width); height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--yellow-soft), #d63a4f); }
+.service-revenue-value { display: grid; justify-items: end; gap: 0.08rem; }
+.service-revenue-value strong { font-size: 0.76rem; }
+.service-revenue-value small { color: var(--muted); font-size: 0.62rem; }
 
 @media (max-width: 1100px) {
   .dashboard-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2276,6 +2294,13 @@ td { padding: 0.68rem 0.65rem; font-size: 0.8rem; }
   .dashboard-metrics .metric-card strong { font-size: 1.2rem; }
   .priority-row { grid-template-columns: 2rem minmax(0, 1fr); }
   .priority-row > b { grid-column: 2; }
+  .service-revenue-heading { align-items: start; }
+  .service-revenue-total { justify-items: start; }
+  .service-revenue-row { grid-template-columns: 1.6rem minmax(0, 1fr) auto; gap: 0.5rem; }
+  .service-revenue-name { grid-template-columns: 1fr; }
+  .service-revenue-name small { grid-row: 2; }
+  .service-revenue-track { grid-row: 3; }
+  .service-revenue-value small { max-width: 5.5rem; text-align: right; }
 }
 
 .finance-nav {
