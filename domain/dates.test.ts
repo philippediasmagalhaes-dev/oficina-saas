@@ -27,6 +27,10 @@ describe("monthly period", () => {
     expect(parseMonthPeriod("2026-13", new Date("2026-10-25T12:00:00Z")).value).toBe("2026-10");
   });
 
+  it("uses the São Paulo calendar month near the UTC month boundary", () => {
+    expect(parseMonthPeriod(undefined, new Date("2026-11-01T01:30:00Z")).value).toBe("2026-10");
+  });
+
   it("keeps the following month as an exclusive boundary", () => {
     const period = parseMonthPeriod("2025-12", new Date("2026-10-25T12:00:00Z"));
     expect(period.from).toEqual(new Date("2025-12-01T00:00:00.000Z"));
