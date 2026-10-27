@@ -18,26 +18,18 @@ import { listFinancialCategories } from "./financial-categories";
 import { listMaintenanceReturns } from "./retention";
 import { seedAutomotiveCatalog } from "./automotive-catalog";
 
-export async function getDashboardData() {
+export async function getDashboardData(period: { from: Date; to: Date }) {
   const context = await getOwnerContext();
   const now = new Date();
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   const [services, inventory, orders, orderCounts, ledger, overdueReceivables, returns] = await Promise.all([
-    context.repository.listServices(context.workshopId),
+    context.repository.listServicesByPeriod(context.workshopId, period.from, period.to),
     context.repository.listInventory(context.workshopId),
     listWorkOrdersPage(context.workshopId, { query: "", page: 1, pageSize: 8 }),
     countWorkOrdersByStatus(context.workshopId),
-    listFinancialReportEntries(context.workshopId, { from: monthStart, to: nextMonth, recognitionMode: "accrual" }),
+    listFinancialReportEntries(context.workshopId, { from: period.from, to: period.to, recognitionMode: "accrual" }),
     listFinancialEntriesPage(context.workshopId, { direction: "income", due: "overdue", pageSize: 12 }),
     listMaintenanceReturns(context.workshopId, "1", now),
   ]);
-  const currentMonthServices = filterFinancialServices(services, {
-    period: "current_month",
-    query: "",
-    from: "",
-    to: "",
-  });
   const lowStockItems = inventory.filter((item) => item.active && item.currentQuantity - (item.reservedQuantity ?? 0) <= item.minimumQuantity);
   const priorities = deriveDashboardPriorities({
     overdueReceivables: overdueReceivables.items,
@@ -47,18 +39,18 @@ export async function getDashboardData() {
   });
   return {
     ...context,
-    services: currentMonthServices,
+    services,
     recentOrders: orders.items,
     orderCounts,
     lowStockItems: lowStockItems.slice(0, 5),
     returns: returns.items.slice(0, 5),
     priorities,
     metrics: {
-      revenueCents: currentMonthServices.reduce(
+      revenueCents: services.reduce(
         (total, service) => total + service.amountCents,
         0,
       ),
-      serviceCount: currentMonthServices.length,
+      serviceCount: services.length,
       opportunities: returns.total,
       lowStock: lowStockItems.length,
       openOrders: orderCounts.active,

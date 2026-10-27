@@ -5,11 +5,15 @@ import { workOrderStatusLabels, type WorkOrderStatus } from "../domain/work-orde
 import { AppShell } from "../components/app-shell";
 import { EmptyState } from "../components/empty-state";
 import { getDashboardData } from "../server/queries";
+import { parseMonthPeriod } from "../domain/dates";
+import { DashboardMonthFilter } from "../components/dashboard-month-filter";
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
   const config = readServerConfig(process.env);
   if (!config.configured) return <ConfigurationPending missing={config.missing} />;
-  const data = await getDashboardData();
+  const { mes } = await searchParams;
+  const period = parseMonthPeriod(mes);
+  const data = await getDashboardData(period);
   return (
     <AppShell workshopName={data.workshop.name} current="/">
       <div className="page-heading dashboard-heading">
@@ -18,14 +22,17 @@ export default async function Home() {
           <h1>Visão geral da oficina</h1>
           <p>Prioridades operacionais, ordens em andamento e resultado do mês em uma única tela.</p>
         </div>
-        <div className="dashboard-actions">
-          <a className="secondary-button" href="/clientes?novo=1#novo">Novo cliente</a>
-          <a className="primary-button" href="/ordens?nova=1#nova">Abrir ordem de serviço</a>
+        <div className="dashboard-heading-controls">
+          <DashboardMonthFilter value={period.value} />
+          <div className="dashboard-actions">
+            <a className="secondary-button" href="/clientes?novo=1#novo">Novo cliente</a>
+            <a className="primary-button" href="/ordens?nova=1#nova">Abrir ordem de serviço</a>
+          </div>
         </div>
       </div>
 
       <section className="metric-grid dashboard-metrics" aria-label="Indicadores principais">
-        <article className="metric-card featured"><span>Faturamento no mês</span><strong>{formatCents(data.metrics.revenueCents)}</strong><small>{data.metrics.serviceCount} serviços concluídos</small></article>
+        <article className="metric-card featured"><span>Faturamento · {period.label}</span><strong>{formatCents(data.metrics.revenueCents)}</strong><small>{data.metrics.serviceCount} serviços concluídos</small></article>
         <article className="metric-card"><span>OS em andamento</span><strong>{data.metrics.openOrders}</strong><small>em todas as etapas abertas</small></article>
         <article className="metric-card metric-alert"><span>Recebimentos vencidos</span><strong>{formatCents(data.metrics.overdueReceivablesCents)}</strong><small>exigem acompanhamento</small></article>
         <article className="metric-card"><span>Prontos para entrega</span><strong>{data.metrics.readyOrders}</strong><small>clientes para avisar</small></article>

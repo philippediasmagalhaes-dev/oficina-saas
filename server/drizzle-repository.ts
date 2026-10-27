@@ -7,6 +7,7 @@ import {
   ilike,
   inArray,
   isNotNull,
+  lt,
   max,
   or,
   sql,
@@ -282,6 +283,33 @@ export function createDrizzleRepository(
         ))
         .orderBy(desc(serviceRecords.completedAt))
         .limit(limit ?? 2147483647);
+      return rows.map((row) => ({ ...row, completedAt: row.completedAt! }));
+    },
+    async listServicesByPeriod(workshopId, from, to) {
+      const rows = await database
+        .select({
+          id: serviceRecords.id,
+          workshopId: serviceRecords.workshopId,
+          customerId: serviceRecords.customerId,
+          serviceCatalogId: serviceRecords.serviceCatalogId,
+          customerName: customers.name,
+          vehicleLabel: sql<string | null>`case when ${vehicles.id} is null then null else concat(${vehicles.make}, ' ', ${vehicles.model}, ' · ', ${vehicles.plate}) end`,
+          description: serviceRecords.description,
+          amountCents: serviceRecords.amountCents,
+          completedAt: serviceRecords.completedAt,
+          nextDueAt: serviceRecords.nextDueAt,
+        })
+        .from(serviceRecords)
+        .innerJoin(customers, and(eq(customers.id, serviceRecords.customerId), eq(customers.workshopId, workshopId)))
+        .leftJoin(vehicles, and(eq(vehicles.id, serviceRecords.vehicleId), eq(vehicles.workshopId, workshopId)))
+        .where(and(
+          eq(serviceRecords.workshopId, workshopId),
+          inArray(serviceRecords.status, ["completed", "delivered"]),
+          isNotNull(serviceRecords.completedAt),
+          gte(serviceRecords.completedAt, from),
+          lt(serviceRecords.completedAt, to),
+        ))
+        .orderBy(desc(serviceRecords.completedAt));
       return rows.map((row) => ({ ...row, completedAt: row.completedAt! }));
     },
     async getServiceOrder(workshopId, serviceId) {

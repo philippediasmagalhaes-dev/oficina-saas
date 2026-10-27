@@ -5,7 +5,14 @@ export function formatOptionalDate(date: Date | null | undefined): string {
 }
 
 export function parseMonthPeriod(value: string | undefined, now = new Date()) {
-  const fallback = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const fallbackParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(now);
+  const fallbackYear = fallbackParts.find((part) => part.type === "year")?.value;
+  const fallbackMonth = fallbackParts.find((part) => part.type === "month")?.value;
+  const fallback = `${fallbackYear}-${fallbackMonth}`;
   const selected = /^\d{4}-(0[1-9]|1[0-2])$/.test(value ?? "") ? value! : fallback;
   const [year, month] = selected.split("-").map(Number);
   const from = new Date(Date.UTC(year, month - 1, 1));
