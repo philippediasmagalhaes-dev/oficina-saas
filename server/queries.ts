@@ -1,4 +1,5 @@
 import { buildFinancialSnapshot } from "../domain/finance";
+import { summarizeFinancialCategories } from "../domain/financial-category-report";
 import { deriveDashboardPriorities } from "../domain/dashboard-priorities";
 import {
   describeFinancialPeriod,
@@ -145,6 +146,7 @@ export async function getFinancialDashboard(filters: FinancialFilters & { status
   const incomeCents = entries.filter((entry) => entry.direction === "income").reduce((sum, entry) => sum + entry.netAmountCents, 0);
   const expenseCents = entries.filter((entry) => entry.direction === "expense").reduce((sum, entry) => sum + entry.netAmountCents, 0);
   const reserveCents = entries.filter((entry) => entry.direction === "reserve").reduce((sum, entry) => sum + entry.netAmountCents, 0);
+  const categoryReport = summarizeFinancialCategories(entries, categories);
   return {
     ...context,
     services,
@@ -155,6 +157,7 @@ export async function getFinancialDashboard(filters: FinancialFilters & { status
     financialSettings: financialSettings.settings,
     collaborators,
     categories,
+    categoryReport,
     ledger: { incomeCents, expenseCents, reserveCents, balanceCents: incomeCents - expenseCents - reserveCents },
   };
 }
