@@ -181,6 +181,7 @@ export interface CrmRepository {
   ): Promise<import("../domain/pagination").PagedResult<CustomerSummary>>;
   listVehicles(workshopId: string): Promise<VehicleSummary[]>;
   listServices(workshopId: string, limit?: number): Promise<ServiceSummary[]>;
+  listServicesByPeriod(workshopId: string, from: Date, to: Date): Promise<ServiceSummary[]>;
   getServiceOrder(
     workshopId: string,
     serviceId: string,

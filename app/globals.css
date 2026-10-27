@@ -2221,6 +2221,10 @@ td { padding: 0.68rem 0.65rem; font-size: 0.8rem; }
 }
 
 .dashboard-actions { display: flex; gap: 0.55rem; flex-wrap: wrap; }
+.dashboard-heading-controls { display: grid; justify-items: end; gap: 0.55rem; }
+.dashboard-month-filter { display: flex; align-items: end; gap: 0.45rem; }
+.dashboard-month-filter label { display: grid; gap: 0.2rem; color: var(--muted); font-size: 0.62rem; font-weight: 700; }
+.dashboard-month-filter input { min-width: 9.5rem; }
 .dashboard-metrics { grid-template-columns: 1.35fr repeat(3, minmax(0, 1fr)); }
 .dashboard-metrics .metric-alert strong { color: #9d172a; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.75fr); gap: 0.7rem; }
@@ -2263,6 +2267,8 @@ td { padding: 0.68rem 0.65rem; font-size: 0.8rem; }
 }
 
 @media (max-width: 600px) {
+  .dashboard-heading-controls { width: 100%; justify-items: stretch; }
+  .dashboard-month-filter { display: grid; grid-template-columns: 1fr auto; }
   .dashboard-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
   .dashboard-actions .primary-button, .dashboard-actions .secondary-button { width: 100%; }
   .dashboard-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
