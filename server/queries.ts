@@ -1,4 +1,5 @@
 import { buildFinancialSnapshot } from "../domain/finance";
+import { excludeCancelledFinancialEntries, summarizeFinancialCategories } from "../domain/financial-category-report";
 import { deriveDashboardPriorities } from "../domain/dashboard-priorities";
 import {
   describeFinancialPeriod,
@@ -7,7 +8,7 @@ import {
 } from "../domain/service-filters";
 import { getOwnerContext } from "./owner-context";
 import { getVehicle, listVehicles, listVehiclesPage } from "./vehicles";
-import { listCollaboratorPayables, listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
+import { listCollaboratorPayables, listCollaboratorRates, listCollaborators, listWorkOrderAssignments, onlyActiveCollaborators } from "./collaborators";
 import { listInventoryMovements } from "./inventory";
 import { countWorkOrdersByStatus, getWorkOrder, listWorkOrdersPage } from "./work-orders";
 import { ensureDefaultFinancialAccount, ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialOverviewTotals, getFinancialSettings, getOutstandingFinancialTotal, listCashSessions, listFinancialAccounts, listFinancialEntriesPage, listFinancialReportEntries, listFinancialSettlements, listSuppliers, listWorkOrderPayments } from "./finance";
@@ -142,9 +143,11 @@ export async function getFinancialDashboard(filters: FinancialFilters & { status
     return completedAt ? [{ ...entry, completedAt, customerName: entry.collaboratorName ?? "", vehicleLabel: entry.paymentMethod }] : [];
   });
   const entries = filterFinancialServices(reportEntries, filters);
-  const incomeCents = entries.filter((entry) => entry.direction === "income").reduce((sum, entry) => sum + entry.netAmountCents, 0);
-  const expenseCents = entries.filter((entry) => entry.direction === "expense").reduce((sum, entry) => sum + entry.netAmountCents, 0);
-  const reserveCents = entries.filter((entry) => entry.direction === "reserve").reduce((sum, entry) => sum + entry.netAmountCents, 0);
+  const activeEntries = excludeCancelledFinancialEntries(entries);
+  const incomeCents = activeEntries.filter((entry) => entry.direction === "income").reduce((sum, entry) => sum + entry.netAmountCents, 0);
+  const expenseCents = activeEntries.filter((entry) => entry.direction === "expense").reduce((sum, entry) => sum + entry.netAmountCents, 0);
+  const reserveCents = activeEntries.filter((entry) => entry.direction === "reserve").reduce((sum, entry) => sum + entry.netAmountCents, 0);
+  const categoryReport = summarizeFinancialCategories(activeEntries, categories);
   return {
     ...context,
     services,
@@ -155,6 +158,7 @@ export async function getFinancialDashboard(filters: FinancialFilters & { status
     financialSettings: financialSettings.settings,
     collaborators,
     categories,
+    categoryReport,
     ledger: { incomeCents, expenseCents, reserveCents, balanceCents: incomeCents - expenseCents - reserveCents },
   };
 }
@@ -207,7 +211,7 @@ export async function getWorkOrderData(serviceRecordId: string) {
     order.vehicleId ? context.repository.findVehicle(context.workshopId, order.vehicleId) : Promise.resolve(null),
     listWorkOrderPayments(context.workshopId, serviceRecordId),
   ]) : [null, null, []];
-  return { ...context, order, catalog, inventory, collaborators, assignments, financialSettings, customer, vehicle, payments };
+  return { ...context, order, catalog, inventory, collaborators: onlyActiveCollaborators(collaborators), assignments, financialSettings, customer, vehicle, payments };
 }
 
 export async function getCollaboratorsData(period: { from: Date; to: Date }) {

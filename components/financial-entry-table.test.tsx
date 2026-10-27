@@ -40,6 +40,9 @@ describe("financial entry table", () => {
     }]} accounts={[]} />);
     expect(html).toContain("Registrar baixa");
     expect(html).toContain("Estornar");
+    expect(html).toContain('type="button"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('aria-controls="settlement-00000000-0000-4000-8000-000000000001"');
   });
 
   it("shows a legacy settled title as fully paid without offering another settlement", () => {

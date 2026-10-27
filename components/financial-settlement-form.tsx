@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { reverseFinancialEntrySettlementAction, settleFinancialEntryAction } from "../app/actions";
 import { MoneyInput } from "./money-input";
 
@@ -7,8 +10,11 @@ type Settlement = { id: string; amountCents: number; reversedAt: Date | null; se
 function money(cents: number) { return (cents / 100).toFixed(2).replace(".", ","); }
 
 export function FinancialSettlementForm({ financialEntryId, balanceCents, accounts, settlements }: { financialEntryId: string; balanceCents: number; accounts: Account[]; settlements: Settlement[] }) {
-  return <details className="settlement-panel">
-    <summary>Movimentações</summary>
+  const [open, setOpen] = useState(false);
+  const panelId = `settlement-${financialEntryId}`;
+  return <div className="settlement-panel">
+    <button className="settlement-trigger" type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((current) => !current)}>Movimentações</button>
+    <div id={panelId} className="settlement-popover" hidden={!open}>
     <div className="settlement-history">
       {settlements.map((settlement) => <div key={settlement.id} className={settlement.reversedAt ? "reversed" : ""}>
         <span><strong>{money(settlement.amountCents)}</strong><small>{settlement.settledAt.toLocaleDateString("pt-BR", { timeZone: "UTC" })}{settlement.reversedAt ? " · estornada" : ""}</small></span>
@@ -23,5 +29,6 @@ export function FinancialSettlementForm({ financialEntryId, balanceCents, accoun
       <label>Forma<select name="paymentMethod" defaultValue="pix"><option value="pix">PIX</option><option value="cash">Dinheiro</option><option value="debit_card">Débito</option><option value="credit_card">Crédito</option><option value="transfer">Transferência</option><option value="other">Outro</option></select></label>
       <button className="primary-button" type="submit">Registrar baixa</button>
     </form> : null}
-  </details>;
+    </div>
+  </div>;
 }
