@@ -8,7 +8,7 @@ import {
 } from "../domain/service-filters";
 import { getOwnerContext } from "./owner-context";
 import { getVehicle, listVehicles, listVehiclesPage } from "./vehicles";
-import { listCollaboratorPayables, listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
+import { listCollaboratorPayables, listCollaboratorRates, listCollaborators, listWorkOrderAssignments, onlyActiveCollaborators } from "./collaborators";
 import { listInventoryMovements } from "./inventory";
 import { countWorkOrdersByStatus, getWorkOrder, listWorkOrdersPage } from "./work-orders";
 import { ensureDefaultFinancialAccount, ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialOverviewTotals, getFinancialSettings, getOutstandingFinancialTotal, listCashSessions, listFinancialAccounts, listFinancialEntriesPage, listFinancialReportEntries, listFinancialSettlements, listSuppliers, listWorkOrderPayments } from "./finance";
@@ -210,7 +210,7 @@ export async function getWorkOrderData(serviceRecordId: string) {
     order.vehicleId ? context.repository.findVehicle(context.workshopId, order.vehicleId) : Promise.resolve(null),
     listWorkOrderPayments(context.workshopId, serviceRecordId),
   ]) : [null, null, []];
-  return { ...context, order, catalog, inventory, collaborators, assignments, financialSettings, customer, vehicle, payments };
+  return { ...context, order, catalog, inventory, collaborators: onlyActiveCollaborators(collaborators), assignments, financialSettings, customer, vehicle, payments };
 }
 
 export async function getCollaboratorsData(period: { from: Date; to: Date }) {

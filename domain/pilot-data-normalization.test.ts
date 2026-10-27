@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { distributeMissingCompletionDates } from "./pilot-data-normalization";
+import { customerNeedsPilotNormalization, distributeMissingCompletionDates, orderNeedsPilotNormalization } from "./pilot-data-normalization";
 
 describe("pilot data normalization", () => {
   it("distributes missing orders evenly across previous months", () => {
@@ -26,5 +26,12 @@ describe("pilot data normalization", () => {
 
   it("returns no assignments when every order already has a date", () => {
     expect(distributeMissingCompletionDates([], new Date("2026-10-27T12:00:00Z"))).toEqual(new Map());
+  });
+
+  it("does not rewrite timestamps after a row is normalized", () => {
+    expect(customerNeedsPilotNormalization({ whatsappConsent: true, whatsappConsentAt: new Date(), whatsappConsentSource: "pilot_owner_confirmation" })).toBe(false);
+    expect(customerNeedsPilotNormalization({ whatsappConsent: false, whatsappConsentAt: null, whatsappConsentSource: null })).toBe(true);
+    expect(orderNeedsPilotNormalization({ status: "completed", completedAt: new Date() })).toBe(false);
+    expect(orderNeedsPilotNormalization({ status: "open", completedAt: new Date() })).toBe(true);
   });
 });

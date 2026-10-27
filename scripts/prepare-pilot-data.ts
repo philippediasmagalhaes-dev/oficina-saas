@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { createDatabase, runDatabaseTransactionForUrl } from "../db/client";
 import { customers, serviceRecords, workshops } from "../db/schema";
 import { distributeMissingCompletionDates } from "../domain/pilot-data-normalization";
@@ -18,6 +18,7 @@ if (!selected) throw new Error("Informe --workshop-id quando houver mais de uma 
 const [customerStats] = await database.select({
   total: sql<number>`count(*)::integer`,
   withoutConsent: sql<number>`count(*) filter (where ${customers.whatsappConsent} = false)::integer`,
+  toNormalize: sql<number>`count(*) filter (where ${customers.whatsappConsent} = false or ${customers.whatsappConsentAt} is null or ${customers.whatsappConsentSource} is null)::integer`,
   optedOut: sql<number>`count(*) filter (where ${customers.whatsappOptOutAt} is not null)::integer`,
 }).from(customers).where(eq(customers.workshopId, selected.id));
 const [orderStats] = await database.select({
@@ -52,10 +53,13 @@ await runDatabaseTransactionForUrl(databaseUrl, async (transaction) => {
     whatsappConsentAt: sql`coalesce(${customers.whatsappConsentAt}, now())`,
     whatsappConsentSource: sql`coalesce(${customers.whatsappConsentSource}, 'pilot_owner_confirmation')`,
     updatedAt: new Date(),
-  }).where(eq(customers.workshopId, selected.id));
+  }).where(and(
+    eq(customers.workshopId, selected.id),
+    or(eq(customers.whatsappConsent, false), isNull(customers.whatsappConsentAt), isNull(customers.whatsappConsentSource)),
+  ));
 
   await transaction.update(serviceRecords).set({ status: "completed", updatedAt: new Date() })
-    .where(eq(serviceRecords.workshopId, selected.id));
+    .where(and(eq(serviceRecords.workshopId, selected.id), ne(serviceRecords.status, "completed")));
 
   for (const [id, completedAt] of completionDates) {
     await transaction.update(serviceRecords).set({ completedAt, updatedAt: new Date() })

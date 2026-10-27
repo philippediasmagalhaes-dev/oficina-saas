@@ -3,6 +3,7 @@ import {
   assignCollaborator,
   createCollaboratorAdminService,
   summarizeCollaboratorPayables,
+  onlyActiveCollaborators,
   type CollaboratorAdminStore,
   type CollaboratorAssignmentStore,
 } from "./collaborators";
@@ -33,6 +34,13 @@ describe("collaborator assignment boundary", () => {
 });
 
 describe("collaborator rule administration", () => {
+  it("keeps inactive collaborators out of new assignment options", () => {
+    expect(onlyActiveCollaborators([
+      { id: "active", active: true },
+      { id: "inactive", active: false },
+    ])).toEqual([{ id: "active", active: true }]);
+  });
+
   function store(existing = true): CollaboratorAdminStore & { calls: string[] } {
     const calls: string[] = [];
     return {

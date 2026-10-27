@@ -4,6 +4,7 @@ type ReportEntry = {
   direction: ReportDirection;
   category: string;
   netAmountCents: number;
+  status: string;
 };
 
 type CategoryDefinition = {
@@ -29,7 +30,7 @@ export function summarizeFinancialCategories(entries: ReportEntry[], categories:
   const summarize = (direction: "income" | "expense") => {
     const amounts = new Map<string, number>();
     for (const entry of entries) {
-      if (entry.direction !== direction) continue;
+      if (entry.direction !== direction || entry.status === "cancelled") continue;
       amounts.set(entry.category, (amounts.get(entry.category) ?? 0) + entry.netAmountCents);
     }
     const total = [...amounts.values()].reduce((sum, amount) => sum + amount, 0);

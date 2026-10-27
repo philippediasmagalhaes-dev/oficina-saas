@@ -5,10 +5,11 @@ describe("financial category report", () => {
   it("groups net revenue and expenses and calculates participation", () => {
     const result = summarizeFinancialCategories(
       [
-        { direction: "income", category: "service_income", netAmountCents: 8_000 },
-        { direction: "income", category: "service_income", netAmountCents: 2_000 },
-        { direction: "income", category: "other_income", netAmountCents: 5_000 },
-        { direction: "expense", category: "parts", netAmountCents: 3_000 },
+        { direction: "income", category: "service_income", netAmountCents: 8_000, status: "settled" },
+        { direction: "income", category: "service_income", netAmountCents: 2_000, status: "partial" },
+        { direction: "income", category: "other_income", netAmountCents: 5_000, status: "settled" },
+        { direction: "expense", category: "parts", netAmountCents: 3_000, status: "expected" },
+        { direction: "expense", category: "parts", netAmountCents: 99_000, status: "cancelled" },
       ],
       [
         { key: "service_income", name: "Serviços", direction: "income" },
@@ -27,7 +28,7 @@ describe("financial category report", () => {
 
   it("keeps reserves outside income and expense category reports", () => {
     expect(summarizeFinancialCategories(
-      [{ direction: "reserve", category: "tax_reserve", netAmountCents: 1_000 }],
+      [{ direction: "reserve", category: "tax_reserve", netAmountCents: 1_000, status: "settled" }],
       [],
     )).toEqual({ income: [], expense: [] });
   });

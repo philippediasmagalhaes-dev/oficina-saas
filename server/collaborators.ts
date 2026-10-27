@@ -235,6 +235,10 @@ export async function listCollaborators(workshopId: string) {
   return getDatabase().select().from(collaborators).where(eq(collaborators.workshopId, workshopId)).orderBy(collaborators.name);
 }
 
+export function onlyActiveCollaborators<T extends { active: boolean }>(rows: T[]) {
+  return rows.filter((row) => row.active);
+}
+
 export async function createCollaborator(input: { workshopId: string; name: string; phone: string | null; compensationMode: CompensationMode; monthlyFixedCents: number; fixedPerServiceCents: number; commissionBasisPoints: number }) {
   const [row] = await getDatabase().insert(collaborators).values(input).returning();
   return row;

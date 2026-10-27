@@ -2327,7 +2327,7 @@ td { padding: 0.68rem 0.65rem; font-size: 0.8rem; }
   .finance-operations-filter { grid-template-columns: 1fr 1fr; }
   .finance-operations-filter label:first-child { grid-column: 1 / -1; }
   .finance-entry-table { overflow-x: auto; }
-  .settlement-popover { min-width: 15rem; }
+  .settlement-popover { position: static; min-width: 15rem; }
 }
 
 @media (max-width: 600px) {

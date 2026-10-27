@@ -18,4 +18,8 @@ describe("global control styles", () => {
     expect(css).toContain("--control-height: 2.45rem");
     expect(css).toMatch(/\.primary-button,[\s\S]*\.secondary-button[\s\S]*height:\s*var\(--control-height\)/);
   });
+
+  it("keeps the settlement panel in the mobile table flow", () => {
+    expect(css).toMatch(/@media \(max-width: 760px\)[\s\S]*\.settlement-popover\s*\{[^}]*position:\s*static/);
+  });
 });

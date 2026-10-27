@@ -16,3 +16,15 @@ export function distributeMissingCompletionDates(
   });
   return result;
 }
+
+export function customerNeedsPilotNormalization(customer: {
+  whatsappConsent: boolean;
+  whatsappConsentAt: Date | null;
+  whatsappConsentSource: string | null;
+}) {
+  return !customer.whatsappConsent || !customer.whatsappConsentAt || !customer.whatsappConsentSource;
+}
+
+export function orderNeedsPilotNormalization(order: { status: string; completedAt: Date | null }) {
+  return order.status !== "completed" || !order.completedAt;
+}
