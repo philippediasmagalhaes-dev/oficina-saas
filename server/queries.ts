@@ -1,5 +1,5 @@
 import { buildFinancialSnapshot } from "../domain/finance";
-import { summarizeFinancialCategories } from "../domain/financial-category-report";
+import { excludeCancelledFinancialEntries, summarizeFinancialCategories } from "../domain/financial-category-report";
 import { deriveDashboardPriorities } from "../domain/dashboard-priorities";
 import {
   describeFinancialPeriod,
@@ -143,10 +143,11 @@ export async function getFinancialDashboard(filters: FinancialFilters & { status
     return completedAt ? [{ ...entry, completedAt, customerName: entry.collaboratorName ?? "", vehicleLabel: entry.paymentMethod }] : [];
   });
   const entries = filterFinancialServices(reportEntries, filters);
-  const incomeCents = entries.filter((entry) => entry.direction === "income").reduce((sum, entry) => sum + entry.netAmountCents, 0);
-  const expenseCents = entries.filter((entry) => entry.direction === "expense").reduce((sum, entry) => sum + entry.netAmountCents, 0);
-  const reserveCents = entries.filter((entry) => entry.direction === "reserve").reduce((sum, entry) => sum + entry.netAmountCents, 0);
-  const categoryReport = summarizeFinancialCategories(entries, categories);
+  const activeEntries = excludeCancelledFinancialEntries(entries);
+  const incomeCents = activeEntries.filter((entry) => entry.direction === "income").reduce((sum, entry) => sum + entry.netAmountCents, 0);
+  const expenseCents = activeEntries.filter((entry) => entry.direction === "expense").reduce((sum, entry) => sum + entry.netAmountCents, 0);
+  const reserveCents = activeEntries.filter((entry) => entry.direction === "reserve").reduce((sum, entry) => sum + entry.netAmountCents, 0);
+  const categoryReport = summarizeFinancialCategories(activeEntries, categories);
   return {
     ...context,
     services,

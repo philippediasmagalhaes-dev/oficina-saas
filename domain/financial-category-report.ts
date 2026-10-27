@@ -20,6 +20,10 @@ export type FinancialCategorySummary = {
   percentage: number;
 };
 
+export function excludeCancelledFinancialEntries<T extends { status: string }>(entries: T[]) {
+  return entries.filter((entry) => entry.status !== "cancelled");
+}
+
 function readableCategory(key: string) {
   const value = key.replaceAll("_", " ").trim();
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : "Sem categoria";
@@ -27,10 +31,11 @@ function readableCategory(key: string) {
 
 export function summarizeFinancialCategories(entries: ReportEntry[], categories: CategoryDefinition[]) {
   const names = new Map(categories.map((category) => [category.key, category.name]));
+  const activeEntries = excludeCancelledFinancialEntries(entries);
   const summarize = (direction: "income" | "expense") => {
     const amounts = new Map<string, number>();
-    for (const entry of entries) {
-      if (entry.direction !== direction || entry.status === "cancelled") continue;
+    for (const entry of activeEntries) {
+      if (entry.direction !== direction) continue;
       amounts.set(entry.category, (amounts.get(entry.category) ?? 0) + entry.netAmountCents);
     }
     const total = [...amounts.values()].reduce((sum, amount) => sum + amount, 0);

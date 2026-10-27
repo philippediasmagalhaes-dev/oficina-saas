@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { summarizeFinancialCategories } from "./financial-category-report";
+import { excludeCancelledFinancialEntries, summarizeFinancialCategories } from "./financial-category-report";
 
 describe("financial category report", () => {
+  it("uses the same active entries for headline totals and categories", () => {
+    expect(excludeCancelledFinancialEntries([
+      { status: "settled", amount: 10 },
+      { status: "cancelled", amount: 90 },
+    ])).toEqual([{ status: "settled", amount: 10 }]);
+  });
+
   it("groups net revenue and expenses and calculates participation", () => {
     const result = summarizeFinancialCategories(
       [
