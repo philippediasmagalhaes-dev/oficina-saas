@@ -84,8 +84,8 @@ export function CollaboratorEditForm({ collaborator }: { collaborator: Collabora
       {collaborator.active ? (
         <form action={deactivateCollaboratorAction} className="danger-zone">
           <input type="hidden" name="collaboratorId" value={collaborator.id} />
-          <button className="text-button" type="submit">Desativar colaborador</button>
-          <small>O histórico e as comissões já fechadas serão preservados.</small>
+          <button className="text-button danger-text" type="submit">Excluir colaborador</button>
+          <small>Exclusão segura: o histórico e as comissões já fechadas serão preservados.</small>
         </form>
       ) : null}
     </details>
