@@ -1,6 +1,7 @@
 import { saveInspectionAction } from "../app/actions";
 import { DamageMap } from "./damage-map";
 import type { DamageMarkInput } from "../domain/inspection";
+import type { ComponentProps } from "react";
 
 type InspectionDefaults = {
   odometer: number | null;
@@ -18,8 +19,9 @@ const checklist = [
   ["documents", "Documentos"],
 ] as const;
 
-export function IntakeInspectionForm({ serviceRecordId, defaults }: { serviceRecordId: string; defaults: InspectionDefaults }) {
-  return <form action={saveInspectionAction} className="form-grid inspection-form">
+export function IntakeInspectionForm({ serviceRecordId, defaults, action = saveInspectionAction, mechanicToken }: { serviceRecordId: string; defaults: InspectionDefaults; action?: ComponentProps<"form">["action"]; mechanicToken?: string }) {
+  return <form action={action} className="form-grid inspection-form">
+    {mechanicToken ? <input type="hidden" name="mechanicToken" value={mechanicToken} /> : null}
     <input type="hidden" name="serviceRecordId" value={serviceRecordId} />
     <label>Quilometragem<input name="inspectionOdometer" type="number" min="0" defaultValue={defaults?.odometer ?? ""} /></label>
     <label>Combustível<select name="fuelLevel" defaultValue={defaults?.fuelLevel ?? "half"}><option value="reserve">Reserva</option><option value="quarter">1/4</option><option value="half">1/2</option><option value="three_quarters">3/4</option><option value="full">Cheio</option></select></label>

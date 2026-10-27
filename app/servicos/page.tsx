@@ -5,6 +5,8 @@ import { readServerConfig } from "../../db/config";
 import { formatCents } from "../../domain/money";
 import { getServiceRecords } from "../../server/queries";
 import { ConfigurationPending } from "../configurar/page";
+import { seedAutomotiveCatalogAction, updateCatalogMaintenanceAction } from "../actions";
+import { MoneyInput } from "../../components/money-input";
 
 export default async function ServicesPage() {
   const config = readServerConfig(process.env);
@@ -16,11 +18,12 @@ export default async function ServicesPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">CATÁLOGO</p>
-          <h1>Serviços padronizados, orçamentos mais rápidos.</h1>
+          <h1>Catálogo de serviços</h1>
           <p>
             Defina preço e retorno sugerido para reutilizar em todas as ordens.
           </p>
         </div>
+        <form action={seedAutomotiveCatalogAction}><button className="secondary-button" type="submit">Adicionar serviços de mecânica</button></form>
       </div>
       <div className="split-grid">
         <section className="surface" id="catalogo">
@@ -52,6 +55,13 @@ export default async function ServicesPage() {
                     </small>
                   </div>
                   <b>{formatCents(item.defaultPriceCents)}</b>
+                  <details><summary>Editar preço e retorno</summary><form action={updateCatalogMaintenanceAction} className="form-grid compact-form">
+                    <input type="hidden" name="id" value={item.id} /><input type="hidden" name="name" value={item.name} />
+                    <label>Preço<MoneyInput name="defaultPrice" defaultValue={(item.defaultPriceCents / 100).toFixed(2)} /></label>
+                    <label>Dias<input type="number" min="1" name="defaultReturnIntervalDays" defaultValue={item.defaultReturnIntervalDays ?? ""} /></label>
+                    <label>Km<input type="number" min="1" name="defaultReturnIntervalKm" defaultValue={item.defaultReturnIntervalKm ?? ""} /></label>
+                    <button className="text-button" type="submit">Salvar</button>
+                  </form></details>
                 </div>
               ))}
             </div>

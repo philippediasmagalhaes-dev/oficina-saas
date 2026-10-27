@@ -1,76 +1,78 @@
-import { classifyCustomer } from "../domain/forecast";
 import { buildFinancialSnapshot } from "../domain/finance";
+import { deriveDashboardPriorities } from "../domain/dashboard-priorities";
 import {
   describeFinancialPeriod,
   filterFinancialServices,
   type FinancialFilters,
 } from "../domain/service-filters";
 import { getOwnerContext } from "./owner-context";
-import { getVehicle, listVehicles } from "./vehicles";
-import { listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
+import { getVehicle, listVehicles, listVehiclesPage } from "./vehicles";
+import { listCollaboratorPayables, listCollaboratorRates, listCollaborators, listWorkOrderAssignments } from "./collaborators";
 import { listInventoryMovements } from "./inventory";
-import { getWorkOrder, listWorkOrders } from "./work-orders";
-import { ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialSettings, listFinancialReportEntries, listWorkOrderPayments } from "./finance";
+import { countWorkOrdersByStatus, getWorkOrder, listWorkOrdersPage } from "./work-orders";
+import { ensureDefaultFinancialAccount, ensureMonthlyCollaboratorPayables, ensureMonthlyFinancialOccurrences, getFinancialOverviewTotals, getFinancialSettings, getOutstandingFinancialTotal, listCashSessions, listFinancialAccounts, listFinancialEntriesPage, listFinancialReportEntries, listFinancialSettlements, listSuppliers, listWorkOrderPayments } from "./finance";
+import type { RawFinancialFilters } from "../domain/financial-filters";
 import { getWhatsAppAutomationStatus } from "./whatsapp";
+import { listFinancialCategories } from "./financial-categories";
+import { listMaintenanceReturns } from "./retention";
+import { seedAutomotiveCatalog } from "./automotive-catalog";
 
 export async function getDashboardData() {
   const context = await getOwnerContext();
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  const [customers, services, inventory, orders, ledger] = await Promise.all([
-    context.repository.listCustomers(context.workshopId),
+  const [services, inventory, orders, orderCounts, ledger, overdueReceivables, returns] = await Promise.all([
     context.repository.listServices(context.workshopId),
     context.repository.listInventory(context.workshopId),
-    listWorkOrders(context.workshopId),
+    listWorkOrdersPage(context.workshopId, { query: "", page: 1, pageSize: 8 }),
+    countWorkOrdersByStatus(context.workshopId),
     listFinancialReportEntries(context.workshopId, { from: monthStart, to: nextMonth, recognitionMode: "accrual" }),
+    listFinancialEntriesPage(context.workshopId, { direction: "income", due: "overdue", pageSize: 12 }),
+    listMaintenanceReturns(context.workshopId, "1", now),
   ]);
-  const retention = customers.map((customer) => ({
-    ...customer,
-    classification: classifyCustomer({
-      nextDueAt: customer.nextDueAt ?? null,
-      lastServiceAt: customer.lastServiceAt ?? null,
-      inactivityDays: context.workshop.inactivityDays,
-    }),
-  }));
   const currentMonthServices = filterFinancialServices(services, {
     period: "current_month",
     query: "",
     from: "",
     to: "",
   });
+  const lowStockItems = inventory.filter((item) => item.active && item.currentQuantity - (item.reservedQuantity ?? 0) <= item.minimumQuantity);
+  const priorities = deriveDashboardPriorities({
+    overdueReceivables: overdueReceivables.items,
+    readyOrders: orderCounts.ready,
+    lowStockItems: lowStockItems.length,
+    dueReturns: returns.total,
+  });
   return {
     ...context,
-    customers,
     services: currentMonthServices,
-    inventory,
-    retention,
+    recentOrders: orders.items,
+    orderCounts,
+    lowStockItems: lowStockItems.slice(0, 5),
+    returns: returns.items.slice(0, 5),
+    priorities,
     metrics: {
       revenueCents: currentMonthServices.reduce(
         (total, service) => total + service.amountCents,
         0,
       ),
       serviceCount: currentMonthServices.length,
-      customerCount: customers.length,
-      opportunities: retention.filter(
-        (customer) => customer.classification !== "current",
-      ).length,
-      lowStock: inventory.filter(
-        (item) => item.active && item.currentQuantity - (item.reservedQuantity ?? 0) <= item.minimumQuantity,
-      ).length,
-      openOrders: orders.filter((order) => !["delivered", "completed", "cancelled"].includes(order.status)).length,
-      readyOrders: orders.filter((order) => order.status === "ready").length,
+      opportunities: returns.total,
+      lowStock: lowStockItems.length,
+      openOrders: orderCounts.active,
+      readyOrders: orderCounts.ready,
       receiptsCents: ledger.filter((entry) => entry.direction === "income" && entry.status === "settled").reduce((sum, entry) => sum + entry.netAmountCents, 0),
-      expectedReceivablesCents: ledger.filter((entry) => entry.direction === "income" && entry.status === "expected").reduce((sum, entry) => sum + entry.netAmountCents, 0),
+      overdueReceivablesCents: await getOutstandingFinancialTotal(context.workshopId, "income", now),
     },
   };
 }
 
-export async function getCustomers() {
+export async function getCustomers(input: { query: string; page: number; pageSize: number }) {
   const context = await getOwnerContext();
   return {
     ...context,
-    customers: await context.repository.listCustomers(context.workshopId),
+    customers: await context.repository.listCustomersPage(context.workshopId, input),
   };
 }
 
@@ -87,16 +89,14 @@ export async function getCustomer(customerId: string) {
 
 export async function getServiceRecords() {
   const context = await getOwnerContext();
-  const [services, customers, vehicles, catalog, inventory] = await Promise.all(
+  await seedAutomotiveCatalog(context.workshopId);
+  const [services, catalog] = await Promise.all(
     [
-      context.repository.listServices(context.workshopId),
-      context.repository.listCustomers(context.workshopId),
-      context.repository.listVehicles(context.workshopId),
+      context.repository.listServices(context.workshopId, 24),
       context.repository.listServiceCatalog(context.workshopId),
-      context.repository.listInventory(context.workshopId),
     ],
   );
-  return { ...context, services, customers, vehicles, catalog, inventory };
+  return { ...context, services, catalog };
 }
 
 export async function getServiceOrder(serviceId: string) {
@@ -110,20 +110,13 @@ export async function getServiceOrder(serviceId: string) {
   };
 }
 
-export async function getRetentionOpportunities() {
+export async function getRetentionOpportunities(page?: string) {
   const context = await getOwnerContext();
-  const [customers, automation] = await Promise.all([context.repository.listCustomers(context.workshopId), getWhatsAppAutomationStatus(context.workshopId)]);
-  const opportunities = customers
-    .map((customer) => ({
-      ...customer,
-      classification: classifyCustomer({
-        nextDueAt: customer.nextDueAt ?? null,
-        lastServiceAt: customer.lastServiceAt ?? null,
-        inactivityDays: context.workshop.inactivityDays,
-      }),
-    }))
-    .filter((customer) => customer.classification !== "current");
-  return { ...context, opportunities, automation };
+  const [returns, automation] = await Promise.all([
+    listMaintenanceReturns(context.workshopId, page),
+    getWhatsAppAutomationStatus(context.workshopId),
+  ]);
+  return { ...context, returns, automation };
 }
 
 export async function getInventory() {
@@ -136,11 +129,12 @@ export async function getFinancialDashboard(filters: FinancialFilters & { status
   const context = await getOwnerContext();
   await ensureMonthlyCollaboratorPayables(context.workshopId);
   await ensureMonthlyFinancialOccurrences(context.workshopId);
-  const [allServices, allEntries, financialSettings, collaborators] = await Promise.all([
+  const [allServices, allEntries, financialSettings, collaborators, categories] = await Promise.all([
     context.repository.listServices(context.workshopId),
     listFinancialReportEntries(context.workshopId, { status: filters.status, category: filters.category, recognitionMode: filters.recognitionMode, paymentMethod: filters.paymentMethod, collaboratorId: filters.collaboratorId }),
     getFinancialSettings(context.workshopId),
     listCollaborators(context.workshopId),
+    listFinancialCategories(context.workshopId),
   ]);
   const services = filterFinancialServices(allServices, filters);
   const reportEntries = allEntries.flatMap((entry) => {
@@ -160,18 +154,42 @@ export async function getFinancialDashboard(filters: FinancialFilters & { status
     entries,
     financialSettings: financialSettings.settings,
     collaborators,
+    categories,
     ledger: { incomeCents, expenseCents, reserveCents, balanceCents: incomeCents - expenseCents - reserveCents },
   };
 }
 
-export async function getWorkOrdersData() {
+export async function getFinancialWorkspace(filters: RawFinancialFilters = {}) {
   const context = await getOwnerContext();
-  const [orders, customers, vehicles] = await Promise.all([
-    listWorkOrders(context.workshopId),
-    context.repository.listCustomers(context.workshopId),
-    context.repository.listVehicles(context.workshopId),
+  await ensureDefaultFinancialAccount(context.workshopId);
+  await ensureMonthlyCollaboratorPayables(context.workshopId);
+  await ensureMonthlyFinancialOccurrences(context.workshopId);
+  const [entries, accounts, suppliers, categories, cashSessions, overview] = await Promise.all([
+    listFinancialEntriesPage(context.workshopId, filters),
+    listFinancialAccounts(context.workshopId),
+    listSuppliers(context.workshopId),
+    listFinancialCategories(context.workshopId),
+    listCashSessions(context.workshopId),
+    getFinancialOverviewTotals(context.workshopId),
   ]);
-  return { ...context, orders, customers, vehicles };
+  const settlements = await listFinancialSettlements(context.workshopId, entries.items.map((entry) => entry.id));
+  return { ...context, entries, accounts, suppliers, categories, cashSessions, settlements, overview };
+}
+
+export async function getWorkOrdersData(input: { query: string; page: number; pageSize: number; includeFormOptions?: boolean; selectedVehicleId?: string }) {
+  const context = await getOwnerContext();
+  const [orders, statusCounts, customers, vehicles] = await Promise.all([
+    listWorkOrdersPage(context.workshopId, input),
+    countWorkOrdersByStatus(context.workshopId),
+    input.includeFormOptions ? context.repository.listCustomersPage(context.workshopId, { query: "", page: 1, pageSize: 20 }).then((result) => result.items) : Promise.resolve([]),
+    Promise.resolve([]),
+  ]);
+  const selectedVehicle = input.selectedVehicleId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.selectedVehicleId) ? await context.repository.findVehicle(context.workshopId, input.selectedVehicleId) : null;
+  if (selectedVehicle && !customers.some((customer) => customer.id === selectedVehicle.customerId)) {
+    const customer = await context.repository.findCustomer(context.workshopId, selectedVehicle.customerId);
+    if (customer) customers.push(customer);
+  }
+  return { ...context, orders, statusCounts, customers, vehicles, selectedVehicle };
 }
 
 export async function getWorkOrderData(serviceRecordId: string) {
@@ -192,17 +210,23 @@ export async function getWorkOrderData(serviceRecordId: string) {
   return { ...context, order, catalog, inventory, collaborators, assignments, financialSettings, customer, vehicle, payments };
 }
 
-export async function getCollaboratorsData() {
+export async function getCollaboratorsData(period: { from: Date; to: Date }) {
   const context = await getOwnerContext();
-  const [collaborators, rates, catalog] = await Promise.all([listCollaborators(context.workshopId), listCollaboratorRates(context.workshopId), context.repository.listServiceCatalog(context.workshopId)]);
-  return { ...context, collaborators, rates, catalog };
+  await ensureMonthlyCollaboratorPayables(context.workshopId);
+  const [collaborators, rates, catalog, payables] = await Promise.all([
+    listCollaborators(context.workshopId),
+    listCollaboratorRates(context.workshopId),
+    context.repository.listServiceCatalog(context.workshopId),
+    listCollaboratorPayables(context.workshopId, period),
+  ]);
+  return { ...context, collaborators, rates, catalog, payables };
 }
 
-export async function getVehiclesData() {
+export async function getVehiclesData(input: { query: string; page: number; pageSize: number; includeFormOptions?: boolean }) {
   const context = await getOwnerContext();
   const [vehicles, customers] = await Promise.all([
-    listVehicles(context.workshopId),
-    context.repository.listCustomers(context.workshopId),
+    listVehiclesPage(context.workshopId, input),
+    input.includeFormOptions ? context.repository.listCustomersPage(context.workshopId, { query: "", page: 1, pageSize: 20 }).then((result) => result.items) : Promise.resolve([]),
   ]);
   return { ...context, vehicles, customers };
 }
@@ -211,7 +235,11 @@ export async function getVehicleData(vehicleId: string) {
   const context = await getOwnerContext();
   const [vehicle, customers] = await Promise.all([
     getVehicle(context.workshopId, vehicleId),
-    context.repository.listCustomers(context.workshopId),
+    context.repository.listCustomersPage(context.workshopId, { query: "", page: 1, pageSize: 20 }).then((result) => result.items),
   ]);
+  if (vehicle && !customers.some((customer) => customer.id === vehicle.customerId)) {
+    const customer = await context.repository.findCustomer(context.workshopId, vehicle.customerId);
+    if (customer) customers.push(customer);
+  }
   return { ...context, vehicle, customers };
 }

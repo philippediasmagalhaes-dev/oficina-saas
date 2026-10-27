@@ -57,12 +57,13 @@ describe("paid plate lookup safeguards", () => {
     ).toBe("Dados reaproveitados do histórico, sem nova cobrança.");
     expect(
       plateLookupSuccessMessage({ cached: false, balanceCents: 2992 }),
-    ).toBe("Consulta concluída por R$ 0,08. Saldo no provedor: R$ 29,92.");
+    ).toBe("Consulta concluída. Saldo no provedor: R$ 29,92.");
   });
 
-  it("makes the price visible before the owner requests a lookup", () => {
+  it("keeps the lookup button simple without showing a per-query price", () => {
     const html = renderToStaticMarkup(<PlateLookupForm customers={customers} />);
 
-    expect(html).toContain("Consultar por R$ 0,08");
+    expect(html).toContain(">Consultar placa<");
+    expect(html).not.toContain("Consultar por R$ 0,08");
   });
 });

@@ -55,6 +55,52 @@ describe("real workshop operations schema", () => {
     for (const name of required) expect(schema).toHaveProperty(name);
   });
 
+  it("defines professional accounts, suppliers, settlements and cash sessions", () => {
+    expect(schema).toHaveProperty("financialAccounts");
+    expect(schema).toHaveProperty("suppliers");
+    expect(schema).toHaveProperty("financialSettlements");
+    expect(schema).toHaveProperty("cashSessions");
+    expect(columnNames(schema.financialEntries)).toEqual(
+      expect.arrayContaining([
+        "customer_id",
+        "supplier_id",
+        "financial_account_id",
+        "installment_group_id",
+        "installment_number",
+        "installment_count",
+        "document_number",
+        "notes",
+      ]),
+    );
+    expect(columnNames(schema.businessFinExports)).toContain("settlement_id");
+  });
+
+  it("ships the professional finance migration as an additive change", () => {
+    const migrationPath = resolve(
+      import.meta.dirname,
+      "migrations/0013_professional_finance.sql",
+    );
+    expect(existsSync(migrationPath)).toBe(true);
+    const sql = existsSync(migrationPath)
+      ? readFileSync(migrationPath, "utf8")
+      : "";
+    expect(sql).toContain('CREATE TABLE "financial_accounts"');
+    expect(sql).toContain('CREATE TABLE "suppliers"');
+    expect(sql).toContain('CREATE TABLE "financial_settlements"');
+    expect(sql).toContain('CREATE TABLE "cash_sessions"');
+    expect(sql).not.toMatch(/DROP\s+(TABLE|COLUMN)/i);
+    expect(sql).not.toMatch(/TRUNCATE|DELETE\s+FROM/i);
+  });
+
+  it("prevents concurrent open cash sessions with an additive index migration", () => {
+    const migrationPath = resolve(import.meta.dirname, "migrations/0014_cash_session_integrity.sql");
+    expect(existsSync(migrationPath)).toBe(true);
+    const sql = existsSync(migrationPath) ? readFileSync(migrationPath, "utf8") : "";
+    expect(sql).toContain("cash_sessions_one_open_per_account");
+    expect(sql).toMatch(/WHERE .*closed_at.*IS NULL/i);
+    expect(sql).not.toMatch(/DROP\s+(TABLE|COLUMN)|TRUNCATE|DELETE\s+FROM/i);
+  });
+
   it("ships an additive migration without deleting existing workshop data", () => {
     const migrationPath = resolve(import.meta.dirname, "migrations/0004_real_workshop_operations.sql");
     expect(existsSync(migrationPath)).toBe(true);

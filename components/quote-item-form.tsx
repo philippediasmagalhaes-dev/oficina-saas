@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { addQuoteItemAction } from "../app/actions";
 import type { InventorySummary, ServiceCatalogSummary } from "../server/ports";
+import { MoneyInput } from "./money-input";
 
 function money(cents: number) {
   return (cents / 100).toFixed(2).replace(".", ",");
@@ -30,7 +31,7 @@ export function QuoteItemForm({ serviceRecordId, catalog, inventory }: { service
     <label>Tipo<select name="type" value={type} onChange={(event) => { const next = event.target.value as "service" | "part"; setType(next); setReferenceId(""); setUnitPrice(""); }}><option value="service">Serviço</option><option value="part">Peça</option></select></label>
     <label>Item<select name="referenceId" required value={referenceId} onChange={(event) => selectReference(event.target.value)}><option value="" disabled>Selecione</option>{entries.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
     <label>Qtd.<input name="quantity" type="number" min="1" required defaultValue="1" /></label>
-    <label>Valor unitário<input name="unitPrice" inputMode="decimal" required value={unitPrice} onChange={(event) => setUnitPrice(event.target.value)} placeholder="0,00" /></label>
+    <label>Valor unitário<MoneyInput name="unitPrice" required value={unitPrice} onValueChange={setUnitPrice} /></label>
     <button className="secondary-button" type="submit">Adicionar</button>
   </form>;
 }

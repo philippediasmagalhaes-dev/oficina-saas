@@ -9,7 +9,7 @@ export type BusinessFinEntry = {
   competenceDate: Date;
   dueDate: Date;
   settledAt: Date | null;
-  status: "expected" | "settled" | "cancelled";
+  status: "expected" | "partial" | "settled" | "cancelled";
 };
 
 function csvCell(value: string) {
@@ -25,7 +25,12 @@ function brDate(date: Date | null) {
 }
 
 const directionLabels = { income: "Receita", expense: "Despesa", reserve: "Reserva" } as const;
-const statusLabels = { expected: "Previsto", settled: "Realizado", cancelled: "Cancelado" } as const;
+const statusLabels = {
+  expected: "Previsto",
+  partial: "Parcial",
+  settled: "Realizado",
+  cancelled: "Cancelado",
+} as const;
 
 export function selectBusinessFinEntries<T extends { externalId: string }>(entries: T[], exportedExternalIds: Set<string>, includeExported: boolean) {
   return includeExported ? entries : entries.filter((entry) => !exportedExternalIds.has(entry.externalId));

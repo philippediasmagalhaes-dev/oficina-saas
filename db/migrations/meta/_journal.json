@@ -71,6 +71,41 @@
       "when": 1792871492829,
       "tag": "0009_chilly_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792944901168,
+      "tag": "0010_nifty_falcon",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792975004097,
+      "tag": "0011_typical_jack_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792975414236,
+      "tag": "0012_fixed_silhouette",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793026800000,
+      "tag": "0013_professional_finance",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793030400000,
+      "tag": "0014_cash_session_integrity",
+      "breakpoints": true
     }
   ]
 }

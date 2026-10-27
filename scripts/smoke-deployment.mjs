@@ -141,6 +141,10 @@ export async function runSmoke({
   await expectProtected(`/ordens/${PHOTO_PROBE_ID}/imprimir`, "impressão A4 protegida");
   await expectProtected("/colaboradores", "colaboradores protegidos");
   await expectProtected("/financeiro?period=current_year&status=expected&recognition=accrual", "filtros financeiros protegidos");
+  await expectProtected("/financeiro/receber?due=overdue", "contas a receber protegidas");
+  await expectProtected("/financeiro/pagar?status=expected", "contas a pagar protegidas");
+  await expectProtected("/financeiro/caixa", "controle de caixa protegido");
+  await expectProtected("/financeiro/relatorios?period=current_month", "relatórios financeiros protegidos");
   await expectProtected("/api/financeiro/business-fin?from=2026-01-01&to=2026-12-31", "exportação Business Fin protegida");
   await expectProtected("/api/veiculos/consultar-placa?plate=ABC1D23", "consulta de placa protegida");
   await expectProtected("/retencao", "retenção protegida");

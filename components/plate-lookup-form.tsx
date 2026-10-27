@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createVehicleAction, updateVehicleAction } from "../app/actions";
 import { normalizePlate } from "../domain/workshop-settings";
 import type { CustomerSummary, VehicleSummary } from "../server/ports";
+import { CustomerPicker } from "./customer-picker";
 
 type Values = { plate: string; make: string; model: string; category: string; color: string; manufactureYear: string; modelYear: string; fuel: string; engineDisplacement: string; power: string; municipality: string; state: string; maskedChassis: string; odometer: string; lookupProvider: string; lookupSnapshot: string };
 type LookupState = "idle" | "loading" | "found" | "manual";
@@ -18,7 +19,7 @@ export function plateLookupSuccessMessage(result: { cached: boolean; balanceCent
   const balance = result.balanceCents === null
     ? ""
     : ` Saldo no provedor: R$ ${(result.balanceCents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`;
-  return `Consulta concluída por R$ 0,08.${balance}`;
+  return `Consulta concluída.${balance}`;
 }
 
 export function resetPlateLookupMetadata(currentPlate: string, nextPlate: string) {
@@ -53,8 +54,8 @@ export function PlateLookupForm({ customers, vehicle }: { customers: CustomerSum
   return <form action={vehicle ? updateVehicleAction : createVehicleAction} className="form-grid">
     {vehicle ? <input type="hidden" name="vehicleId" value={vehicle.id} /> : null}
     <input type="hidden" name="lookupProvider" value={values.lookupProvider} /><input type="hidden" name="lookupSnapshot" value={values.lookupSnapshot} /><input name="year" type="hidden" value={values.modelYear} />
-    <label className="span-2">Proprietário<select name="customerId" required defaultValue={vehicle?.customerId ?? ""}><option value="" disabled>Selecione</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
-    <div className="plate-lookup-row span-2"><label>Placa<input name="plate" required placeholder="ABC1D23" value={values.plate} onChange={(event) => { const plate = event.target.value.toUpperCase(); const reset = resetPlateLookupMetadata(values.plate, plate); setValues((current) => ({ ...current, plate, ...(reset ?? {}) })); if (normalizePlate(plate) !== lastSuccessfulPlate) { setLookupState("idle"); setMessage(""); } }} /></label><button className="secondary-button" type="button" disabled={!canRequestPlateLookup(lastSuccessfulPlate, values.plate, lookupState)} onClick={lookup}>{lookupState === "loading" ? "Consultando…" : "Consultar por R$ 0,08"}</button>{message ? <small className={lookupState === "found" ? "ok" : "muted"}>{message}</small> : null}</div>
+    <CustomerPicker customers={customers} defaultCustomerId={vehicle?.customerId} />
+    <div className="plate-lookup-row span-2"><label>Placa<input name="plate" required placeholder="ABC1D23" value={values.plate} onChange={(event) => { const plate = event.target.value.toUpperCase(); const reset = resetPlateLookupMetadata(values.plate, plate); setValues((current) => ({ ...current, plate, ...(reset ?? {}) })); if (normalizePlate(plate) !== lastSuccessfulPlate) { setLookupState("idle"); setMessage(""); } }} /></label><button className="secondary-button" type="button" disabled={!canRequestPlateLookup(lastSuccessfulPlate, values.plate, lookupState)} onClick={lookup}>{lookupState === "loading" ? "Consultando…" : "Consultar placa"}</button>{message ? <small className={lookupState === "found" ? "ok" : "muted"}>{message}</small> : null}</div>
     <label>Marca<input name="make" required placeholder="Chevrolet" value={values.make} onChange={(event) => set("make", event.target.value)} /></label>
     <label>Modelo<input name="model" required placeholder="Corsa" value={values.model} onChange={(event) => set("model", event.target.value)} /></label>
     <label>Categoria<select name="category" value={values.category} onChange={(event) => set("category", event.target.value)}><option value="car">Carro</option><option value="two_wheels">Duas rodas</option><option value="utility">Utilitário</option><option value="other">Outro</option></select></label>

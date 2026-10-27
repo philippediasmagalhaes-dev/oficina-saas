@@ -19,7 +19,9 @@ export function isPublicRoute(path: string) {
     path.startsWith("/api/cron/") ||
     path.startsWith("/api/webhooks/") ||
     path.startsWith("/orcamento/") ||
+    path.startsWith("/mecanico/") ||
     path.startsWith("/icons/") ||
+    path === "/vehicle-inspection-reference.png" ||
     path === "/manifest.webmanifest" ||
     path === "/sw.js"
   );

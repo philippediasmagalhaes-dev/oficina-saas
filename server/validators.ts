@@ -84,6 +84,7 @@ export const serviceCatalogSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do serviço"),
   defaultPrice: z.string().trim().min(1),
   defaultReturnIntervalDays: optionalInteger,
+  defaultReturnIntervalKm: optionalInteger,
 });
 
 export const inventoryItemSchema = z.object({
@@ -160,6 +161,18 @@ export const financialSettingsSchema = z.object({
   defaultRecognitionMode: z.enum(["cash", "accrual"]),
 });
 
+export const financialCategorySchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  direction: z.enum(["income", "expense", "reserve"]),
+});
+
+export const financialCategoryUpdateSchema = financialCategorySchema.extend({
+  categoryId: z.string().uuid(),
+});
+
+export const financialCategoryIdSchema = z.object({ categoryId: z.string().uuid() });
+export const paymentFeeRuleIdSchema = z.object({ ruleId: z.string().uuid() });
+
 export const paymentFeeRuleSchema = z.object({
   paymentMethod: z.enum(["pix", "cash", "debit_card", "credit_card", "transfer", "other"]),
   installmentCount: z.coerce.number().int().min(1).max(24),
@@ -176,6 +189,52 @@ export const manualFinancialEntrySchema = z.object({
   dueDate: z.coerce.date(),
   settled: z.coerce.boolean().default(false),
   recurringMonthly: z.coerce.boolean().default(false),
+  installmentCount: z.coerce.number().int().min(1).max(48).default(1),
+  supplierId: z.union([z.literal(""), z.string().uuid()]).optional().transform((value) => value || null),
+  financialAccountId: z.union([z.literal(""), z.string().uuid()]).optional().transform((value) => value || null),
+  documentNumber: optionalText,
+  notes: optionalText,
+});
+
+export const financialSettlementSchema = z.object({
+  financialEntryId: z.string().uuid(),
+  amount: z.string().trim().min(1),
+  feeAmount: z.string().trim().optional().default("0"),
+  financialAccountId: z.union([z.literal(""), z.string().uuid()]).optional().transform((value) => value || null),
+  paymentMethod: optionalText,
+  note: optionalText,
+});
+
+export const financialSettlementReversalSchema = z.object({
+  financialEntryId: z.string().uuid(),
+  settlementId: z.string().uuid(),
+  note: optionalText,
+});
+
+export const financialAccountSchema = z.object({
+  name: z.string().trim().min(2),
+  type: z.enum(["cash", "bank", "digital_wallet", "card_clearing"]),
+  openingBalance: z.string().trim().default("0"),
+});
+
+export const supplierSchema = z.object({
+  supplierId: z.union([z.literal(""), z.string().uuid()]).optional().transform((value) => value || null),
+  name: z.string().trim().min(2),
+  document: optionalText,
+  phone: optionalText,
+  email: z.union([z.literal(""), z.string().email()]).optional().transform((value) => value || null),
+  notes: optionalText,
+});
+
+export const cashSessionOpenSchema = z.object({
+  financialAccountId: z.string().uuid(),
+  openingBalance: z.string().trim().default("0"),
+});
+
+export const cashSessionCloseSchema = z.object({
+  cashSessionId: z.string().uuid(),
+  declaredClosing: z.string().trim().min(1),
+  note: optionalText,
 });
 
 export const photoSchema = z.object({
@@ -195,12 +254,19 @@ export const collaboratorSchema = z.object({
   commissionPercent: z.coerce.number().min(0).max(100),
 });
 
+export const collaboratorUpdateSchema = collaboratorSchema.extend({
+  collaboratorId: z.string().uuid(),
+});
+
 export const collaboratorRateSchema = z.object({
   collaboratorId: z.string().uuid(),
   serviceCatalogId: z.string().uuid(),
   fixedPerService: z.string().trim().default(""),
   commissionPercent: z.union([z.literal(""), z.coerce.number().min(0).max(100)]).transform((value) => value === "" ? null : value),
 });
+
+export const collaboratorIdSchema = z.object({ collaboratorId: z.string().uuid() });
+export const collaboratorRateIdSchema = z.object({ rateId: z.string().uuid() });
 
 export const assignmentSchema = z.object({
   serviceRecordId: z.string().uuid(),

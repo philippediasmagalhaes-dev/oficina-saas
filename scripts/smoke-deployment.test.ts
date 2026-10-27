@@ -52,7 +52,7 @@ function responseFor(path: string) {
   }
   if (path === "/api/cron/whatsapp-reminders") return Response.json({ error: "unauthorized" }, { status: 401 });
   if (path.startsWith("/orcamento/")) return new Response("not found", { status: 404, headers: { "content-type": "text/html" } });
-  if (["/", "/clientes/00000000-0000-4000-8000-000000000000", "/veiculos/00000000-0000-4000-8000-000000000000", "/ordens", "/ordens/00000000-0000-4000-8000-000000000000/imprimir", "/colaboradores", "/financeiro", "/retencao", "/estoque", "/configuracoes", "/api/financeiro/business-fin", "/api/veiculos/consultar-placa"].includes(path)) return new Response(null, { status: 307, headers: { location: `${baseUrl}/login` } });
+  if (["/", "/clientes/00000000-0000-4000-8000-000000000000", "/veiculos/00000000-0000-4000-8000-000000000000", "/ordens", "/ordens/00000000-0000-4000-8000-000000000000/imprimir", "/colaboradores", "/financeiro", "/financeiro/receber", "/financeiro/pagar", "/financeiro/caixa", "/financeiro/relatorios", "/retencao", "/estoque", "/configuracoes", "/api/financeiro/business-fin", "/api/veiculos/consultar-placa"].includes(path)) return new Response(null, { status: 307, headers: { location: `${baseUrl}/login` } });
   return new Response("not found", { status: 404 });
 }
 
@@ -77,7 +77,7 @@ describe("deployment smoke runner", () => {
         timeoutMs: 2_000,
         log: (message: string) => logs.push(message),
       }),
-    ).resolves.toEqual({ checks: 22, passed: 22 });
+    ).resolves.toEqual({ checks: 26, passed: 26 });
 
     expect(paths).toEqual([
       "/login",
@@ -95,6 +95,10 @@ describe("deployment smoke runner", () => {
       "/ordens/00000000-0000-4000-8000-000000000000/imprimir",
       "/colaboradores",
       "/financeiro?period=current_year&status=expected&recognition=accrual",
+      "/financeiro/receber?due=overdue",
+      "/financeiro/pagar?status=expected",
+      "/financeiro/caixa",
+      "/financeiro/relatorios?period=current_month",
       "/api/financeiro/business-fin?from=2026-01-01&to=2026-12-31",
       "/api/veiculos/consultar-placa?plate=ABC1D23",
       "/retencao",

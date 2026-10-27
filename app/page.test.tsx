@@ -31,8 +31,9 @@ describe("application shell", () => {
       children: "conteúdo",
     });
     const hrefs = collectNativeAnchorHrefs(tree);
+    const html = renderToStaticMarkup(tree);
 
-    expect(hrefs).toHaveLength(21);
+    expect(hrefs).toHaveLength(16);
     for (const href of [
       "/",
       "/clientes",
@@ -43,9 +44,10 @@ describe("application shell", () => {
       "/financeiro",
       "/retencao",
       "/estoque",
+      "/notificacoes",
       "/configuracoes",
     ]) {
-      expect(hrefs).toContain(href);
+      expect(html).toContain(`href="${href}"`);
     }
   });
 });

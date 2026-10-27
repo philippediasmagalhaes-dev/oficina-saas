@@ -1,0 +1,1 @@
+ALTER TABLE "service_catalog" ADD COLUMN "default_return_interval_km" integer;

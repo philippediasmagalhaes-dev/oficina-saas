@@ -12,9 +12,13 @@ import { createDrizzleRepository } from "../server/drizzle-repository";
 import { getOwnerContext, getOwnerUser } from "../server/owner-context";
 import { updateVehicle } from "../server/vehicles";
 import { saveInspection } from "../server/inspections";
-import { assignWorkOrderItem, createCollaborator, removeWorkOrderAssignment, setCollaboratorServiceRate } from "../server/collaborators";
-import { createManualFinancialEntry, saveFinancialSettings, savePaymentFeeRule, setFinancialEntrySettlement } from "../server/finance";
-import { enqueueVehicleReadyMessage } from "../server/whatsapp";
+import { assignWorkOrderItem, createCollaborator, deactivateCollaborator, deleteCollaboratorServiceRate, removeWorkOrderAssignment, setCollaboratorServiceRate, updateCollaborator } from "../server/collaborators";
+import { closeCashSession, createFinancialAccount, createManualFinancialEntry, createSupplier, deactivatePaymentFeeRule, openCashSession, reverseFinancialEntrySettlement, saveFinancialSettings, savePaymentFeeRule, setFinancialEntrySettlement, settleFinancialEntry, updateSupplier } from "../server/finance";
+import { createFinancialCategory, deactivateFinancialCategory, listFinancialCategories, updateFinancialCategory } from "../server/financial-categories";
+import { seedAutomotiveCatalog, updateCatalogMaintenance } from "../server/automotive-catalog";
+import { confirmExistingWhatsAppConsent } from "../server/retention";
+import { importReviewedInvoice, type InvoiceReview } from "../server/nfe-intake";
+import { enqueueVehicleReadyMessage, normalizeReadyRecipient } from "../server/whatsapp";
 import {
   addQuoteItem,
   addServicePhoto,
@@ -32,13 +36,26 @@ import {
 import {
   customerSchema,
   collaboratorRateSchema,
+  collaboratorRateIdSchema,
   collaboratorSchema,
+  collaboratorIdSchema,
+  collaboratorUpdateSchema,
   assignmentSchema,
   diagnosisSchema,
   finalizationSchema,
   financialSettingsSchema,
+  financialCategorySchema,
+  financialCategoryUpdateSchema,
+  financialCategoryIdSchema,
   manualFinancialEntrySchema,
+  financialSettlementSchema,
+  financialSettlementReversalSchema,
+  financialAccountSchema,
+  supplierSchema,
+  cashSessionOpenSchema,
+  cashSessionCloseSchema,
   paymentFeeRuleSchema,
+  paymentFeeRuleIdSchema,
   inventoryAdjustmentSchema,
   inventoryItemSchema,
   photoSchema,
@@ -61,6 +78,15 @@ function formObject(formData: FormData) {
 function parse<T>(result: { success: true; data: T } | { success: false }): T {
   if (!result.success) throw new Error("Revise os campos informados.");
   return result.data;
+}
+
+export async function importInvoiceAction(xml: string, review: InvoiceReview[], options: { createPayable?: boolean; dueDate?: string } = {}) {
+  const { workshopId } = await getOwnerContext();
+  const dueDate = options.createPayable ? new Date(`${options.dueDate ?? ""}T00:00:00.000Z`) : undefined;
+  if (options.createPayable && (!dueDate || Number.isNaN(dueDate.getTime()))) throw new Error("Informe o vencimento da conta a pagar.");
+  const result = await importReviewedInvoice(workshopId, xml, review, { createPayable: Boolean(options.createPayable), dueDate });
+  revalidatePath("/estoque"); revalidatePath("/financeiro"); revalidatePath("/financeiro/pagar"); revalidatePath("/");
+  return result;
 }
 
 export async function createWorkshopAction(formData: FormData) {
@@ -104,6 +130,38 @@ export async function setCollaboratorServiceRateAction(formData: FormData) {
   revalidatePath("/colaboradores");
 }
 
+export async function updateCollaboratorAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(collaboratorUpdateSchema.safeParse(formObject(formData)));
+  await updateCollaborator({
+    workshopId,
+    collaboratorId: input.collaboratorId,
+    name: input.name,
+    phone: input.phone,
+    compensationMode: input.compensationMode,
+    monthlyFixedCents: parseCurrencyToCents(input.monthlyFixed),
+    fixedPerServiceCents: parseCurrencyToCents(input.fixedPerService),
+    commissionBasisPoints: Math.round(input.commissionPercent * 100),
+  });
+  revalidatePath("/colaboradores");
+  revalidatePath("/financeiro");
+}
+
+export async function deactivateCollaboratorAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(collaboratorIdSchema.safeParse(formObject(formData)));
+  await deactivateCollaborator(workshopId, input.collaboratorId);
+  revalidatePath("/colaboradores");
+  revalidatePath("/financeiro");
+}
+
+export async function deleteCollaboratorServiceRateAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(collaboratorRateIdSchema.safeParse(formObject(formData)));
+  await deleteCollaboratorServiceRate(workshopId, input.rateId);
+  revalidatePath("/colaboradores");
+}
+
 export async function assignCollaboratorAction(formData: FormData) {
   const { workshopId } = await getOwnerContext();
   const input = parse(assignmentSchema.safeParse(formObject(formData)));
@@ -125,6 +183,26 @@ export async function setFinancialEntrySettlementAction(formData: FormData) {
   const decision = String(formData.get("decision") ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(financialEntryId) || !["settle", "reopen"].includes(decision)) throw new Error("Baixa financeira inválida.");
   await setFinancialEntrySettlement(workshopId, financialEntryId, decision === "settle");
+  revalidatePath("/financeiro");
+  revalidatePath("/financeiro/receber");
+  revalidatePath("/financeiro/pagar");
+  revalidatePath("/financeiro/caixa");
+  revalidatePath("/financeiro/relatorios");
+  revalidatePath("/");
+}
+
+export async function settleFinancialEntryAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialSettlementSchema.safeParse(formObject(formData)));
+  await settleFinancialEntry({ workshopId, financialEntryId: input.financialEntryId, amountCents: parseCurrencyToCents(input.amount), feeAmountCents: parseCurrencyToCents(input.feeAmount), financialAccountId: input.financialAccountId, paymentMethod: input.paymentMethod, note: input.note });
+  revalidatePath("/financeiro");
+  revalidatePath("/");
+}
+
+export async function reverseFinancialEntrySettlementAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialSettlementReversalSchema.safeParse(formObject(formData)));
+  await reverseFinancialEntrySettlement({ workshopId, ...input });
   revalidatePath("/financeiro");
   revalidatePath("/");
 }
@@ -290,11 +368,32 @@ export async function recordOfflineQuoteDecisionAction(formData: FormData) {
 }
 
 export async function updateWorkOrderStatusAction(formData: FormData) {
-  const { workshopId } = await getOwnerContext();
+  const { workshop, workshopId } = await getOwnerContext();
   const input = parse(workOrderStatusSchema.safeParse(formObject(formData)));
   const order = await getWorkOrder(workshopId, input.serviceRecordId);
   if (!order || !canTransitionWorkOrder(order.status, input.status)) throw new Error("Mudança de status não permitida.");
   await updateWorkOrderStatus(workshopId, input.serviceRecordId, input.status);
+  if (input.status === "ready") {
+    const recipientPhone = normalizeReadyRecipient({
+      consent: order.customerWhatsappConsent,
+      phone: order.customerPhone,
+    });
+    if (recipientPhone) {
+      try {
+        await enqueueVehicleReadyMessage({
+          workshopId,
+          customerId: order.customerId,
+          serviceRecordId: order.id,
+          recipientPhone,
+          customerName: order.customerName,
+          workshopName: workshop.name,
+          vehicleLabel: order.vehicleLabel,
+        });
+      } catch (error) {
+        console.error("Falha ao programar aviso de veículo pronto.", error);
+      }
+    }
+  }
   revalidatePath(`/ordens/${input.serviceRecordId}`);
   revalidatePath("/ordens");
 }
@@ -333,10 +432,70 @@ export async function savePaymentFeeRuleAction(formData: FormData) {
   revalidatePath("/configuracoes");
 }
 
+export async function deactivatePaymentFeeRuleAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(paymentFeeRuleIdSchema.safeParse(formObject(formData)));
+  await deactivatePaymentFeeRule(workshopId, input.ruleId);
+  revalidatePath("/configuracoes");
+  revalidatePath("/financeiro");
+}
+
+export async function createFinancialCategoryAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialCategorySchema.safeParse(formObject(formData)));
+  await createFinancialCategory({ workshopId, ...input });
+  revalidatePath("/financeiro");
+}
+
+export async function updateFinancialCategoryAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialCategoryUpdateSchema.safeParse(formObject(formData)));
+  await updateFinancialCategory({ workshopId, ...input });
+  revalidatePath("/financeiro");
+}
+
+export async function deactivateFinancialCategoryAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialCategoryIdSchema.safeParse(formObject(formData)));
+  await deactivateFinancialCategory(workshopId, input.categoryId);
+  revalidatePath("/financeiro");
+}
+
 export async function createManualFinancialEntryAction(formData: FormData) {
   const { workshopId } = await getOwnerContext();
   const input = parse(manualFinancialEntrySchema.safeParse(formObject(formData)));
-  await createManualFinancialEntry({ workshopId, direction: input.direction, category: input.category, description: input.description, amountCents: parseCurrencyToCents(input.amount), competenceDate: input.competenceDate, dueDate: input.dueDate, settled: input.settled, recurrenceKey: input.recurringMonthly ? `monthly:${crypto.randomUUID()}` : null });
+  const categories = await listFinancialCategories(workshopId);
+  if (!categories.some((category) => category.key === input.category && category.active && !category.protected && category.direction === input.direction)) throw new Error("Escolha uma categoria ativa correspondente ao tipo de lançamento.");
+  await createManualFinancialEntry({ workshopId, direction: input.direction, category: input.category, description: input.description, amountCents: parseCurrencyToCents(input.amount), competenceDate: input.competenceDate, dueDate: input.dueDate, settled: input.settled, recurrenceKey: input.recurringMonthly ? `monthly:${crypto.randomUUID()}` : null, installmentCount: input.installmentCount, supplierId: input.supplierId, financialAccountId: input.financialAccountId, documentNumber: input.documentNumber, notes: input.notes });
+  revalidatePath("/financeiro");
+}
+
+export async function createFinancialAccountAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(financialAccountSchema.safeParse(formObject(formData)));
+  await createFinancialAccount({ workshopId, name: input.name, type: input.type, openingBalanceCents: parseCurrencyToCents(input.openingBalance) });
+  revalidatePath("/financeiro");
+}
+
+export async function saveSupplierAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(supplierSchema.safeParse(formObject(formData)));
+  if (input.supplierId) await updateSupplier({ workshopId, supplierId: input.supplierId, name: input.name, document: input.document, phone: input.phone, email: input.email, notes: input.notes });
+  else await createSupplier({ workshopId, name: input.name, document: input.document, phone: input.phone, email: input.email, notes: input.notes });
+  revalidatePath("/financeiro");
+}
+
+export async function openCashSessionAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(cashSessionOpenSchema.safeParse(formObject(formData)));
+  await openCashSession({ workshopId, financialAccountId: input.financialAccountId, openingBalanceCents: parseCurrencyToCents(input.openingBalance) });
+  revalidatePath("/financeiro");
+}
+
+export async function closeCashSessionAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(cashSessionCloseSchema.safeParse(formObject(formData)));
+  await closeCashSession({ workshopId, cashSessionId: input.cashSessionId, declaredClosingCents: parseCurrencyToCents(input.declaredClosing), note: input.note });
   revalidatePath("/financeiro");
 }
 
@@ -388,9 +547,26 @@ export async function createServiceCatalogAction(formData: FormData) {
     name: input.name,
     defaultPriceCents: parseCurrencyToCents(input.defaultPrice),
     defaultReturnIntervalDays: input.defaultReturnIntervalDays,
+    defaultReturnIntervalKm: input.defaultReturnIntervalKm,
   });
   revalidatePath("/servicos");
   revalidatePath("/financeiro");
+}
+
+export async function seedAutomotiveCatalogAction() {
+  const { workshopId } = await getOwnerContext();
+  await seedAutomotiveCatalog(workshopId);
+  revalidatePath("/servicos");
+}
+
+export async function updateCatalogMaintenanceAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  const input = parse(serviceCatalogSchema.safeParse(formObject(formData)));
+  const id = String(formData.get("id") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Serviço inválido.");
+  await updateCatalogMaintenance({ workshopId, id, days: input.defaultReturnIntervalDays, km: input.defaultReturnIntervalKm, priceCents: parseCurrencyToCents(input.defaultPrice) });
+  revalidatePath("/servicos");
+  revalidatePath("/retencao");
 }
 
 export async function createInventoryItemAction(formData: FormData) {
@@ -446,6 +622,13 @@ export async function recordContactAction(formData: FormData) {
   redirect(draft.url);
 }
 
+export async function confirmBaseWhatsAppConsentAction(formData: FormData) {
+  const { workshopId } = await getOwnerContext();
+  await confirmExistingWhatsAppConsent(workshopId, formData.get("confirmed") === "on");
+  revalidatePath("/clientes");
+  revalidatePath("/retencao");
+}
+
 export async function notifyServiceReadyAction(formData: FormData) {
   const { workshop, workshopId, repository } = await getOwnerContext();
   const serviceId = String(formData.get("serviceId") ?? "");
@@ -462,13 +645,6 @@ export async function notifyServiceReadyAction(formData: FormData) {
     throw new Error(
       "Cliente sem telefone válido ou consentimento para WhatsApp.",
     );
-  const forceManual = String(formData.get("forceManual") ?? "") === "1";
-  const queued = forceManual ? false : await enqueueVehicleReadyMessage({ workshopId, customerId: order.customerId, serviceRecordId: order.id, recipientPhone: normalizeBrazilianPhone(order.customerPhone ?? ""), customerName: order.customerName, workshopName: workshop.name, vehicleLabel: order.vehicleLabel ?? null });
-  if (queued) {
-    revalidatePath(`/ordens/${order.id}`);
-    revalidatePath("/retencao");
-    return;
-  }
   await repository.recordContact({
     workshopId,
     customerId: order.customerId,

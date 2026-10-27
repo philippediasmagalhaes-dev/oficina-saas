@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createWhatsAppProvider, getConfiguredWhatsAppWorkshopId, queueReminderCandidates, verifyWebhookChallenge, type ReminderQueueStore } from "./whatsapp";
+import { createWhatsAppProvider, getConfiguredWhatsAppWorkshopId, normalizeReadyRecipient, queueReminderCandidates, verifyWebhookChallenge, type ReminderQueueStore } from "./whatsapp";
 
 describe("WhatsApp automation", () => {
   it("does not configure delivery without all required credentials", () => {
@@ -21,5 +21,11 @@ describe("WhatsApp automation", () => {
   it("requires an explicit tenant binding for official automation", () => {
     expect(getConfiguredWhatsAppWorkshopId({})).toBeNull();
     expect(getConfiguredWhatsAppWorkshopId({ WHATSAPP_WORKSHOP_ID: " workshop-a " })).toBe("workshop-a");
+  });
+
+  it("only prepares an automatic ready recipient with consent and a valid phone", () => {
+    expect(normalizeReadyRecipient({ consent: true, phone: "(11) 99999-0000" })).toBe("5511999990000");
+    expect(normalizeReadyRecipient({ consent: false, phone: "(11) 99999-0000" })).toBeNull();
+    expect(normalizeReadyRecipient({ consent: true, phone: "123" })).toBeNull();
   });
 });

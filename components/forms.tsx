@@ -1,6 +1,7 @@
 import { adjustInventoryAction, createCustomerAction, createInventoryItemAction, createServiceCatalogAction, updateCustomerAction } from "../app/actions";
 import type { CustomerSummary, InventorySummary, VehicleSummary } from "../server/ports";
 import { PlateLookupForm } from "./plate-lookup-form";
+import { MoneyInput } from "./money-input";
 
 export function CustomerForm() {
   return <form action={createCustomerAction} className="form-grid">
@@ -48,8 +49,9 @@ export function VehicleEditForm({ vehicle, customers }: { vehicle: VehicleSummar
 export function ServiceCatalogForm() {
   return <form action={createServiceCatalogAction} className="form-grid compact-form">
     <label className="span-2">Nome do serviço<input name="name" required minLength={2} placeholder="Ex.: Troca de óleo" /></label>
-    <label>Preço padrão (R$)<input name="defaultPrice" required inputMode="decimal" placeholder="180,00" /></label>
+    <label>Preço padrão (R$)<MoneyInput name="defaultPrice" required defaultValue="0,00" /></label>
     <label>Retorno sugerido em dias<input name="defaultReturnIntervalDays" type="number" min="1" placeholder="180" /></label>
+    <label>Retorno sugerido em km<input name="defaultReturnIntervalKm" type="number" min="1" placeholder="5000" /></label>
     <button className="primary-button" type="submit">Cadastrar serviço</button>
   </form>;
 }
@@ -59,8 +61,8 @@ export function InventoryItemForm() {
     <label>SKU<input name="sku" placeholder="OLEO-10W30" /></label>
     <label>Nome<input name="name" required placeholder="Óleo 10W30" /></label>
     <label>Unidade<input name="unit" required defaultValue="un" /></label>
-    <label>Custo (R$)<input name="cost" required inputMode="decimal" defaultValue="0,00" /></label>
-    <label>Venda (R$)<input name="salePrice" required inputMode="decimal" defaultValue="0,00" /></label>
+    <label>Custo (R$)<MoneyInput name="cost" required defaultValue="0,00" /></label>
+    <label>Venda (R$)<MoneyInput name="salePrice" required defaultValue="0,00" /></label>
     <label>Quantidade atual<input name="currentQuantity" type="number" min="0" required defaultValue="0" /></label>
     <label>Estoque mínimo<input name="minimumQuantity" type="number" min="0" required defaultValue="0" /></label>
     <button className="primary-button" type="submit">Adicionar item</button>

@@ -107,7 +107,12 @@ export const workOrderPaymentStatus = pgEnum("work_order_payment_status", [
   "cancelled",
 ]);
 export const financialDirection = pgEnum("financial_direction", ["income", "expense", "reserve"]);
-export const financialStatus = pgEnum("financial_status", ["expected", "settled", "cancelled"]);
+export const financialStatus = pgEnum("financial_status", [
+  "expected",
+  "partial",
+  "settled",
+  "cancelled",
+]);
 export const messageOutboxStatus = pgEnum("message_outbox_status", [
   "pending",
   "processing",
@@ -220,6 +225,7 @@ export const serviceCatalogItems = pgTable(
     name: text("name").notNull(),
     defaultPriceCents: integer("default_price_cents").default(0).notNull(),
     defaultReturnIntervalDays: integer("default_return_interval_days"),
+    defaultReturnIntervalKm: integer("default_return_interval_km"),
     active: boolean("active").default(true).notNull(),
     ...timestamps,
   },
@@ -249,6 +255,7 @@ export const serviceRecords = pgTable(
     notes: text("notes"),
     complaint: text("complaint"),
     diagnosis: text("diagnosis"),
+    mechanicNotes: text("mechanic_notes"),
     quoteStatus: quoteStatus("quote_status").default("draft").notNull(),
     quoteToken: uuid("quote_token").defaultRandom().notNull().unique(),
     quoteDiscountCents: integer("quote_discount_cents").default(0).notNull(),
@@ -608,12 +615,60 @@ export const workOrderPayments = pgTable("work_order_payments", {
   check("work_order_payment_installments_positive", sql`${table.installmentCount} > 0`),
 ]);
 
+export const financialCategories = pgTable("financial_categories", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
+  key: text("key").notNull(),
+  name: text("name").notNull(),
+  direction: financialDirection("direction").notNull(),
+  protected: boolean("protected").default(false).notNull(),
+  active: boolean("active").default(true).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("financial_categories_workshop_key_unique").on(table.workshopId, table.key),
+  index("financial_categories_workshop_name_idx").on(table.workshopId, table.name),
+]);
+
+export const financialAccounts = pgTable("financial_accounts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: text("type").default("cash").notNull(),
+  openingBalanceCents: integer("opening_balance_cents").default(0).notNull(),
+  active: boolean("active").default(true).notNull(),
+  systemDefault: boolean("system_default").default(false).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("financial_accounts_workshop_name_unique").on(table.workshopId, table.name),
+  index("financial_accounts_workshop_idx").on(table.workshopId, table.active),
+]);
+
+export const suppliers = pgTable("suppliers", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  document: text("document"),
+  phone: text("phone"),
+  email: text("email"),
+  notes: text("notes"),
+  active: boolean("active").default(true).notNull(),
+  ...timestamps,
+}, (table) => [
+  index("suppliers_workshop_name_idx").on(table.workshopId, table.name),
+  uniqueIndex("suppliers_workshop_document_unique")
+    .on(table.workshopId, table.document)
+    .where(sql`${table.document} is not null`),
+]);
+
 export const financialEntries = pgTable("financial_entries", {
   id: uuid("id").defaultRandom().primaryKey(),
   workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
   serviceRecordId: uuid("service_record_id").references(() => serviceRecords.id, { onDelete: "set null" }),
   paymentId: uuid("payment_id").references(() => workOrderPayments.id, { onDelete: "set null" }),
   collaboratorId: uuid("collaborator_id").references(() => collaborators.id, { onDelete: "set null" }),
+  customerId: uuid("customer_id").references(() => customers.id, { onDelete: "set null" }),
+  supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
+  financialAccountId: uuid("financial_account_id").references(() => financialAccounts.id, { onDelete: "set null" }),
   externalId: text("external_id").notNull(),
   direction: financialDirection("direction").notNull(),
   category: text("category").notNull(),
@@ -626,10 +681,53 @@ export const financialEntries = pgTable("financial_entries", {
   settledAt: timestamp("settled_at", { withTimezone: true }),
   status: financialStatus("status").default("expected").notNull(),
   recurrenceKey: text("recurrence_key"),
+  installmentGroupId: uuid("installment_group_id"),
+  installmentNumber: integer("installment_number").default(1).notNull(),
+  installmentCount: integer("installment_count").default(1).notNull(),
+  documentNumber: text("document_number"),
+  notes: text("notes"),
   ...timestamps,
 }, (table) => [
   uniqueIndex("financial_entries_external_id_unique").on(table.workshopId, table.externalId),
   index("financial_entries_period_idx").on(table.workshopId, table.competenceDate, table.dueDate),
+  index("financial_entries_due_status_idx").on(table.workshopId, table.direction, table.status, table.dueDate),
+  check("financial_entries_installment_positive", sql`${table.installmentNumber} > 0 and ${table.installmentCount} > 0 and ${table.installmentNumber} <= ${table.installmentCount}`),
+]);
+
+export const financialSettlements = pgTable("financial_settlements", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
+  financialEntryId: uuid("financial_entry_id").notNull().references(() => financialEntries.id, { onDelete: "restrict" }),
+  financialAccountId: uuid("financial_account_id").references(() => financialAccounts.id, { onDelete: "set null" }),
+  amountCents: integer("amount_cents").notNull(),
+  feeAmountCents: integer("fee_amount_cents").default(0).notNull(),
+  paymentMethod: text("payment_method"),
+  settledAt: timestamp("settled_at", { withTimezone: true }).notNull(),
+  note: text("note"),
+  reversedAt: timestamp("reversed_at", { withTimezone: true }),
+  reversalNote: text("reversal_note"),
+  ...timestamps,
+}, (table) => [
+  index("financial_settlements_entry_idx").on(table.workshopId, table.financialEntryId, table.settledAt),
+  index("financial_settlements_account_idx").on(table.workshopId, table.financialAccountId, table.settledAt),
+  check("financial_settlements_amount_positive", sql`${table.amountCents} > 0`),
+  check("financial_settlements_fee_nonnegative", sql`${table.feeAmountCents} >= 0 and ${table.feeAmountCents} <= ${table.amountCents}`),
+]);
+
+export const cashSessions = pgTable("cash_sessions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
+  financialAccountId: uuid("financial_account_id").notNull().references(() => financialAccounts.id, { onDelete: "restrict" }),
+  openedAt: timestamp("opened_at", { withTimezone: true }).notNull(),
+  openingBalanceCents: integer("opening_balance_cents").default(0).notNull(),
+  closedAt: timestamp("closed_at", { withTimezone: true }),
+  calculatedClosingCents: integer("calculated_closing_cents"),
+  declaredClosingCents: integer("declared_closing_cents"),
+  note: text("note"),
+  ...timestamps,
+}, (table) => [
+  index("cash_sessions_account_opened_idx").on(table.workshopId, table.financialAccountId, table.openedAt),
+  uniqueIndex("cash_sessions_one_open_per_account").on(table.workshopId, table.financialAccountId).where(sql`${table.closedAt} is null`),
 ]);
 
 export const financialAttachments = pgTable("financial_attachments", {
@@ -688,9 +786,13 @@ export const businessFinExports = pgTable("business_fin_exports", {
   id: uuid("id").defaultRandom().primaryKey(),
   workshopId: uuid("workshop_id").notNull().references(() => workshops.id, { onDelete: "cascade" }),
   financialEntryId: uuid("financial_entry_id").notNull().references(() => financialEntries.id, { onDelete: "cascade" }),
+  settlementId: uuid("settlement_id").references(() => financialSettlements.id, { onDelete: "cascade" }),
   externalId: text("external_id").notNull(),
   exportedAt: timestamp("exported_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [uniqueIndex("business_fin_exports_entry_unique").on(table.workshopId, table.financialEntryId)]);
+}, (table) => [
+  uniqueIndex("business_fin_exports_entry_unique").on(table.workshopId, table.financialEntryId).where(sql`${table.settlementId} is null`),
+  uniqueIndex("business_fin_exports_settlement_unique").on(table.workshopId, table.settlementId).where(sql`${table.settlementId} is not null`),
+]);
 
 export const schema = {
   user, session, account, verification, workshops, customers, vehicles,
@@ -700,7 +802,7 @@ export const schema = {
   workshopIntegrations, messageTemplates, vehicleInspections,
   inspectionDamageMarks, workOrderStatusEvents, workOrderApprovals,
   collaborators, collaboratorServiceRates, workOrderItemAssignments,
-  workOrderPayments, financialEntries, financialAttachments, financialEntryEvents, messageOutbox,
+  workOrderPayments, financialCategories, financialAccounts, suppliers, financialEntries, financialSettlements, cashSessions, financialAttachments, financialEntryEvents, messageOutbox,
   messageDeliveries, businessFinExports,
 };
 
@@ -715,5 +817,10 @@ export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type Collaborator = typeof collaborators.$inferSelect;
 export type WorkOrderPayment = typeof workOrderPayments.$inferSelect;
 export type FinancialEntry = typeof financialEntries.$inferSelect;
+export type FinancialCategory = typeof financialCategories.$inferSelect;
+export type FinancialAccount = typeof financialAccounts.$inferSelect;
+export type Supplier = typeof suppliers.$inferSelect;
+export type FinancialSettlement = typeof financialSettlements.$inferSelect;
+export type CashSession = typeof cashSessions.$inferSelect;
 export type LegacyImportRun = typeof legacyImportRuns.$inferSelect;
 export type LegacyImportMapping = typeof legacyImportMappings.$inferSelect;
